@@ -1,0 +1,45 @@
+{
+  "agents": {
+    "prometheus": {
+      "model": "anthropic/claude-3-5-sonnet",
+      "description": "전체 설계와 실행을 담당하는 PM 모델 (가장 똑똑한 모델 권장)"
+    },
+    "oracle": {
+      "model": "openai/gpt-4o",
+      "description": "로직 분석 및 질문 답변 전용 모델"
+    },
+    "librarian": {
+      "model": "google/gemini-1.5-flash",
+      "description": "문서 검색 및 단순 반복 작업용 (빠르고 저렴한 모델 권장)"
+    },
+    "explore": {
+      "model": "google/gemini-1.5-flash",
+      "description": "코드베이스 구조 탐색 전용"
+    }
+  },
+  "lsp": {
+    "typescript-language-server": {
+      "command": [
+        "typescript-language-server",
+        "--stdio"
+      ],
+      "extensions": [
+        ".ts",
+        ".tsx",
+        ".js",
+        ".jsx"
+      ],
+      "priority": 10
+    },
+    "pyright": {
+      "command": [
+        "pyright-langserver",
+        "--stdio"
+      ],
+      "extensions": [
+        ".py"
+      ],
+      "priority": 10
+    }
+  }
+}

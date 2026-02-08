@@ -1,0 +1,19 @@
+
+> orlando-shin@0.1.0 dev
+> next dev
+
+▲ Next.js 16.1.6 (Turbopack)
+- Local:         http://localhost:3000
+- Network:       http://192.168.219.198:3000
+
+✓ Starting...
+✓ Ready in 1330ms
+  Reload env: .env.local
+  Reload env: .env.local
+ GET / 200 in 1355ms (compile: 992ms, proxy.ts: 188ms, render: 175ms)
+ GET / 200 in 50ms (compile: 4ms, proxy.ts: 7ms, render: 38ms)
+ GET / 200 in 119ms (compile: 14ms, proxy.ts: 29ms, render: 76ms)
+ GET /stock-analysis 200 in 91ms (compile: 55ms, proxy.ts: 11ms, render: 25ms)
+○ Compiling /api/gdrive/sync ...
+ POST /api/gdrive/sync 200 in 5.3s (compile: 4.5s, render: 802ms)
+ POST /api/gdrive/sync 200 in 760ms (compile: 3ms, render: 757ms)
