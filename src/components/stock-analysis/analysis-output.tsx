@@ -8,36 +8,37 @@ import { Progress } from '@/components/ui/progress';
 import { AnalysisResult, InvestmentConditions } from '@/types/stock-analysis';
 
 interface AnalysisOutputProps {
-  result: AnalysisResult | null;
+  results: AnalysisResult[];
   conditions: InvestmentConditions | null;
   isLoading?: boolean;
 }
 
-export function AnalysisOutput({ result, conditions, isLoading }: AnalysisOutputProps) {
+export function AnalysisOutput({ results, conditions, isLoading }: AnalysisOutputProps) {
   if (isLoading) {
     return (
       <Card className="w-full">
         <CardHeader>
           <CardTitle className="text-lg font-semibold flex items-center gap-2">
             <TrendingUp className="h-5 w-5 animate-pulse" />
-            분석 중...
+            시장 유니버스 분석 중...
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <div className="h-4 bg-muted rounded animate-pulse w-3/4" />
-            <div className="h-4 bg-muted rounded animate-pulse w-1/2" />
-            <div className="h-4 bg-muted rounded animate-pulse w-2/3" />
-          </div>
-          <div className="space-y-2">
-            <div className="h-20 bg-muted rounded animate-pulse" />
+          <div className="space-y-4">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="space-y-2 border-b pb-4 last:border-0">
+                <div className="h-6 bg-muted rounded animate-pulse w-1/3" />
+                <div className="h-4 bg-muted rounded animate-pulse w-3/4" />
+                <div className="h-20 bg-muted rounded animate-pulse" />
+              </div>
+            ))}
           </div>
         </CardContent>
       </Card>
     );
   }
 
-  if (!result || !conditions) {
+  if (!conditions) {
     return (
       <Card className="w-full">
         <CardHeader>
@@ -49,8 +50,31 @@ export function AnalysisOutput({ result, conditions, isLoading }: AnalysisOutput
         <CardContent>
           <div className="text-center py-8 text-muted-foreground">
             <AlertCircle className="mx-auto h-12 w-12 mb-4 opacity-50" />
-            <p>투자 조건을 입력하고 분석하기 버튼을 클릭하세요</p>
-            <p className="text-sm mt-2">AI가 업로드된 자료를 학습하여 최적의 기업을 추천해드립니다</p>
+            <p>투자 기간을 설정하고 분석하기 버튼을 클릭하세요</p>
+            <p className="text-sm mt-2">AI 전략을 바탕으로 S&P 500, Russell 1000, Dow Jones 기업 중 최적의 TOP 5를 추천합니다</p>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (results.length === 0) {
+    return (
+      <Card className="w-full border-dashed">
+        <CardHeader>
+          <CardTitle className="text-lg font-semibold flex items-center gap-2 text-muted-foreground">
+            <TrendingUp className="h-5 w-5" />
+            분석 결과 없음
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="text-center py-8 text-muted-foreground">
+            <AlertCircle className="mx-auto h-12 w-12 mb-4 opacity-30" />
+            <p className="font-medium text-foreground">조건에 부합하는 기업을 찾지 못했습니다</p>
+            <p className="text-sm mt-2 max-w-xs mx-auto">
+              학습된 전략이나 시장 상황에 따라 추천 대상이 없을 수 있습니다. 
+              학습 데이터가 충분한지 확인하거나 투자 기간을 조정해보세요.
+            </p>
           </div>
         </CardContent>
       </Card>
@@ -76,90 +100,83 @@ export function AnalysisOutput({ result, conditions, isLoading }: AnalysisOutput
   };
 
   return (
-    <Card className="w-full">
-      <CardHeader className="pb-3">
-        <div className="flex items-center justify-between">
-          <CardTitle className="text-lg font-semibold flex items-center gap-2">
-            <TrendingUp className="h-5 w-5" />
-            분석 결과 (Analysis Result)
-          </CardTitle>
-          {getRiskBadge(result.riskLevel)}
-        </div>
-      </CardHeader>
-      <CardContent className="space-y-6">
-        <div className="grid grid-cols-2 gap-4">
-          <div className="p-4 rounded-lg bg-primary/5 border">
-            <p className="text-sm text-muted-foreground mb-1">추천 기업</p>
-            <p className="text-2xl font-bold">{result.companyName}</p>
-          </div>
-          <div className="p-4 rounded-lg bg-green-50 border border-green-200">
-            <p className="text-sm text-muted-foreground mb-1">예상 수익률</p>
-            <p className="text-2xl font-bold text-green-600">
-              +{result.expectedReturnRate.toFixed(1)}%
-            </p>
-          </div>
-        </div>
-
-        <div className="space-y-2">
-          <div className="flex items-center justify-between">
-            <span className="text-sm font-medium">AI 신뢰도</span>
-            <span className="text-sm text-muted-foreground">{result.confidenceScore}%</span>
-          </div>
-          <Progress value={result.confidenceScore} className="h-2" />
-        </div>
-
-        <div className="space-y-2">
-          <h4 className="text-sm font-medium">분석 근거</h4>
-          <p className="text-sm text-muted-foreground leading-relaxed">
-            {result.reasoning}
-          </p>
-        </div>
-
-        {result.sources.length > 0 && (
-          <div className="space-y-2">
-            <h4 className="text-sm font-medium flex items-center gap-2">
-              <CheckCircle className="h-4 w-4 text-green-500" />
-              참고 자료
-            </h4>
-            <div className="space-y-2">
-              {result.sources.map((source, index) => (
-                <div
-                  key={index}
-                  className="flex items-start gap-3 p-3 rounded-lg border bg-muted/50"
-                >
-                  {getSourceIcon(source.type)}
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium truncate">{source.fileName}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {source.type === 'pdf' ? `페이지 ${source.pageOrTimestamp}` : `타임스탬프 ${source.pageOrTimestamp}`}
-                    </p>
-                    <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
-                      {source.content}
-                    </p>
-                  </div>
+    <div className="space-y-6">
+      <h3 className="text-xl font-bold flex items-center gap-2 px-1">
+        <TrendingUp className="h-6 w-6 text-primary" />
+        AI 추천 TOP 5 기업
+      </h3>
+      
+      {results.map((result, idx) => (
+        <Card key={result.ticker || idx} className="w-full overflow-hidden border-l-4 border-l-primary">
+          <CardHeader className="pb-3 bg-muted/30">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <Badge variant="outline" className="text-lg font-bold px-3 py-1">#{idx + 1}</Badge>
+                <div>
+                  <CardTitle className="text-xl font-bold">{result.companyName}</CardTitle>
+                  <p className="text-sm text-muted-foreground">{result.ticker} • {result.market}</p>
                 </div>
-              ))}
+              </div>
+              <div className="text-right">
+                <p className="text-xs text-muted-foreground mb-1">예상 수익률</p>
+                <p className="text-2xl font-black text-green-600">
+                  +{result.expectedReturnRate.toFixed(1)}%
+                </p>
+              </div>
             </div>
-          </div>
-        )}
+          </CardHeader>
+          <CardContent className="space-y-6 pt-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="font-medium">AI 분석 신뢰도</span>
+                    <span className="font-bold">{result.confidenceScore}%</span>
+                  </div>
+                  <Progress value={result.confidenceScore} className="h-2" />
+                </div>
+                
+                <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50 border">
+                  <span className="text-sm font-medium">리스크 평가</span>
+                  {getRiskBadge(result.riskLevel)}
+                </div>
+              </div>
 
-        <div className="pt-4 border-t">
-          <div className="flex items-center justify-between text-sm">
-            <span className="text-muted-foreground">투자 금액</span>
-            <span className="font-medium">{conditions.amount.toLocaleString()}원</span>
-          </div>
-          <div className="flex items-center justify-between text-sm mt-2">
-            <span className="text-muted-foreground">투자 기간</span>
-            <span className="font-medium">{conditions.periodMonths}개월</span>
-          </div>
-          <div className="flex items-center justify-between text-sm mt-2 pt-2 border-t">
-            <span className="text-muted-foreground">예상 수익</span>
-            <span className="font-bold text-green-600">
-              +{Math.round(conditions.amount * (result.expectedReturnRate / 100)).toLocaleString()}원
-            </span>
-          </div>
-        </div>
-      </CardContent>
-    </Card>
+              <div className="space-y-2">
+                <h4 className="text-sm font-bold flex items-center gap-2">
+                  <CheckCircle className="h-4 w-4 text-primary" />
+                  투자 논거
+                </h4>
+                <p className="text-sm text-muted-foreground leading-relaxed">
+                  {result.reasoning}
+                </p>
+              </div>
+            </div>
+
+            {result.sources.length > 0 && (
+              <div className="pt-4 border-t">
+                <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
+                  학습 근거 데이터
+                </h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {result.sources.slice(0, 2).map((source, sIdx) => (
+                    <div
+                      key={sIdx}
+                      className="flex items-start gap-2 p-2 rounded border bg-muted/20 text-xs"
+                    >
+                      {getSourceIcon(source.type)}
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium truncate">{source.fileName}</p>
+                        <p className="text-muted-foreground line-clamp-1">{source.content}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      ))}
+    </div>
   );
 }

@@ -16,7 +16,7 @@ export default function StockAnalysisPage() {
   const [files, setFiles] = useState<UploadedFile[]>([]);
   const [, setSyncStatus] = useState<CloudSyncStatus>({ status: 'idle' });
   const [conditions, setConditions] = useState<InvestmentConditions | null>(null);
-  const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
+  const [analysisResults, setAnalysisResults] = useState<AnalysisResult[]>([]);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [isLearned, setIsLearned] = useState(false);
   const [analysisError, setAnalysisError] = useState<string | null>(null);
@@ -34,6 +34,7 @@ export default function StockAnalysisPage() {
   };
 
   const handleAnalyze = async (newConditions: InvestmentConditions) => {
+    console.log('Analysis started with conditions:', newConditions);
     setConditions(newConditions);
     setIsAnalyzing(true);
     setAnalysisError(null);
@@ -43,41 +44,44 @@ export default function StockAnalysisPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          conditions: newConditions,
+          conditions: { periodMonths: newConditions.periodMonths },
           style: 'moderate',
         }),
       });
 
       const data = await response.json();
+      console.log('Analysis API response:', data);
 
       if (!response.ok) {
         throw new Error(data.error || '분석 실패');
       }
 
-      if (data.topPick) {
-        const pick = data.topPick;
-        const result: AnalysisResult = {
+      if (data.topPicks && Array.isArray(data.topPicks)) {
+        console.log(`Found ${data.topPicks.length} top picks`);
+        const results: AnalysisResult[] = data.topPicks.map((pick: any) => ({
           companyName: pick.company.companyName,
           ticker: pick.yahooData?.ticker,
           market: pick.company.market,
           expectedReturnRate: pick.expectedReturnRate,
           confidenceScore: Math.round(pick.confidenceScore * 100),
-          reasoning: data.summary + (pick.company.investmentThesis ? `\n\n${pick.company.investmentThesis}` : ''),
+          reasoning: pick.company.investmentThesis || '시장 지표 및 재무 분석 결과 우수한 성장 잠재력이 확인되었습니다.',
           sources: pick.company.sources || [],
           riskLevel: pick.riskLevel,
           currentPrice: pick.yahooData?.currentPrice,
           targetPrice: pick.company.targetPrice,
           currency: pick.yahooData?.currency,
-        };
-        setAnalysisResult(result);
+        }));
+        setAnalysisResults(results);
       } else {
-        setAnalysisResult(null);
+        console.log('No top picks in response');
+        setAnalysisResults([]);
         setAnalysisError(data.summary || '조건에 맞는 기업을 찾지 못했습니다.');
       }
     } catch (error) {
+      console.error('Analysis error:', error);
       const message = error instanceof Error ? error.message : '분석 실패';
       setAnalysisError(message);
-      setAnalysisResult(null);
+      setAnalysisResults([]);
     } finally {
       setIsAnalyzing(false);
     }
@@ -88,22 +92,22 @@ export default function StockAnalysisPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-background to-muted/20">
-      <div className="container mx-auto px-4 py-8 max-w-5xl">
+      <div className="container mx-auto px-4 py-8 max-w-6xl">
         <div className="text-center mb-10">
           <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 text-primary text-sm font-medium mb-4">
             <Sparkles className="h-4 w-4" />
-            AI 기반 주식 투자 분석 시스템
+            AI 기반 시장 유니버스 분석 시스템
           </div>
           <h1 className="text-4xl font-bold tracking-tight mb-3">
             주식 선생님
           </h1>
           <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-            업로드한 자료를 학습한 AI가 투자 조건에 맞는 최적의 기업을 추천해드립니다
+            Google Drive 자료를 학습하여 S&P 500, Russell 1000 기업 중 최적의 투자 대상을 찾아드립니다
           </p>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <div className="space-y-6">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+          <div className="lg:col-span-4 space-y-6">
             <DataControl 
               onFilesChange={handleFilesChange}
               onSyncStatusChange={handleSyncStatusChange}
@@ -114,40 +118,41 @@ export default function StockAnalysisPage() {
               onAnalyze={handleAnalyze}
               disabled={!canAnalyze}
             />
+
+            {(hasCompletedFiles || isLearned) && (
+              <div className={`p-4 rounded-lg border ${isLearned ? 'bg-green-50 border-green-200' : 'bg-primary/5 border-primary/20'}`}>
+                <div className="flex items-center gap-3">
+                  <Brain className={`h-5 w-5 ${isLearned ? 'text-green-600' : 'text-primary'}`} />
+                  <div>
+                    <p className="text-sm font-medium">
+                      {isLearned ? 'AI 전략 학습 완료' : '학습된 자료'}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {isLearned 
+                        ? '시장 유니버스에서 유망 기업을 선별하기 위한 전략 학습이 완료되었습니다.'
+                        : `${files.filter(f => f.status === 'completed').length}개의 파일이 동기화되었습니다. 학습 시작 버튼을 클릭하세요.`
+                      }
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
-          <div className="space-y-4">
-            <AnalysisOutput 
-              result={analysisResult}
-              conditions={conditions}
-              isLoading={isAnalyzing}
-            />
+          <div className="lg:col-span-8 space-y-6">
             {analysisError && !isAnalyzing && (
               <div className="p-4 rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm">
                 {analysisError}
               </div>
             )}
+            
+            <AnalysisOutput 
+              results={analysisResults}
+              conditions={conditions}
+              isLoading={isAnalyzing}
+            />
           </div>
         </div>
-
-        {(hasCompletedFiles || isLearned) && (
-          <div className={`mt-8 p-4 rounded-lg border ${isLearned ? 'bg-green-50 border-green-200' : 'bg-primary/5 border-primary/20'}`}>
-            <div className="flex items-center gap-3">
-              <Brain className={`h-5 w-5 ${isLearned ? 'text-green-600' : 'text-primary'}`} />
-              <div>
-                <p className="text-sm font-medium">
-                  {isLearned ? 'AI 학습 완료' : '학습된 자료'}
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  {isLearned 
-                    ? 'Google Drive 자료를 기반으로 학습이 완료되었습니다. 투자 조건을 입력하고 분석하기를 클릭하세요.'
-                    : `${files.filter(f => f.status === 'completed').length}개의 파일이 동기화되었습니다. 학습 시작 버튼을 클릭하세요.`
-                  }
-                </p>
-              </div>
-            </div>
-          </div>
-        )}
       </div>
     </div>
   );

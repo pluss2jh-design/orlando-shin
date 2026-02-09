@@ -7,7 +7,7 @@ import type {
 } from '@/types/stock-analysis';
 
 interface AnalysisRequestBody {
-  conditions: InvestmentConditions;
+  conditions: { periodMonths: number };
   style?: InvestmentStyle;
 }
 
@@ -15,16 +15,9 @@ export async function POST(request: NextRequest) {
   try {
     const body = (await request.json()) as AnalysisRequestBody;
 
-    if (!body.conditions?.amount || !body.conditions?.periodMonths) {
+    if (!body.conditions?.periodMonths) {
       return NextResponse.json(
-        { error: '투자금(amount)과 투자기간(periodMonths)이 필요합니다.' },
-        { status: 400 }
-      );
-    }
-
-    if (body.conditions.amount <= 0) {
-      return NextResponse.json(
-        { error: '투자금은 0보다 커야 합니다.' },
+        { error: '투자기간(periodMonths)이 필요합니다.' },
         { status: 400 }
       );
     }
@@ -37,7 +30,7 @@ export async function POST(request: NextRequest) {
     }
 
     const knowledge = await getLearnedKnowledge();
-    if (!knowledge || knowledge.companies.length === 0) {
+    if (!knowledge) {
       return NextResponse.json(
         { error: '학습된 데이터가 없습니다. 먼저 Google Drive 동기화 후 학습을 시작해주세요.' },
         { status: 400 }
@@ -45,9 +38,8 @@ export async function POST(request: NextRequest) {
     }
 
     const result = await runAnalysisEngine(
-      knowledge.companies,
-      body.conditions,
-      knowledge.criteria,
+      { amount: 0, periodMonths: body.conditions.periodMonths },
+      knowledge,
       body.style ?? 'moderate'
     );
 

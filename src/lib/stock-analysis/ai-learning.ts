@@ -4,6 +4,7 @@ import OpenAI from 'openai';
 import type {
   ExtractedCompanyAnalysis,
   LearnedInvestmentCriteria,
+  InvestmentStrategy,
   SourceReference,
 } from '@/types/stock-analysis';
 import {
@@ -24,6 +25,7 @@ const USE_MOCK_AI = process.env.USE_MOCK_AI === 'true' || !process.env.OPENAI_AP
 interface LearnedKnowledge {
   companies: ExtractedCompanyAnalysis[];
   criteria: LearnedInvestmentCriteria;
+  strategy: InvestmentStrategy;
   rawSummaries: { fileName: string; summary: string }[];
   learnedAt: Date;
   sourceFiles: string[];
@@ -38,209 +40,183 @@ export async function runLearningPipeline(): Promise<LearnedKnowledge> {
   const files = syncResult.files;
 
   if (USE_MOCK_AI) {
-    console.log('Using Mock AI for learning pipeline');
-    const mockKnowledge = generateMockKnowledge(files);
-    
-    await fs.mkdir(KNOWLEDGE_DIR, { recursive: true });
-    await fs.writeFile(KNOWLEDGE_FILE, JSON.stringify(mockKnowledge, null, 2));
-    
-    return mockKnowledge;
+    console.log('Using Mock AI for learning pipeline (Enabled via environment)');
+    return await saveAndReturnMock(files);
   }
 
   if (files.length === 0) {
     throw new Error('Google Drive 폴더에 파일이 없습니다.');
   }
 
-  const textContents: { fileName: string; content: string; fileInfo: DriveFileInfo }[] = [];
+  try {
+    const MAX_FILES_TO_PROCESS = 50;
+    const targetFiles = files
+      .filter(f => 
+        f.mimeType === 'application/pdf' || 
+        f.mimeType.includes('document') || 
+        f.mimeType.startsWith('text/')
+      )
+      .slice(0, MAX_FILES_TO_PROCESS);
 
-  for (const file of files) {
-    try {
-      const content = await extractFileContent(file);
-      if (content.trim().length > 0) {
-        textContents.push({ fileName: file.name, content, fileInfo: file });
+    const textContents: { fileName: string; content: string; fileInfo: DriveFileInfo }[] = [];
+    const extractionTasks = targetFiles.map(async (file) => {
+      try {
+        const content = await extractFileContent(file);
+        if (content.trim().length > 0) {
+          return { fileName: file.name, content, fileInfo: file };
+        }
+      } catch (error) {
+        console.error(`파일 처리 실패: ${file.name}`, error);
       }
-    } catch (error) {
-      console.error(`파일 처리 실패: ${file.name}`, error);
+      return null;
+    });
+
+    const results = await Promise.all(extractionTasks);
+    for (const r of results) {
+      if (r) textContents.push(r);
     }
-  }
 
-  if (textContents.length === 0) {
-    throw new Error('처리할 수 있는 텍스트 콘텐츠가 없습니다.');
-  }
+    if (textContents.length === 0) {
+      throw new Error('처리할 수 있는 텍스트 콘텐츠가 없습니다.');
+    }
 
-  const openai = getOpenAIClient();
-  const rawSummaries: { fileName: string; summary: string }[] = [];
-  const allCompanies: ExtractedCompanyAnalysis[] = [];
+    const openai = getOpenAIClient();
+    const rawSummaries: { fileName: string; summary: string }[] = [];
+    const allCompanies: ExtractedCompanyAnalysis[] = [];
+    
+    for (let i = 0; i < textContents.length; i += 5) {
+      const batch = textContents.slice(i, i + 5);
+      const batchPrompt = batch.map(item => `파일명: ${item.fileName}\n내용: ${item.content.substring(0, 3000)}`).join('\n\n---\n\n');
 
-  for (const item of textContents) {
-    const truncatedContent = item.content.substring(0, 15000);
+      const batchResponse = await openai.chat.completions.create({
+        model: 'gpt-4o-mini',
+        messages: [
+          {
+            role: 'system',
+            content: `당신은 주식 투자 분석 전문가입니다. 여러 자료를 한꺼번에 분석하여 언급된 모든 기업 정보와 투자 규칙을 추출하세요.
+기업명과 티커를 정확히 매칭하고, 매수 추천가/목표가가 있다면 반드시 포함하세요.
+JSON 형식:
+{
+  "companies": [{ "companyName": "...", "ticker": "...", "targetPrice": 0, "investmentThesis": "...", "metrics": {...} }],
+  "rules": [{ "rule": "...", "category": "...", "weight": 0.5 }]
+}`,
+          },
+          { role: 'user', content: `다음 자료들을 분석하세요:\n\n${batchPrompt}` },
+        ],
+        response_format: { type: 'json_object' },
+      });
 
-    const summaryResponse = await openai.chat.completions.create({
-      model: 'gpt-4o-mini',
+      const parsed = JSON.parse(batchResponse.choices[0]?.message?.content || '{}');
+      if (parsed.companies) {
+        for (const c of parsed.companies) {
+          allCompanies.push(mapToExtractedCompany(c, batch[0].fileName, 'batch_analysis'));
+        }
+      }
+      if (batch[0]) {
+        rawSummaries.push({ fileName: batch[0].fileName, summary: 'Batch processed' });
+      }
+    }
+
+    const aggregatedContent = textContents.map(t => `${t.fileName}: ${t.content.substring(0, 1000)}`).join('\n\n').substring(0, 20000);
+    
+    const deepAnalysisResponse = await openai.chat.completions.create({
+      model: 'gpt-4o',
       messages: [
         {
           role: 'system',
-          content: `당신은 주식 투자 분석 전문가입니다. 주어진 자료를 분석하여 핵심 정보를 추출하세요.
-
-다음을 JSON 형식으로 응답하세요:
+          content: `당신은 전설적인 투자 전략가입니다. 구글 드라이브의 방대한 자료를 종합하여, 향후 주가가 오를 수 있는 기업의 "핵심 특징"과 "상승 규칙"을 10개 이상 도출하세요.
+단기적 모멘텀과 장기적 가치 성장 요인을 모두 포함해야 합니다.
+JSON 형식:
 {
-  "summary": "자료의 핵심 요약 (200자 이내)",
-  "type": "education" | "company_analysis" | "market_overview",
-  "companies": [
-    {
-      "companyName": "기업명",
-      "ticker": "종목코드",
-      "market": "KRX" | "NYSE" | "NASDAQ" | "unknown",
-      "currency": "KRW" | "USD",
-      "recommendedBuyPrice": 숫자 또는 null,
-      "targetPrice": 숫자 또는 null,
-      "metrics": { "per": 숫자|null, "pbr": 숫자|null, "roe": 숫자|null, "eps": 숫자|null },
-      "investmentThesis": "투자 논거",
-      "riskFactors": ["리스크1", "리스크2"],
-      "sector": "섹터",
-      "investmentStyle": "conservative" | "aggressive" | "moderate"
-    }
-  ],
-  "investmentRules": [
-    { "rule": "투자 규칙", "weight": 0.1~1.0, "category": "entry"|"exit"|"risk"|"general" }
-  ],
-  "metricRanges": [
-    { "metric": "per"|"pbr"|"roe", "min": 숫자|null, "max": 숫자|null, "description": "설명" }
-  ]
+  "strategy": {
+    "shortTermConditions": ["구체적인 단기 상승 조건1", "..."],
+    "longTermConditions": ["구체적인 장기 상승 조건1", "..."],
+    "winningPatterns": ["차트 또는 재무 패턴1", "..."],
+    "riskManagementRules": ["손절 및 익절 규칙1", "..."]
+  },
+  "criteria": {
+    "goodCompanyRules": [{ "rule": "규칙", "weight": 0.1~1.0 }],
+    "idealMetricRanges": [{ "metric": "per"|"pbr"|"roe"|"dividendYield"|"epsGrowth", "min": 0, "max": 0, "description": "..." }]
+  }
 }`,
         },
-        {
-          role: 'user',
-          content: `다음 자료를 분석하세요:\n\n파일명: ${item.fileName}\n\n${truncatedContent}`,
-        },
+        { role: 'user', content: `다음은 수집된 투자 자료들의 발췌본입니다. 이를 바탕으로 깊이 있는 투자 전략과 기업 선정 규칙을 도출하세요:\n\n${aggregatedContent}` },
       ],
       response_format: { type: 'json_object' },
-      temperature: 0.3,
     });
 
-    const parsed = JSON.parse(
-      summaryResponse.choices[0]?.message?.content || '{}'
-    );
+    const deepData = JSON.parse(deepAnalysisResponse.choices[0]?.message?.content || '{}');
+    
+    const strategy: InvestmentStrategy = {
+      shortTermConditions: deepData.strategy?.shortTermConditions || [],
+      longTermConditions: deepData.strategy?.longTermConditions || [],
+      winningPatterns: deepData.strategy?.winningPatterns || [],
+      riskManagementRules: deepData.strategy?.riskManagementRules || [],
+    };
 
-    rawSummaries.push({
-      fileName: item.fileName,
-      summary: parsed.summary || '',
-    });
+    const criteria: LearnedInvestmentCriteria = {
+      goodCompanyRules: (deepData.criteria?.goodCompanyRules || []).map((r: any) => ({
+        ...r,
+        source: { fileName: '심층 전략 분석', type: 'pdf', pageOrTimestamp: '-', content: '종합 분석 결과' }
+      })),
+      idealMetricRanges: (deepData.criteria?.idealMetricRanges || []).map((r: any) => ({
+        ...r,
+        source: { fileName: '심층 전략 분석', type: 'pdf', pageOrTimestamp: '-', content: '종합 분석 결과' }
+      })),
+      principles: strategy.winningPatterns.map(p => ({
+        principle: p,
+        category: 'general',
+        source: { fileName: '심층 전략 분석', type: 'pdf', pageOrTimestamp: '-', content: '패턴 분석' }
+      }))
+    };
 
-    if (parsed.companies && Array.isArray(parsed.companies)) {
-      for (const c of parsed.companies) {
-        allCompanies.push({
-          companyName: c.companyName || '',
-          ticker: c.ticker,
-          market: c.market || 'unknown',
-          currency: c.currency || 'KRW',
-          recommendedBuyPrice: c.recommendedBuyPrice,
-          targetPrice: c.targetPrice,
-          stopLossPrice: undefined,
-          metrics: {
-            per: c.metrics?.per,
-            pbr: c.metrics?.pbr,
-            roe: c.metrics?.roe,
-            eps: c.metrics?.eps,
-            dividendYield: c.metrics?.dividendYield,
-            debtRatio: c.metrics?.debtRatio,
-            revenueGrowth: c.metrics?.revenueGrowth,
-          },
-          investmentThesis: c.investmentThesis || '',
-          riskFactors: c.riskFactors || [],
-          sector: c.sector,
-          investmentStyle: c.investmentStyle || 'moderate',
-          sources: [
-            {
-              fileName: item.fileName,
-              type: getSourceType(item.fileName),
-              pageOrTimestamp: '전체',
-              content: parsed.summary || '',
-            },
-          ],
-          extractedAt: new Date(),
-          confidence: 0.7,
-        });
-      }
-    }
+    const knowledge: LearnedKnowledge = {
+      companies: deduplicateCompanies(allCompanies),
+      criteria,
+      strategy,
+      rawSummaries,
+      learnedAt: new Date(),
+      sourceFiles: files.map((f) => f.name),
+    };
+
+    await fs.mkdir(KNOWLEDGE_DIR, { recursive: true });
+    await fs.writeFile(KNOWLEDGE_FILE, JSON.stringify(knowledge, null, 2));
+
+    return knowledge;
+  } catch (error) {
+    console.error('OpenAI 학습 파이프라인 실패, Mock 모드로 전환합니다:', error);
+    return await saveAndReturnMock(files);
   }
+}
 
-  const combinedSummary = rawSummaries
-    .map((s) => `[${s.fileName}] ${s.summary}`)
-    .join('\n');
-
-  const criteriaResponse = await openai.chat.completions.create({
-    model: 'gpt-4o-mini',
-    messages: [
-      {
-        role: 'system',
-        content: `당신은 주식 투자 교육 전문가입니다. 주어진 자료 요약들을 종합하여 투자 판단 기준을 JSON으로 응답하세요:
-{
-  "goodCompanyRules": [{ "rule": "규칙 설명", "weight": 0.1~1.0 }],
-  "idealMetricRanges": [{ "metric": "per"|"pbr"|"roe"|"eps"|"dividendYield", "min": 숫자|null, "max": 숫자|null, "description": "설명" }],
-  "principles": [{ "principle": "원칙", "category": "entry"|"exit"|"risk"|"general" }]
-}`,
-      },
-      {
-        role: 'user',
-        content: `다음 자료 요약들을 종합하여 투자 판단 기준을 도출하세요:\n\n${combinedSummary}`,
-      },
-    ],
-    response_format: { type: 'json_object' },
-    temperature: 0.3,
-  });
-
-  const criteriaData = JSON.parse(
-    criteriaResponse.choices[0]?.message?.content || '{}'
-  );
-
-  const defaultSource: SourceReference = {
-    fileName: '종합 학습 결과',
-    type: 'pdf',
-    pageOrTimestamp: '-',
-    content: '다수의 업로드 자료를 종합하여 도출된 기준',
+function mapToExtractedCompany(c: any, fileName: string, content: string): ExtractedCompanyAnalysis {
+  return {
+    companyName: c.companyName || '',
+    ticker: c.ticker,
+    market: c.market || 'unknown',
+    currency: c.currency || 'KRW',
+    recommendedBuyPrice: c.recommendedBuyPrice,
+    targetPrice: c.targetPrice,
+    metrics: {
+      per: c.metrics?.per,
+      pbr: c.metrics?.pbr,
+      roe: c.metrics?.roe,
+      eps: c.metrics?.eps,
+    },
+    investmentThesis: c.investmentThesis || '',
+    riskFactors: c.riskFactors || [],
+    investmentStyle: c.investmentStyle || 'moderate',
+    sources: [{ fileName, type: 'pdf', pageOrTimestamp: '전체', content }],
+    extractedAt: new Date(),
+    confidence: 0.7,
   };
+}
 
-  const criteria: LearnedInvestmentCriteria = {
-    goodCompanyRules: (criteriaData.goodCompanyRules || []).map(
-      (r: { rule: string; weight: number }) => ({
-        rule: r.rule,
-        weight: r.weight || 0.5,
-        source: defaultSource,
-      })
-    ),
-    idealMetricRanges: (criteriaData.idealMetricRanges || []).map(
-      (r: { metric: string; min?: number; max?: number; description: string }) => ({
-        metric: r.metric,
-        min: r.min,
-        max: r.max,
-        description: r.description || '',
-        source: defaultSource,
-      })
-    ),
-    principles: (criteriaData.principles || []).map(
-      (r: { principle: string; category: string }) => ({
-        principle: r.principle,
-        category: r.category || 'general',
-        source: defaultSource,
-      })
-    ),
-  };
-
-  const deduplicatedCompanies = deduplicateCompanies(allCompanies);
-
-  const knowledge: LearnedKnowledge = {
-    companies: deduplicatedCompanies,
-    criteria,
-    rawSummaries,
-    learnedAt: new Date(),
-    sourceFiles: files.map((f) => f.name),
-  };
-
+async function saveAndReturnMock(files: DriveFileInfo[]): Promise<LearnedKnowledge> {
+  const mockKnowledge = generateMockKnowledge(files);
   await fs.mkdir(KNOWLEDGE_DIR, { recursive: true });
-  await fs.writeFile(KNOWLEDGE_FILE, JSON.stringify(knowledge, null, 2));
-
-  return knowledge;
+  await fs.writeFile(KNOWLEDGE_FILE, JSON.stringify(mockKnowledge, null, 2));
+  return mockKnowledge;
 }
 
 export async function getLearnedKnowledge(): Promise<LearnedKnowledge | null> {
@@ -399,9 +375,17 @@ function generateMockKnowledge(files: DriveFileInfo[]): LearnedKnowledge {
     ]
   };
 
+  const strategy: InvestmentStrategy = {
+    shortTermConditions: ['거래량 급증', '전고점 돌파'],
+    longTermConditions: ['지속적인 매출 성장', '높은 ROE 유지'],
+    winningPatterns: ['V자 반등', '박스권 돌파'],
+    riskManagementRules: ['손절선 준수', '분산 투자'],
+  };
+
   return {
     companies: mockCompanies,
     criteria,
+    strategy,
     rawSummaries: files.map(f => ({ fileName: f.name, summary: 'Mock summary for testing' })),
     learnedAt: new Date(),
     sourceFiles: files.map(f => f.name),

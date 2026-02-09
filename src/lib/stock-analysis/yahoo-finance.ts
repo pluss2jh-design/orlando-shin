@@ -81,6 +81,33 @@ export async function resolveTickerSymbol(
   }
 }
 
+export async function fetchBatchQuotes(tickers: string[]): Promise<YahooFinanceData[]> {
+  const quotes = await yahooFinance.quote(tickers);
+  const results: YahooFinanceData[] = [];
+
+  for (const q of quotes) {
+    const currency = detectTickerCurrency(q.symbol, q.currency);
+    results.push({
+      ticker: q.symbol,
+      currency,
+      currentPrice: q.regularMarketPrice ?? 0,
+      previousClose: q.regularMarketPreviousClose ?? 0,
+      fiftyTwoWeekHigh: q.fiftyTwoWeekHigh ?? 0,
+      fiftyTwoWeekLow: q.fiftyTwoWeekLow ?? 0,
+      targetMeanPrice: (q as any).targetMeanPrice,
+      trailingPE: q.trailingPE,
+      forwardPE: q.forwardPE,
+      priceToBook: q.priceToBook,
+      dividendYield: q.dividendYield,
+      marketCap: q.marketCap,
+      priceHistory: [],
+      fetchedAt: new Date(),
+    });
+  }
+
+  return results;
+}
+
 export async function fetchYahooFinanceData(
   ticker: string,
   periodMonths: number

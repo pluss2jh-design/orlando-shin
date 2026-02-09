@@ -56,29 +56,53 @@ function getGoogleDriveClient() {
   );
 }
 
-export async function listDriveFiles(): Promise<SyncResult> {
+export async function listDriveFiles(
+  folderId: string = GOOGLE_DRIVE_FOLDER_ID,
+  depth: number = 0
+): Promise<SyncResult> {
+  if (depth > 5) return { files: [], totalCount: 0, syncedAt: new Date() };
+
   const drive = getGoogleDriveClient();
+  const allFiles: DriveFileInfo[] = [];
+  let nextPageToken: string | undefined = undefined;
 
-  const response = await drive.files.list({
-    q: `'${GOOGLE_DRIVE_FOLDER_ID}' in parents and trashed = false`,
-    fields: 'files(id, name, mimeType, size, modifiedTime)',
-    orderBy: 'modifiedTime desc',
-    pageSize: 100,
-  });
+  try {
+    do {
+      const response: any = await drive.files.list({
+        q: `'${folderId}' in parents and trashed = false`,
+        fields: 'nextPageToken, files(id, name, mimeType, size, modifiedTime)',
+        orderBy: 'modifiedTime desc',
+        pageSize: 100,
+        pageToken: nextPageToken,
+      });
 
-  const files: DriveFileInfo[] = (response.data.files || []).map((f) => ({
-    id: f.id || '',
-    name: f.name || '',
-    mimeType: f.mimeType || '',
-    size: f.size || '0',
-    modifiedTime: f.modifiedTime || '',
-  }));
+      const driveFiles = response.data.files || [];
+      for (const f of driveFiles) {
+        if (f.mimeType === 'application/vnd.google-apps.folder') {
+          const subFiles = await listDriveFiles(f.id!, depth + 1);
+          allFiles.push(...subFiles.files);
+        } else {
+          allFiles.push({
+            id: f.id || '',
+            name: f.name || '',
+            mimeType: f.mimeType || '',
+            size: f.size || '0',
+            modifiedTime: f.modifiedTime || '',
+          });
+        }
+      }
+      nextPageToken = response.data.nextPageToken;
+    } while (nextPageToken);
 
-  return {
-    files,
-    totalCount: files.length,
-    syncedAt: new Date(),
-  };
+    return {
+      files: allFiles,
+      totalCount: allFiles.length,
+      syncedAt: new Date(),
+    };
+  } catch (error) {
+    console.error(`Error listing files for folder ${folderId}:`, error);
+    return { files: [], totalCount: 0, syncedAt: new Date() };
+  }
 }
 
 export async function downloadDriveFile(

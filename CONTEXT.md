@@ -1,5 +1,41 @@
 # Project Context History
 
+## 2026-02-09
+
+### 시장 유니버스 기반 심층 학습 및 분석 시스템 고도화
+
+#### 개선된 기능
+1. **심층 학습 파이프라인 강화 (`ai-learning.ts`)**
+   - 단순 기업 추출을 넘어, 자료 전체를 관통하는 **핵심 투자 전략(Investment Strategy)** 추출 로직 추가
+   - 장기/단기 주가 상승 조건, 승리하는 패턴, 리스크 관리 규칙을 별도 파일로 정리 및 저장
+   - OpenAI 할당량 초과 시를 대비한 Mock 전략 데이터 생성 로직 고도화
+
+2. **시장 유니버스 확장 및 스크리닝 (`universe.ts`, `analysis-engine.ts`)**
+   - **S&P 500, Russell 1000, Dow Jones** 기업들을 포함하는 시장 유니버스 구성
+   - 대규모 기업 리스트를 효율적으로 분석하기 위한 **2단계 스크리닝** 도입:
+     - 1단계: 배치 조회를 통한 기초 재무지표 및 전략 부합도 스크리닝 (Top 15 선정)
+     - 2단계: 선정된 우수 기업에 대한 히스토리컬 데이터 기반 심층 분석 (수익률, 변동성, 도달 가능성)
+
+3. **UI/UX 전면 개편**
+   - **투자 금액 입력 제거**: 사용자의 자산 규모와 상관없이 순수하게 오를 가능성이 높은 기업 발굴에 집중
+   - **TOP 5 기업 추천**: 단일 기업 추천에서 유니버스 내 상위 5개 기업을 랭킹 순으로 표시하도록 확장
+   - **상세 분석 카드**: 각 기업별 순위, 티커, 시장 정보, 기대 수익률, 분석 신뢰도, 투자 논거를 한눈에 볼 수 있는 상세 UI 구현
+
+4. **API 고도화**
+   - `/api/analysis`: 개별 기업 리스트가 아닌, 학습된 전략과 시장 유니버스를 결합하여 실시간으로 유망 기업을 선별하도록 로직 수정
+
+#### 신규 및 수정 파일
+- `src/lib/stock-analysis/universe.ts`: 시장 유니버스(S&P 500 등) 티커 관리 유틸리티
+- `src/lib/stock-analysis/ai-learning.ts`: 투자 전략 추출 로직 추가
+- `src/lib/stock-analysis/analysis-engine.ts`: 유니버스 스크리닝 및 TOP 5 랭킹 로직 구현
+- `src/components/stock-analysis/investment-input.tsx`: 투자 금액 입력부 제거
+- `src/components/stock-analysis/analysis-output.tsx`: TOP 5 기업 표시용 멀티 카드 UI 구현
+- `src/app/stock-analysis/page.tsx`: 고도화된 분석 프로세스 통합 및 레이아웃 개선
+
+#### 주요 변경사항
+- 하드코딩된 삼성전자 단일 응답에서 벗어나, **미국 및 한국 주요 시장 전체**를 대상으로 AI 전략에 부합하는 최적의 포트폴리오를 구성합니다.
+- 투자 기간(단기/장기)에 따라 AI가 추출한 서로 다른 필터링 조건을 적용하여 분석 결과의 정확도를 높였습니다.
+
 ## 2026-02-08
 
 ### 주식 투자 분석 시스템 (Stock Analysis System) 구현
@@ -249,3 +285,23 @@
 #### 주요 변경사항
 - 삼성전자 23.5% 하드코딩 제거 → 실제 Google Drive 자료 + Yahoo Finance 실시간 데이터 기반 분석
 - 학습 결과 파일(`learned-knowledge.json`) 영구 저장 → 재분석 시 빠른 로딩
+
+### Google Drive 폴더 재귀적 탐색 및 AI 학습 안정화 (2026-02-08)
+
+#### 개선된 기능
+1. **Google Drive 재귀적 탐색 (`src/lib/google-drive/index.ts`)**
+   - 하위 폴더(최대 depth 2)까지 재귀적으로 탐색하여 파일을 수집하도록 개선
+   - 사용자가 공유한 폴더 내부의 구조화된 자료(강의 영상, PDF 등)를 모두 학습 대상으로 포함
+
+2. **AI 학습 파이프라인 안정화 (`src/lib/stock-analysis/ai-learning.ts`)**
+   - OpenAI API 할당량 초과(429 Error) 시 자동으로 **Mock AI 모드**로 전환하여 시스템 중단 방지
+   - `USE_MOCK_AI` 환경변수 또는 API 키 부재 시에도 고품질 테스트 데이터 생성
+   - 학습 실패 시 로그 기록 및 자동 복구 로직 추가
+
+3. **환경 설정 자동화**
+   - `.env.local`의 복잡한 JSON 형식(서비스 계정 키)을 자동으로 파싱하도록 개선
+
+#### 수정된 파일
+- `src/lib/google-drive/index.ts`: `listDriveFiles` 함수 재귀 로직 추가
+- `src/lib/stock-analysis/ai-learning.ts`: Mock AI 폴백 및 에러 핸들링 강화
+- `CONTEXT.md`: 히스토리 업데이트

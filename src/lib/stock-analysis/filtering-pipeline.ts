@@ -10,7 +10,8 @@ import { normalizePrices } from './scoring';
 
 export function filterStage1Validity(
   company: ExtractedCompanyAnalysis,
-  ticker: string | null
+  ticker: string | null,
+  isUniverseScreening: boolean = false
 ): FilterStageResult {
   if (!ticker) {
     return {
@@ -21,7 +22,7 @@ export function filterStage1Validity(
     };
   }
 
-  if (!company.targetPrice && !company.recommendedBuyPrice) {
+  if (!isUniverseScreening && !company.targetPrice && !company.recommendedBuyPrice) {
     return {
       stage: 1,
       stageName: '유효성 검증',
@@ -34,7 +35,7 @@ export function filterStage1Validity(
     stage: 1,
     stageName: '유효성 검증',
     passed: true,
-    reason: `${company.companyName}: 티커 ${ticker} 매칭, 가격 데이터 확인됨`,
+    reason: `${company.companyName}: 티커 ${ticker} 매칭 확인됨`,
   };
 }
 

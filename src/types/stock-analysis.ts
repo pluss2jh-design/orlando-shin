@@ -114,6 +114,22 @@ export interface LearnedInvestmentCriteria {
   }[];
 }
 
+export interface InvestmentStrategy {
+  shortTermConditions: string[];
+  longTermConditions: string[];
+  winningPatterns: string[];
+  riskManagementRules: string[];
+}
+
+export interface LearnedKnowledge {
+  companies: ExtractedCompanyAnalysis[];
+  criteria: LearnedInvestmentCriteria;
+  strategy: InvestmentStrategy;
+  rawSummaries: { fileName: string; summary: string }[];
+  learnedAt: Date;
+  sourceFiles: string[];
+}
+
 // ===========================
 // B. Yahoo Finance 실시간 데이터
 // ===========================
@@ -225,7 +241,7 @@ export interface EvidenceChain {
 
 export interface RecommendationResult {
   candidates: FilteredCandidate[];
-  topPick: FilteredCandidate | null;
+  topPicks: FilteredCandidate[];
   investmentConditions: InvestmentConditions;
   investmentStyle: InvestmentStyle;
   exchangeRate: ExchangeRate;

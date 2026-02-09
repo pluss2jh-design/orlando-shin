@@ -17,3 +17,1517 @@
 ○ Compiling /api/gdrive/sync ...
  POST /api/gdrive/sync 200 in 5.3s (compile: 4.5s, render: 802ms)
  POST /api/gdrive/sync 200 in 760ms (compile: 3ms, render: 757ms)
+ GET /stock-analysis 200 in 207ms (compile: 43ms, proxy.ts: 12ms, render: 152ms)
+ POST /api/gdrive/sync 200 in 5.9s (compile: 686ms, render: 5.2s)
+ GET /stock-analysis 200 in 59ms (compile: 5ms, proxy.ts: 6ms, render: 48ms)
+ GET /stock-analysis 200 in 56ms (compile: 6ms, proxy.ts: 6ms, render: 44ms)
+ POST /api/gdrive/sync 200 in 8.4s (compile: 2ms, render: 8.4s)
+OpenAI 학습 파이프라인 실패, Mock 모드로 전환합니다: Error: 429 You exceeded your current quota, please check your plan and billing details. For more information on this error, read the docs: https://platform.openai.com/docs/guides/error-codes/api-errors.
+    at async runLearningPipeline (src\lib\stock-analysis\ai-learning.ts:74:31)
+    at async POST (src\app\api\gdrive\learn\route.ts:6:23)
+  72 |       const truncatedContent = item.content.substring(0, 15000);
+  73 |
+> 74 |       const summaryResponse = await openai.chat.completions.create({
+     |                               ^
+  75 |         model: 'gpt-4o-mini',
+  76 |         messages: [
+  77 |           { {
+  status: 429,
+  headers: Headers {
+    date: 'Sun, 08 Feb 2026 17:00:46 GMT',
+    'content-type': 'application/json; charset=utf-8',
+    'content-length': '337',
+    connection: 'keep-alive',
+    vary: 'Origin',
+    'x-request-id': 'req_ac18a3ff1c6f4dba9dc432fdab91b00e',
+    'x-openai-proxy-wasm': 'v0.1',
+    server: 'cloudflare',
+    'cf-cache-status': 'DYNAMIC',
+    'set-cookie': '__cf_bm=JLHixZf8bawKU2uKL0G.GpCPyhVcFHEcGnCInjxr.Ps-1770570046.7837763-1.0.1.1-FlxuD.tZMWq7pn8y0zF4yq65H0I1dc0hUQUGxGbMyoZu3kReLFERsCIH8EBBKGelEQb94ZRJSwxRyhRu1kieSG3rHv_hKOYQuFy0A9qqBcEUxbkvnIGIYRhumMcSlx0F; HttpOnly; Secure; Path=/; Domain=api.openai.com; Expires=Sun, 08 Feb 2026 17:30:46 GMT, _cfuvid=heo3mCazFCXCK0qwJu4L7FrC2xgfDZQC6sgOxeN1of4-1770570046.7837763-1.0.1.1-1O6aULtbCIp0P6cTSyH6Bv.Zp6qQt364ADlC1hdFo4I; HttpOnly; SameSite=None; Secure; Path=/; Domain=api.openai.com',
+    'strict-transport-security': 'max-age=31536000; includeSubDomains; preload',
+    'x-content-type-options': 'nosniff',
+    'cf-ray': '9cacaf686a020d05-ICN',
+    'alt-svc': 'h3=":443"; ma=86400'
+  },
+  requestID: 'req_ac18a3ff1c6f4dba9dc432fdab91b00e',
+  error: [Object],
+  code: 'insufficient_quota',
+  param: null,
+  type: 'insufficient_quota'
+}
+ POST /api/gdrive/learn 200 in 9.0min (compile: 824ms, render: 9.0min)
+Please consider completing the survey at https://bit.ly/yahoo-finance-api-feedback if you haven't already; for more info see https://github.com/gadicc/yahoo-finance2/issues/764#issuecomment-2056623851.  This will only be shown once, but you can suppress this message in future with `new YahooFinance({ suppressNotices: ['yahooSurvey'] })`.
+Please consider completing the survey at https://bit.ly/yahoo-finance-api-feedback if you haven't already; for more info see https://github.com/gadicc/yahoo-finance2/issues/764#issuecomment-2056623851.  This will only be shown once, but you can suppress this message in future with `new YahooFinance({ suppressNotices: ['yahooSurvey'] })`.
+[Deprecated] historical() relies on an API that Yahoo have removed.  We'll map this request to chart() for convenience, but, please consider using chart() directly instead; for more info see https://github.com/gadicc/yahoo-finance2/issues/795.  This will only be shown once, but you can suppress this message in future with `new YahooFinance({ suppressNotices: ['ripHistorical'] })`.
+[yahooFinance.historical] Invalid options ("#/definitions/ChartOptions")
+{
+  "errors": [
+    {
+      "instancePath": "/period2",
+      "schemaPath": "#/definitions/ChartOptions",
+      "message": "should match some schema in anyOf",
+      "subErrors": [
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/0",
+          "message": "Expecting date'ish",
+          "params": {
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          }
+        },
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/1",
+          "message": "Expected a string"
+        },
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/2",
+          "message": "Expected a number'ish"
+        }
+      ]
+    }
+  ],
+  "input": {
+    "period1": "2025-02-08T00:00:00.000Z",
+    "interval": "1d",
+    "events": ""
+  }
+}
+[yahooFinance.historical] Invalid options ("#/definitions/ChartOptions")
+{
+  "errors": [
+    {
+      "instancePath": "/period2",
+      "schemaPath": "#/definitions/ChartOptions",
+      "message": "should match some schema in anyOf",
+      "subErrors": [
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/0",
+          "message": "Expecting date'ish",
+          "params": {
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          }
+        },
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/1",
+          "message": "Expected a string"
+        },
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/2",
+          "message": "Expected a number'ish"
+        }
+      ]
+    }
+  ],
+  "input": {
+    "period1": "2025-02-08T00:00:00.000Z",
+    "interval": "1d",
+    "events": ""
+  }
+}
+[yahooFinance.historical] Invalid options ("#/definitions/ChartOptions")
+{
+  "errors": [
+    {
+      "instancePath": "/period2",
+      "schemaPath": "#/definitions/ChartOptions",
+      "message": "should match some schema in anyOf",
+      "subErrors": [
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/0",
+          "message": "Expecting date'ish",
+          "params": {
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          }
+        },
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/1",
+          "message": "Expected a string"
+        },
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/2",
+          "message": "Expected a number'ish"
+        }
+      ]
+    }
+  ],
+  "input": {
+    "period1": "2025-02-08T00:00:00.000Z",
+    "interval": "1d",
+    "events": ""
+  }
+}
+ POST /api/analysis 200 in 2.4s (compile: 1056ms, render: 1372ms)
+[yahooFinance.historical] Invalid options ("#/definitions/ChartOptions")
+{
+  "errors": [
+    {
+      "instancePath": "/period2",
+      "schemaPath": "#/definitions/ChartOptions",
+      "message": "should match some schema in anyOf",
+      "subErrors": [
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/0",
+          "message": "Expecting date'ish",
+          "params": {
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          }
+        },
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/1",
+          "message": "Expected a string"
+        },
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/2",
+          "message": "Expected a number'ish"
+        }
+      ]
+    }
+  ],
+  "input": {
+    "period1": "2022-04-08T00:00:00.000Z",
+    "interval": "1d",
+    "events": ""
+  }
+}
+[yahooFinance.historical] Invalid options ("#/definitions/ChartOptions")
+{
+  "errors": [
+    {
+      "instancePath": "/period2",
+      "schemaPath": "#/definitions/ChartOptions",
+      "message": "should match some schema in anyOf",
+      "subErrors": [
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/0",
+          "message": "Expecting date'ish",
+          "params": {
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          }
+        },
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/1",
+          "message": "Expected a string"
+        },
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/2",
+          "message": "Expected a number'ish"
+        }
+      ]
+    }
+  ],
+  "input": {
+    "period1": "2022-04-08T00:00:00.000Z",
+    "interval": "1d",
+    "events": ""
+  }
+}
+[yahooFinance.historical] Invalid options ("#/definitions/ChartOptions")
+{
+  "errors": [
+    {
+      "instancePath": "/period2",
+      "schemaPath": "#/definitions/ChartOptions",
+      "message": "should match some schema in anyOf",
+      "subErrors": [
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/0",
+          "message": "Expecting date'ish",
+          "params": {
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          }
+        },
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/1",
+          "message": "Expected a string"
+        },
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/2",
+          "message": "Expected a number'ish"
+        }
+      ]
+    }
+  ],
+  "input": {
+    "period1": "2022-04-08T00:00:00.000Z",
+    "interval": "1d",
+    "events": ""
+  }
+}
+ POST /api/analysis 200 in 303ms (compile: 2ms, render: 300ms)
+[yahooFinance.historical] Invalid options ("#/definitions/ChartOptions")
+{
+  "errors": [
+    {
+      "instancePath": "/period2",
+      "schemaPath": "#/definitions/ChartOptions",
+      "message": "should match some schema in anyOf",
+      "subErrors": [
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/0",
+          "message": "Expecting date'ish",
+          "params": {
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          }
+        },
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/1",
+          "message": "Expected a string"
+        },
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/2",
+          "message": "Expected a number'ish"
+        }
+      ]
+    }
+  ],
+  "input": {
+    "period1": "2021-02-08T00:00:00.000Z",
+    "interval": "1d",
+    "events": ""
+  }
+}
+[yahooFinance.historical] Invalid options ("#/definitions/ChartOptions")
+{
+  "errors": [
+    {
+      "instancePath": "/period2",
+      "schemaPath": "#/definitions/ChartOptions",
+      "message": "should match some schema in anyOf",
+      "subErrors": [
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/0",
+          "message": "Expecting date'ish",
+          "params": {
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          }
+        },
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/1",
+          "message": "Expected a string"
+        },
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/2",
+          "message": "Expected a number'ish"
+        }
+      ]
+    }
+  ],
+  "input": {
+    "period1": "2021-02-08T00:00:00.000Z",
+    "interval": "1d",
+    "events": ""
+  }
+}
+[yahooFinance.historical] Invalid options ("#/definitions/ChartOptions")
+{
+  "errors": [
+    {
+      "instancePath": "/period2",
+      "schemaPath": "#/definitions/ChartOptions",
+      "message": "should match some schema in anyOf",
+      "subErrors": [
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/0",
+          "message": "Expecting date'ish",
+          "params": {
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          }
+        },
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/1",
+          "message": "Expected a string"
+        },
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/2",
+          "message": "Expected a number'ish"
+        }
+      ]
+    }
+  ],
+  "input": {
+    "period1": "2021-02-08T00:00:00.000Z",
+    "interval": "1d",
+    "events": ""
+  }
+}
+ POST /api/analysis 200 in 311ms (compile: 2ms, render: 309ms)
+[yahooFinance.historical] Invalid options ("#/definitions/ChartOptions")
+{
+  "errors": [
+    {
+      "instancePath": "/period2",
+      "schemaPath": "#/definitions/ChartOptions",
+      "message": "should match some schema in anyOf",
+      "subErrors": [
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/0",
+          "message": "Expecting date'ish",
+          "params": {
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          }
+        },
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/1",
+          "message": "Expected a string"
+        },
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/2",
+          "message": "Expected a number'ish"
+        }
+      ]
+    }
+  ],
+  "input": {
+    "period1": "2021-02-08T00:00:00.000Z",
+    "interval": "1d",
+    "events": ""
+  }
+}
+[yahooFinance.historical] Invalid options ("#/definitions/ChartOptions")
+{
+  "errors": [
+    {
+      "instancePath": "/period2",
+      "schemaPath": "#/definitions/ChartOptions",
+      "message": "should match some schema in anyOf",
+      "subErrors": [
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/0",
+          "message": "Expecting date'ish",
+          "params": {
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          }
+        },
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/1",
+          "message": "Expected a string"
+        },
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/2",
+          "message": "Expected a number'ish"
+        }
+      ]
+    }
+  ],
+  "input": {
+    "period1": "2021-02-08T00:00:00.000Z",
+    "interval": "1d",
+    "events": ""
+  }
+}
+[yahooFinance.historical] Invalid options ("#/definitions/ChartOptions")
+{
+  "errors": [
+    {
+      "instancePath": "/period2",
+      "schemaPath": "#/definitions/ChartOptions",
+      "message": "should match some schema in anyOf",
+      "subErrors": [
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/0",
+          "message": "Expecting date'ish",
+          "params": {
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          }
+        },
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/1",
+          "message": "Expected a string"
+        },
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/2",
+          "message": "Expected a number'ish"
+        }
+      ]
+    }
+  ],
+  "input": {
+    "period1": "2021-02-08T00:00:00.000Z",
+    "interval": "1d",
+    "events": ""
+  }
+}
+ POST /api/analysis 200 in 307ms (compile: 2ms, render: 304ms)
+[yahooFinance.historical] Invalid options ("#/definitions/ChartOptions")
+{
+  "errors": [
+    {
+      "instancePath": "/period2",
+      "schemaPath": "#/definitions/ChartOptions",
+      "message": "should match some schema in anyOf",
+      "subErrors": [
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/0",
+          "message": "Expecting date'ish",
+          "params": {
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          }
+        },
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/1",
+          "message": "Expected a string"
+        },
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/2",
+          "message": "Expected a number'ish"
+        }
+      ]
+    }
+  ],
+  "input": {
+    "period1": "2021-02-08T00:00:00.000Z",
+    "interval": "1d",
+    "events": ""
+  }
+}
+[yahooFinance.historical] Invalid options ("#/definitions/ChartOptions")
+{
+  "errors": [
+    {
+      "instancePath": "/period2",
+      "schemaPath": "#/definitions/ChartOptions",
+      "message": "should match some schema in anyOf",
+      "subErrors": [
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/0",
+          "message": "Expecting date'ish",
+          "params": {
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          }
+        },
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/1",
+          "message": "Expected a string"
+        },
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/2",
+          "message": "Expected a number'ish"
+        }
+      ]
+    }
+  ],
+  "input": {
+    "period1": "2021-02-08T00:00:00.000Z",
+    "interval": "1d",
+    "events": ""
+  }
+}
+[yahooFinance.historical] Invalid options ("#/definitions/ChartOptions")
+{
+  "errors": [
+    {
+      "instancePath": "/period2",
+      "schemaPath": "#/definitions/ChartOptions",
+      "message": "should match some schema in anyOf",
+      "subErrors": [
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/0",
+          "message": "Expecting date'ish",
+          "params": {
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          }
+        },
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/1",
+          "message": "Expected a string"
+        },
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/2",
+          "message": "Expected a number'ish"
+        }
+      ]
+    }
+  ],
+  "input": {
+    "period1": "2021-02-08T00:00:00.000Z",
+    "interval": "1d",
+    "events": ""
+  }
+}
+ POST /api/analysis 200 in 80ms (compile: 2ms, render: 78ms)
+[yahooFinance.historical] Invalid options ("#/definitions/ChartOptions")
+{
+  "errors": [
+    {
+      "instancePath": "/period2",
+      "schemaPath": "#/definitions/ChartOptions",
+      "message": "should match some schema in anyOf",
+      "subErrors": [
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/0",
+          "message": "Expecting date'ish",
+          "params": {
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          }
+        },
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/1",
+          "message": "Expected a string"
+        },
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/2",
+          "message": "Expected a number'ish"
+        }
+      ]
+    }
+  ],
+  "input": {
+    "period1": "2021-02-08T00:00:00.000Z",
+    "interval": "1d",
+    "events": ""
+  }
+}
+[yahooFinance.historical] Invalid options ("#/definitions/ChartOptions")
+{
+  "errors": [
+    {
+      "instancePath": "/period2",
+      "schemaPath": "#/definitions/ChartOptions",
+      "message": "should match some schema in anyOf",
+      "subErrors": [
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/0",
+          "message": "Expecting date'ish",
+          "params": {
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          }
+        },
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/1",
+          "message": "Expected a string"
+        },
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/2",
+          "message": "Expected a number'ish"
+        }
+      ]
+    }
+  ],
+  "input": {
+    "period1": "2021-02-08T00:00:00.000Z",
+    "interval": "1d",
+    "events": ""
+  }
+}
+[yahooFinance.historical] Invalid options ("#/definitions/ChartOptions")
+{
+  "errors": [
+    {
+      "instancePath": "/period2",
+      "schemaPath": "#/definitions/ChartOptions",
+      "message": "should match some schema in anyOf",
+      "subErrors": [
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/0",
+          "message": "Expecting date'ish",
+          "params": {
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          }
+        },
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/1",
+          "message": "Expected a string"
+        },
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/2",
+          "message": "Expected a number'ish"
+        }
+      ]
+    }
+  ],
+  "input": {
+    "period1": "2021-02-08T00:00:00.000Z",
+    "interval": "1d",
+    "events": ""
+  }
+}
+ POST /api/analysis 200 in 80ms (compile: 3ms, render: 77ms)
+[yahooFinance.historical] Invalid options ("#/definitions/ChartOptions")
+{
+  "errors": [
+    {
+      "instancePath": "/period2",
+      "schemaPath": "#/definitions/ChartOptions",
+      "message": "should match some schema in anyOf",
+      "subErrors": [
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/0",
+          "message": "Expecting date'ish",
+          "params": {
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          }
+        },
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/1",
+          "message": "Expected a string"
+        },
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/2",
+          "message": "Expected a number'ish"
+        }
+      ]
+    }
+  ],
+  "input": {
+    "period1": "2023-06-08T00:00:00.000Z",
+    "interval": "1d",
+    "events": ""
+  }
+}
+[yahooFinance.historical] Invalid options ("#/definitions/ChartOptions")
+{
+  "errors": [
+    {
+      "instancePath": "/period2",
+      "schemaPath": "#/definitions/ChartOptions",
+      "message": "should match some schema in anyOf",
+      "subErrors": [
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/0",
+          "message": "Expecting date'ish",
+          "params": {
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          }
+        },
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/1",
+          "message": "Expected a string"
+        },
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/2",
+          "message": "Expected a number'ish"
+        }
+      ]
+    }
+  ],
+  "input": {
+    "period1": "2023-06-08T00:00:00.000Z",
+    "interval": "1d",
+    "events": ""
+  }
+}
+[yahooFinance.historical] Invalid options ("#/definitions/ChartOptions")
+{
+  "errors": [
+    {
+      "instancePath": "/period2",
+      "schemaPath": "#/definitions/ChartOptions",
+      "message": "should match some schema in anyOf",
+      "subErrors": [
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/0",
+          "message": "Expecting date'ish",
+          "params": {
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          }
+        },
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/1",
+          "message": "Expected a string"
+        },
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/2",
+          "message": "Expected a number'ish"
+        }
+      ]
+    }
+  ],
+  "input": {
+    "period1": "2023-06-08T00:00:00.000Z",
+    "interval": "1d",
+    "events": ""
+  }
+}
+ POST /api/analysis 200 in 303ms (compile: 2ms, render: 301ms)
+[yahooFinance.historical] Invalid options ("#/definitions/ChartOptions")
+{
+  "errors": [
+    {
+      "instancePath": "/period2",
+      "schemaPath": "#/definitions/ChartOptions",
+      "message": "should match some schema in anyOf",
+      "subErrors": [
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/0",
+          "message": "Expecting date'ish",
+          "params": {
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          }
+        },
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/1",
+          "message": "Expected a string"
+        },
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/2",
+          "message": "Expected a number'ish"
+        }
+      ]
+    }
+  ],
+  "input": {
+    "period1": "2023-06-08T00:00:00.000Z",
+    "interval": "1d",
+    "events": ""
+  }
+}
+[yahooFinance.historical] Invalid options ("#/definitions/ChartOptions")
+{
+  "errors": [
+    {
+      "instancePath": "/period2",
+      "schemaPath": "#/definitions/ChartOptions",
+      "message": "should match some schema in anyOf",
+      "subErrors": [
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/0",
+          "message": "Expecting date'ish",
+          "params": {
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          }
+        },
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/1",
+          "message": "Expected a string"
+        },
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/2",
+          "message": "Expected a number'ish"
+        }
+      ]
+    }
+  ],
+  "input": {
+    "period1": "2023-06-08T00:00:00.000Z",
+    "interval": "1d",
+    "events": ""
+  }
+}
+[yahooFinance.historical] Invalid options ("#/definitions/ChartOptions")
+{
+  "errors": [
+    {
+      "instancePath": "/period2",
+      "schemaPath": "#/definitions/ChartOptions",
+      "message": "should match some schema in anyOf",
+      "subErrors": [
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/0",
+          "message": "Expecting date'ish",
+          "params": {
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          }
+        },
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/1",
+          "message": "Expected a string"
+        },
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/2",
+          "message": "Expected a number'ish"
+        }
+      ]
+    }
+  ],
+  "input": {
+    "period1": "2023-06-08T00:00:00.000Z",
+    "interval": "1d",
+    "events": ""
+  }
+}
+ POST /api/analysis 200 in 72ms (compile: 2ms, render: 69ms)
+[yahooFinance.historical] Invalid options ("#/definitions/ChartOptions")
+{
+  "errors": [
+    {
+      "instancePath": "/period2",
+      "schemaPath": "#/definitions/ChartOptions",
+      "message": "should match some schema in anyOf",
+      "subErrors": [
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/0",
+          "message": "Expecting date'ish",
+          "params": {
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          }
+        },
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/1",
+          "message": "Expected a string"
+        },
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/2",
+          "message": "Expected a number'ish"
+        }
+      ]
+    }
+  ],
+  "input": {
+    "period1": "2023-06-08T00:00:00.000Z",
+    "interval": "1d",
+    "events": ""
+  }
+}
+[yahooFinance.historical] Invalid options ("#/definitions/ChartOptions")
+{
+  "errors": [
+    {
+      "instancePath": "/period2",
+      "schemaPath": "#/definitions/ChartOptions",
+      "message": "should match some schema in anyOf",
+      "subErrors": [
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/0",
+          "message": "Expecting date'ish",
+          "params": {
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          }
+        },
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/1",
+          "message": "Expected a string"
+        },
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/2",
+          "message": "Expected a number'ish"
+        }
+      ]
+    }
+  ],
+  "input": {
+    "period1": "2023-06-08T00:00:00.000Z",
+    "interval": "1d",
+    "events": ""
+  }
+}
+[yahooFinance.historical] Invalid options ("#/definitions/ChartOptions")
+{
+  "errors": [
+    {
+      "instancePath": "/period2",
+      "schemaPath": "#/definitions/ChartOptions",
+      "message": "should match some schema in anyOf",
+      "subErrors": [
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/0",
+          "message": "Expecting date'ish",
+          "params": {
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          }
+        },
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/1",
+          "message": "Expected a string"
+        },
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/2",
+          "message": "Expected a number'ish"
+        }
+      ]
+    }
+  ],
+  "input": {
+    "period1": "2023-06-08T00:00:00.000Z",
+    "interval": "1d",
+    "events": ""
+  }
+}
+ POST /api/analysis 200 in 72ms (compile: 2ms, render: 69ms)
+[yahooFinance.historical] Invalid options ("#/definitions/ChartOptions")
+{
+  "errors": [
+    {
+      "instancePath": "/period2",
+      "schemaPath": "#/definitions/ChartOptions",
+      "message": "should match some schema in anyOf",
+      "subErrors": [
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/0",
+          "message": "Expecting date'ish",
+          "params": {
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          }
+        },
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/1",
+          "message": "Expected a string"
+        },
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/2",
+          "message": "Expected a number'ish"
+        }
+      ]
+    }
+  ],
+  "input": {
+    "period1": "2025-08-08T00:00:00.000Z",
+    "interval": "1d",
+    "events": ""
+  }
+}
+[yahooFinance.historical] Invalid options ("#/definitions/ChartOptions")
+{
+  "errors": [
+    {
+      "instancePath": "/period2",
+      "schemaPath": "#/definitions/ChartOptions",
+      "message": "should match some schema in anyOf",
+      "subErrors": [
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/0",
+          "message": "Expecting date'ish",
+          "params": {
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          }
+        },
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/1",
+          "message": "Expected a string"
+        },
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/2",
+          "message": "Expected a number'ish"
+        }
+      ]
+    }
+  ],
+  "input": {
+    "period1": "2025-08-08T00:00:00.000Z",
+    "interval": "1d",
+    "events": ""
+  }
+}
+[yahooFinance.historical] Invalid options ("#/definitions/ChartOptions")
+{
+  "errors": [
+    {
+      "instancePath": "/period2",
+      "schemaPath": "#/definitions/ChartOptions",
+      "message": "should match some schema in anyOf",
+      "subErrors": [
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/0",
+          "message": "Expecting date'ish",
+          "params": {
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          }
+        },
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/1",
+          "message": "Expected a string"
+        },
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/2",
+          "message": "Expected a number'ish"
+        }
+      ]
+    }
+  ],
+  "input": {
+    "period1": "2025-08-08T00:00:00.000Z",
+    "interval": "1d",
+    "events": ""
+  }
+}
+ POST /api/analysis 200 in 71ms (compile: 1976µs, render: 69ms)
+[yahooFinance.historical] Invalid options ("#/definitions/ChartOptions")
+{
+  "errors": [
+    {
+      "instancePath": "/period2",
+      "schemaPath": "#/definitions/ChartOptions",
+      "message": "should match some schema in anyOf",
+      "subErrors": [
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/0",
+          "message": "Expecting date'ish",
+          "params": {
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          }
+        },
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/1",
+          "message": "Expected a string"
+        },
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/2",
+          "message": "Expected a number'ish"
+        }
+      ]
+    }
+  ],
+  "input": {
+    "period1": "2022-03-08T00:00:00.000Z",
+    "interval": "1d",
+    "events": ""
+  }
+}
+[yahooFinance.historical] Invalid options ("#/definitions/ChartOptions")
+{
+  "errors": [
+    {
+      "instancePath": "/period2",
+      "schemaPath": "#/definitions/ChartOptions",
+      "message": "should match some schema in anyOf",
+      "subErrors": [
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/0",
+          "message": "Expecting date'ish",
+          "params": {
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          }
+        },
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/1",
+          "message": "Expected a string"
+        },
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/2",
+          "message": "Expected a number'ish"
+        }
+      ]
+    }
+  ],
+  "input": {
+    "period1": "2022-03-08T00:00:00.000Z",
+    "interval": "1d",
+    "events": ""
+  }
+}
+[yahooFinance.historical] Invalid options ("#/definitions/ChartOptions")
+{
+  "errors": [
+    {
+      "instancePath": "/period2",
+      "schemaPath": "#/definitions/ChartOptions",
+      "message": "should match some schema in anyOf",
+      "subErrors": [
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/0",
+          "message": "Expecting date'ish",
+          "params": {
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          }
+        },
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/1",
+          "message": "Expected a string"
+        },
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/2",
+          "message": "Expected a number'ish"
+        }
+      ]
+    }
+  ],
+  "input": {
+    "period1": "2022-03-08T00:00:00.000Z",
+    "interval": "1d",
+    "events": ""
+  }
+}
+ POST /api/analysis 200 in 73ms (compile: 2ms, render: 70ms)
+[yahooFinance.historical] Invalid options ("#/definitions/ChartOptions")
+{
+  "errors": [
+    {
+      "instancePath": "/period2",
+      "schemaPath": "#/definitions/ChartOptions",
+      "message": "should match some schema in anyOf",
+      "subErrors": [
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/0",
+          "message": "Expecting date'ish",
+          "params": {
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          }
+        },
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/1",
+          "message": "Expected a string"
+        },
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/2",
+          "message": "Expected a number'ish"
+        }
+      ]
+    }
+  ],
+  "input": {
+    "period1": "2023-12-08T00:00:00.000Z",
+    "interval": "1d",
+    "events": ""
+  }
+}
+[yahooFinance.historical] Invalid options ("#/definitions/ChartOptions")
+{
+  "errors": [
+    {
+      "instancePath": "/period2",
+      "schemaPath": "#/definitions/ChartOptions",
+      "message": "should match some schema in anyOf",
+      "subErrors": [
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/0",
+          "message": "Expecting date'ish",
+          "params": {
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          }
+        },
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/1",
+          "message": "Expected a string"
+        },
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/2",
+          "message": "Expected a number'ish"
+        }
+      ]
+    }
+  ],
+  "input": {
+    "period1": "2023-12-08T00:00:00.000Z",
+    "interval": "1d",
+    "events": ""
+  }
+}
+[yahooFinance.historical] Invalid options ("#/definitions/ChartOptions")
+{
+  "errors": [
+    {
+      "instancePath": "/period2",
+      "schemaPath": "#/definitions/ChartOptions",
+      "message": "should match some schema in anyOf",
+      "subErrors": [
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/0",
+          "message": "Expecting date'ish",
+          "params": {
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          }
+        },
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/1",
+          "message": "Expected a string"
+        },
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/2",
+          "message": "Expected a number'ish"
+        }
+      ]
+    }
+  ],
+  "input": {
+    "period1": "2023-12-08T00:00:00.000Z",
+    "interval": "1d",
+    "events": ""
+  }
+}
+ POST /api/analysis 200 in 202ms (compile: 2ms, render: 200ms)
+✓ Compiled in 210ms
+✓ Compiled in 439ms
+✓ Compiled in 104ms
+⚠ Fast Refresh had to perform a full reload due to a runtime error.
+✓ Compiled in 120ms
+ GET /stock-analysis 200 in 342ms (compile: 167ms, proxy.ts: 11ms, render: 164ms)
+ GET /stock-analysis 200 in 59ms (compile: 5ms, proxy.ts: 6ms, render: 48ms)
+ GET /stock-analysis 200 in 51ms (compile: 4ms, proxy.ts: 5ms, render: 42ms)
+ POST /api/gdrive/sync 200 in 8.1s (compile: 3ms, render: 8.1s)
+OpenAI 학습 파이프라인 실패, Mock 모드로 전환합니다: Error: 429 You exceeded your current quota, please check your plan and billing details. For more information on this error, read the docs: https://platform.openai.com/docs/guides/error-codes/api-errors.
+    at async runLearningPipeline (src\lib\stock-analysis\ai-learning.ts:76:31)
+    at async POST (src\app\api\gdrive\learn\route.ts:6:23)
+  74 |       const truncatedContent = item.content.substring(0, 15000);
+  75 |
+> 76 |       const summaryResponse = await openai.chat.completions.create({
+     |                               ^
+  77 |         model: 'gpt-4o-mini',
+  78 |         messages: [
+  79 |           { {
+  status: 429,
+  headers: Headers {
+    date: 'Sun, 08 Feb 2026 17:27:32 GMT',
+    'content-type': 'application/json; charset=utf-8',
+    'content-length': '337',
+    connection: 'keep-alive',
+    vary: 'Origin',
+    'x-request-id': 'req_d37713a9604d485ba915f291d778a9bc',
+    'x-openai-proxy-wasm': 'v0.1',
+    server: 'cloudflare',
+    'cf-cache-status': 'DYNAMIC',
+    'set-cookie': '__cf_bm=bnjwSx1meHlHb9amyJLunYo_w_zoeeDWraaR41ygEjw-1770571652.1156425-1.0.1.1-94ABF7o54SPsW7xDV8zlT9OZLv.OKZfW24ip1GULJvIhVhQu9AkzH33S_qY3ucvz916b0FbUjvx5AEAlKlthb8UozH2P_NT5UyVWOwe2xe9wyLlK74OG1GwWjO4NMb4j; HttpOnly; Secure; Path=/; Domain=api.openai.com; Expires=Sun, 08 Feb 2026 17:57:32 GMT, _cfuvid=tg6COHAbbKsG1uIpIfE1uzFTfiXMVfYGHJZWBP4pJCw-1770571652.1156425-1.0.1.1-El_dwbHCdNaXnKMB3TIX4p1d6mqPLSyWIdGZVqNpX2M; HttpOnly; SameSite=None; Secure; Path=/; Domain=api.openai.com',
+    'strict-transport-security': 'max-age=31536000; includeSubDomains; preload',
+    'x-content-type-options': 'nosniff',
+    'cf-ray': '9cacd699bbc8e620-ICN',
+    'alt-svc': 'h3=":443"; ma=86400'
+  },
+  requestID: 'req_d37713a9604d485ba915f291d778a9bc',
+  error: [Object],
+  code: 'insufficient_quota',
+  param: null,
+  type: 'insufficient_quota'
+}
+ POST /api/gdrive/learn 200 in 12.5s (compile: 1090ms, render: 11.4s)
+Please consider completing the survey at https://bit.ly/yahoo-finance-api-feedback if you haven't already; for more info see https://github.com/gadicc/yahoo-finance2/issues/764#issuecomment-2056623851.  This will only be shown once, but you can suppress this message in future with `new YahooFinance({ suppressNotices: ['yahooSurvey'] })`.
+Please consider completing the survey at https://bit.ly/yahoo-finance-api-feedback if you haven't already; for more info see https://github.com/gadicc/yahoo-finance2/issues/764#issuecomment-2056623851.  This will only be shown once, but you can suppress this message in future with `new YahooFinance({ suppressNotices: ['yahooSurvey'] })`.
+ POST /api/analysis 200 in 3.2s (compile: 1299ms, render: 1892ms)
+ POST /api/analysis 200 in 840ms (compile: 2ms, render: 838ms)
+ POST /api/analysis 200 in 872ms (compile: 2ms, render: 870ms)
+✓ Compiled in 103ms
+ GET /stock-analysis 200 in 144ms (compile: 22ms, proxy.ts: 30ms, render: 92ms)
+ POST /api/gdrive/sync 200 in 11.8s (compile: 1624ms, render: 10.2s)
+OpenAI 학습 파이프라인 실패, Mock 모드로 전환합니다: Error: 429 You exceeded your current quota, please check your plan and billing details. For more information on this error, read the docs: https://platform.openai.com/docs/guides/error-codes/api-errors.
+    at async runLearningPipeline (src\lib\stock-analysis\ai-learning.ts:91:29)
+    at async POST (src\app\api\gdrive\learn\route.ts:6:23)
+  89 |       const batchPrompt = batch.map(item => `파일명: ${item.fileName}\n내용: ${item.content.substring(0, 3000)}`).join('\n\n---\n\n');
+  90 |
+> 91 |       const batchResponse = await openai.chat.completions.create({
+     |                             ^
+  92 |         model: 'gpt-4o-mini',
+  93 |         messages: [
+  94 |           { {
+  status: 429,
+  headers: Headers {
+    date: 'Mon, 09 Feb 2026 05:03:30 GMT',
+    'content-type': 'application/json; charset=utf-8',
+    'content-length': '337',
+    connection: 'keep-alive',
+    vary: 'Origin',
+    'x-request-id': 'req_0f5a77fca21248c791ffdf4ccbaef44f',
+    'x-openai-proxy-wasm': 'v0.1',
+    server: 'cloudflare',
+    'cf-cache-status': 'DYNAMIC',
+    'set-cookie': '__cf_bm=TjqOsp5h8nNtfJcjkAXtgVrz2DgEGCzdLRQXq27ztIE-1770613409.8800573-1.0.1.1-3TNa9.KI2WWhGbWMI38ylM7kyb70HLEvNt1HWl5sszOWZWR25.jiSKLRY.ZXVfjVqPRRSXPT_Rb8h3aBQScXBY1MlSKb6KSe0SnL7LAND5Dh3POlk2fN0ZKNJqrEdFvc; HttpOnly; Secure; Path=/; Domain=api.openai.com; Expires=Mon, 09 Feb 2026 05:33:30 GMT, _cfuvid=TRryv.5I6K1iGeZ.hfaJen4Z6nQcOluZ4xOsWCz2TiE-1770613409.8800573-1.0.1.1-dFRjUiFw9TquU3QM5kziHs1GZ9OV9GMaydcE4RT.b2A; HttpOnly; SameSite=None; Secure; Path=/; Domain=api.openai.com',
+    'strict-transport-security': 'max-age=31536000; includeSubDomains; preload',
+    'x-content-type-options': 'nosniff',
+    'cf-ray': '9cb0d213bd01a422-ICN',
+    'alt-svc': 'h3=":443"; ma=86400'
+  },
+  requestID: 'req_0f5a77fca21248c791ffdf4ccbaef44f',
+  error: [Object],
+  code: 'insufficient_quota',
+  param: null,
+  type: 'insufficient_quota'
+}
+ POST /api/gdrive/learn 200 in 13.3s (compile: 1582ms, render: 11.7s)
+Please consider completing the survey at https://bit.ly/yahoo-finance-api-feedback if you haven't already; for more info see https://github.com/gadicc/yahoo-finance2/issues/764#issuecomment-2056623851.  This will only be shown once, but you can suppress this message in future with `new YahooFinance({ suppressNotices: ['yahooSurvey'] })`.
+Please consider completing the survey at https://bit.ly/yahoo-finance-api-feedback if you haven't already; for more info see https://github.com/gadicc/yahoo-finance2/issues/764#issuecomment-2056623851.  This will only be shown once, but you can suppress this message in future with `new YahooFinance({ suppressNotices: ['yahooSurvey'] })`.
+ POST /api/analysis 200 in 3.9s (compile: 1897ms, render: 2.0s)
+ POST /api/analysis 200 in 1037ms (compile: 3ms, render: 1034ms)
+ POST /api/analysis 200 in 931ms (compile: 2ms, render: 928ms)
+✓ Compiled in 153ms
+✓ Compiled in 106ms

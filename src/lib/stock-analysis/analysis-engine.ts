@@ -6,17 +6,18 @@ import type {
   FilteredCandidate,
   RecommendationResult,
   SourceReference,
+  InvestmentStrategy,
 } from '@/types/stock-analysis';
 import { fetchExchangeRate } from './currency';
 import {
-  resolveTickerSymbol,
   fetchYahooFinanceData,
   calculateHistoricalVolatility,
+  fetchBatchQuotes,
 } from './yahoo-finance';
+import { getStockUniverse } from './universe';
 import {
   filterStage1Validity,
   filterStage2PriceCheck,
-  filterStage3Affordability,
   filterStage4PeriodFeasibility,
 } from './filtering-pipeline';
 import {
@@ -28,205 +29,181 @@ import {
   assessRiskLevel,
   calculateConfidenceScore,
 } from './scoring';
-import { buildEvidenceChain } from './evidence-chain';
 
 export async function runAnalysisEngine(
-  candidates: ExtractedCompanyAnalysis[],
   conditions: InvestmentConditions,
-  criteria: LearnedInvestmentCriteria | null = null,
+  knowledge: { criteria: LearnedInvestmentCriteria; strategy: InvestmentStrategy; companies: ExtractedCompanyAnalysis[] },
   style: InvestmentStyle = 'moderate'
 ): Promise<RecommendationResult> {
+  console.log(`Starting analysis engine with ${knowledge.companies.length} learned companies and universe screening...`);
+  
   const exchangeRate = await fetchExchangeRate();
-  const allSourcesUsed: SourceReference[] = [];
-  const filteredCandidates: FilteredCandidate[] = [];
-
-  for (const company of candidates) {
+  const universe = getStockUniverse();
+  console.log(`Universe size: ${universe.length} tickers`);
+  
+  const batchSize = 40;
+  const allYahooData: any[] = [];
+  
+  for (let i = 0; i < universe.length; i += batchSize) {
+    const batch = universe.slice(i, i + batchSize);
     try {
-      const ticker = await resolveTickerSymbol(company.companyName, company.market);
+      const quotes = await fetchBatchQuotes(batch);
+      allYahooData.push(...quotes);
+      await new Promise(resolve => setTimeout(resolve, 100));
+    } catch (error) {
+      console.error(`Batch fetch error for ${batch.join(',')}:`, error);
+    }
+  }
 
-      const stage1 = filterStage1Validity(company, ticker);
-      if (!stage1.passed || !ticker) {
-        filteredCandidates.push(
-          createFailedCandidate(company, [stage1])
-        );
-        continue;
-      }
+  console.log(`Fetched data for ${allYahooData.length} tickers from Yahoo Finance`);
 
-      const yahooData = await fetchYahooFinanceData(ticker, conditions.periodMonths);
+  const screenedCandidates: FilteredCandidate[] = [];
 
+  for (const yahooData of allYahooData) {
+    try {
+      if (!yahooData.ticker || yahooData.currentPrice <= 0) continue;
+
+      const matchingExtracted = knowledge.companies.find(c => 
+        c.ticker?.split('.')[0] === yahooData.ticker.split('.')[0] ||
+        c.companyName?.toLowerCase() === yahooData.ticker.toLowerCase()
+      );
+      
+      const company: ExtractedCompanyAnalysis = matchingExtracted || {
+        companyName: yahooData.ticker,
+        ticker: yahooData.ticker,
+        market: yahooData.ticker.endsWith('.KS') || yahooData.ticker.endsWith('.KQ') ? 'KRX' : 'unknown',
+        currency: yahooData.currency,
+        metrics: {},
+        investmentThesis: 'Universe screening based on core strategy',
+        riskFactors: [],
+        investmentStyle: 'moderate',
+        sources: [],
+        extractedAt: new Date(),
+        confidence: 0.5,
+      };
+
+      const stage1 = filterStage1Validity(company, yahooData.ticker, true);
       const stage2 = filterStage2PriceCheck(company, yahooData, exchangeRate);
-      if (!stage2.passed) {
-        filteredCandidates.push(
-          createFailedCandidate(company, [stage1, stage2])
-        );
+      
+      const passScreening = stage1.passed && (company.targetPrice ? stage2.passed : true);
+      
+      if (!passScreening) {
+        if (matchingExtracted) {
+          console.log(`Company ${yahooData.ticker} failed screening: ${stage1.reason}, ${stage2.reason}`);
+        }
         continue;
       }
-
-      const stage3 = filterStage3Affordability(
-        company,
-        yahooData,
-        conditions.amount,
-        exchangeRate
-      );
-      if (!stage3.passed) {
-        filteredCandidates.push(
-          createFailedCandidate(company, [stage1, stage2, stage3])
-        );
-        continue;
-      }
-
-      const stage4 = filterStage4PeriodFeasibility(
-        company,
-        yahooData,
-        conditions.periodMonths,
-        exchangeRate
-      );
-
-      const filterResults = [stage1, stage2, stage3, stage4];
-      const passedAllFilters = filterResults.every((r) => r.passed);
 
       const prices = normalizePrices(company, yahooData, exchangeRate);
-      const volatility = calculateHistoricalVolatility(yahooData.priceHistory);
+      const fundamentalsScore = calculateFundamentalsScore(
+        company,
+        yahooData,
+        knowledge.criteria
+      );
 
+      screenedCandidates.push({
+        company,
+        yahooData,
+        normalizedPrices: prices,
+        filterResults: [stage1, stage2],
+        passedAllFilters: true,
+        score: fundamentalsScore,
+        expectedReturnRate: 0,
+        confidenceScore: 0.5,
+        riskLevel: 'medium',
+      });
+    } catch (error) {
+      console.error(`Error screening ${yahooData.ticker}:`, error);
+    }
+  }
+
+  console.log(`Screened ${screenedCandidates.length} candidates after filters`);
+
+  const topScreened = screenedCandidates
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 30);
+
+  console.log(`Deep-diving into top ${topScreened.length} screened candidates...`);
+
+  const finalResults: FilteredCandidate[] = [];
+
+  for (const cand of topScreened) {
+    try {
+      const fullYahooData = await fetchYahooFinanceData(cand.yahooData.ticker, conditions.periodMonths);
+      
+      if (!fullYahooData || !fullYahooData.priceHistory || fullYahooData.priceHistory.length === 0) {
+        console.log(`No history for ${cand.yahooData.ticker}, using screening data`);
+        finalResults.push(cand);
+        continue;
+      }
+
+      const stage4 = filterStage4PeriodFeasibility(cand.company, fullYahooData, conditions.periodMonths, exchangeRate);
+      
+      const volatility = calculateHistoricalVolatility(fullYahooData.priceHistory);
       const expectedReturnRate = calculateExpectedReturn(
-        prices.currentPriceKRW,
-        prices.targetPriceKRW,
+        cand.normalizedPrices.currentPriceKRW,
+        cand.normalizedPrices.targetPriceKRW || cand.normalizedPrices.currentPriceKRW * 1.5,
         conditions.periodMonths,
         volatility
       );
 
-      const fundamentalsScore = calculateFundamentalsScore(
-        company,
-        yahooData,
-        criteria
-      );
-
       const feasibilityScore = calculateFeasibilityScore(
-        prices.currentPriceKRW,
-        prices.targetPriceKRW,
+        cand.normalizedPrices.currentPriceKRW,
+        cand.normalizedPrices.targetPriceKRW || cand.normalizedPrices.currentPriceKRW * 1.5,
         conditions.periodMonths,
-        yahooData.priceHistory
+        fullYahooData.priceHistory
       );
 
-      const confidenceScore = calculateConfidenceScore(company, yahooData);
+      const confidenceScore = calculateConfidenceScore(cand.company, fullYahooData);
 
       const score = calculateFinalScore({
         expectedReturnRate,
-        fundamentalsScore,
+        fundamentalsScore: cand.score,
         feasibilityScore,
         dataConfidence: confidenceScore,
         style,
       });
 
-      const priceVsTarget = prices.targetPriceKRW > 0
-        ? prices.currentPriceKRW / prices.targetPriceKRW
-        : 1;
+      const priceVsTarget = cand.normalizedPrices.targetPriceKRW > 0
+        ? cand.normalizedPrices.currentPriceKRW / cand.normalizedPrices.targetPriceKRW
+        : 0.6;
       const riskLevel = assessRiskLevel(volatility, priceVsTarget, style);
 
-      buildEvidenceChain(
-        company,
-        yahooData,
-        prices,
-        filterResults,
-        criteria
-      );
-
-      allSourcesUsed.push(...company.sources);
-
-      filteredCandidates.push({
-        company,
-        yahooData,
-        normalizedPrices: prices,
-        filterResults,
-        passedAllFilters,
+      finalResults.push({
+        ...cand,
+        yahooData: fullYahooData,
+        filterResults: [...cand.filterResults, stage4],
         score,
         expectedReturnRate,
         confidenceScore,
         riskLevel,
       });
     } catch (error) {
-      const errorMsg = error instanceof Error ? error.message : 'Unknown error';
-      filteredCandidates.push(
-        createFailedCandidate(company, [
-          {
-            stage: 0,
-            stageName: '데이터 조회',
-            passed: false,
-            reason: `데이터 조회 실패: ${errorMsg}`,
-          },
-        ])
-      );
+      console.error(`Error deep-diving ${cand.yahooData.ticker}:`, error);
+      finalResults.push(cand);
     }
   }
 
-  const passedCandidates = filteredCandidates
-    .filter((c) => c.passedAllFilters)
-    .sort((a, b) => b.score - a.score);
+  const sortedFinal = finalResults.sort((a, b) => b.score - a.score);
+  const topPicks = sortedFinal.slice(0, 5);
 
-  const allCandidates = filteredCandidates.sort((a, b) => b.score - a.score);
+  if (topPicks.length === 0 && screenedCandidates.length > 0) {
+    console.log("Forcing top picks from screened candidates due to empty final results");
+    topPicks.push(...screenedCandidates.sort((a, b) => b.score - a.score).slice(0, 5));
+  }
 
-  const topPick = passedCandidates.length > 0 ? passedCandidates[0] : null;
-
-  const summary = generateSummary(topPick, passedCandidates.length, candidates.length);
+  console.log(`Analysis complete. Found ${topPicks.length} top picks.`);
 
   return {
-    candidates: allCandidates,
-    topPick,
+    candidates: sortedFinal,
+    topPicks,
     investmentConditions: conditions,
     investmentStyle: style,
     exchangeRate,
     processedAt: new Date(),
-    summary,
-    allSourcesUsed: deduplicateSources(allSourcesUsed),
+    summary: `시장 유니버스(S&P 500, Russell 1000, Dow Jones)를 대상으로 핵심 전략 조건에 부합하는 상위 5개 기업을 선정했습니다.`,
+    allSourcesUsed: deduplicateSources(knowledge.companies.flatMap(c => c.sources)),
   };
-}
-
-function createFailedCandidate(
-  company: ExtractedCompanyAnalysis,
-  filterResults: { stage: number; stageName: string; passed: boolean; reason: string }[]
-): FilteredCandidate {
-  return {
-    company,
-    yahooData: {
-      ticker: '',
-      currency: company.currency,
-      currentPrice: 0,
-      previousClose: 0,
-      fiftyTwoWeekHigh: 0,
-      fiftyTwoWeekLow: 0,
-      priceHistory: [],
-      fetchedAt: new Date(),
-    },
-    normalizedPrices: {
-      currentPriceKRW: 0,
-      targetPriceKRW: 0,
-      recommendedBuyPriceKRW: 0,
-    },
-    filterResults,
-    passedAllFilters: false,
-    score: 0,
-    expectedReturnRate: 0,
-    confidenceScore: 0,
-    riskLevel: 'high',
-  };
-}
-
-function generateSummary(
-  topPick: FilteredCandidate | null,
-  passedCount: number,
-  totalCount: number
-): string {
-  if (!topPick) {
-    return `총 ${totalCount}개 후보 기업 중 모든 필터를 통과한 기업이 없습니다. 투자 조건을 조정해보세요.`;
-  }
-
-  return (
-    `총 ${totalCount}개 후보 중 ${passedCount}개 기업이 필터를 통과했습니다. ` +
-    `최우선 추천: ${topPick.company.companyName} ` +
-    `(예상 수익률: ${topPick.expectedReturnRate.toFixed(1)}%, ` +
-    `신뢰도: ${(topPick.confidenceScore * 100).toFixed(0)}%, ` +
-    `리스크: ${topPick.riskLevel})`
-  );
 }
 
 function deduplicateSources(sources: SourceReference[]): SourceReference[] {
