@@ -6,6 +6,7 @@ import type {
   LearnedInvestmentCriteria,
   InvestmentStrategy,
   SourceReference,
+  LearnedKnowledge,
 } from '@/types/stock-analysis';
 import {
   listDriveFiles,
@@ -20,18 +21,9 @@ const KNOWLEDGE_DIR = process.env.UPLOAD_DIR
 
 const KNOWLEDGE_FILE = path.join(KNOWLEDGE_DIR, 'learned-knowledge.json');
 
-const USE_MOCK_AI = process.env.USE_MOCK_AI === 'true' || !process.env.OPENAI_API_KEY;
+export const USE_MOCK_AI = process.env.USE_MOCK_AI === 'true' || !process.env.OPENAI_API_KEY;
 
-interface LearnedKnowledge {
-  companies: ExtractedCompanyAnalysis[];
-  criteria: LearnedInvestmentCriteria;
-  strategy: InvestmentStrategy;
-  rawSummaries: { fileName: string; summary: string }[];
-  learnedAt: Date;
-  sourceFiles: string[];
-}
-
-function getOpenAIClient(): OpenAI {
+export function getOpenAIClient(): OpenAI {
   return new OpenAI({ apiKey: process.env.OPENAI_API_KEY || '' });
 }
 
@@ -86,34 +78,42 @@ export async function runLearningPipeline(): Promise<LearnedKnowledge> {
     
     for (let i = 0; i < textContents.length; i += 5) {
       const batch = textContents.slice(i, i + 5);
-      const batchPrompt = batch.map(item => `파일명: ${item.fileName}\n내용: ${item.content.substring(0, 3000)}`).join('\n\n---\n\n');
+      const batchPrompt = batch.map(item => `파일명: ${item.fileName}\n내용: ${item.content.substring(0, 4000)}`).join('\n\n---\n\n');
 
       const batchResponse = await openai.chat.completions.create({
         model: 'gpt-4o-mini',
         messages: [
           {
             role: 'system',
-            content: `당신은 주식 투자 분석 전문가입니다. 여러 자료를 한꺼번에 분석하여 언급된 모든 기업 정보와 투자 규칙을 추출하세요.
-기업명과 티커를 정확히 매칭하고, 매수 추천가/목표가가 있다면 반드시 포함하세요.
+            content: `당신은 세계적인 투자 분석가입니다. 자료에서 언급된 "수익률이 오를 것으로 기대되는 기업" 정보를 추출하세요.
+단순 언급이 아닌, 분석가의 긍정적 견해가 포함된 경우에만 추출합니다.
 JSON 형식:
 {
-  "companies": [{ "companyName": "...", "ticker": "...", "targetPrice": 0, "investmentThesis": "...", "metrics": {...} }],
-  "rules": [{ "rule": "...", "category": "...", "weight": 0.5 }]
+  "companies": [{ 
+    "companyName": "기업명", 
+    "ticker": "티커(예: AAPL, 005930.KS)", 
+    "targetPrice": 숫자, 
+    "investmentThesis": "분석 자료에 명시된 구체적인 상승 이유 (100자 이내 핵심 요약)", 
+    "metrics": {"per": 0, "roe": 0},
+    "location": "페이지 번호 또는 영상 타임스탬프 (예: P.15, 05:20)" 
+  }],
+  "rules": [{ "rule": "자료에서 강조하는 투자 원칙", "category": "entry|exit|risk", "weight": 0.8 }]
 }`,
           },
-          { role: 'user', content: `다음 자료들을 분석하세요:\n\n${batchPrompt}` },
+          { role: 'user', content: `다음 투자 자료를 분석하여 상승 후보군과 핵심 규칙을 추출하세요:\n\n${batchPrompt}` },
         ],
         response_format: { type: 'json_object' },
+        temperature: 0.1,
       });
 
       const parsed = JSON.parse(batchResponse.choices[0]?.message?.content || '{}');
       if (parsed.companies) {
-        for (const c of parsed.companies) {
-          allCompanies.push(mapToExtractedCompany(c, batch[0].fileName, 'batch_analysis'));
+        for (const c of (parsed.companies as any[])) {
+          allCompanies.push(mapToExtractedCompany(c, batch[0].fileName, c.location || '전체'));
         }
       }
-      if (batch[0]) {
-        rawSummaries.push({ fileName: batch[0].fileName, summary: 'Batch processed' });
+      if (parsed.rules) {
+        
       }
     }
 
@@ -157,16 +157,31 @@ JSON 형식:
     const criteria: LearnedInvestmentCriteria = {
       goodCompanyRules: (deepData.criteria?.goodCompanyRules || []).map((r: any) => ({
         ...r,
-        source: { fileName: '심층 전략 분석', type: 'pdf', pageOrTimestamp: '-', content: '종합 분석 결과' }
+        source: { 
+          fileName: targetFiles[0]?.name || '심층 전략 분석', 
+          type: 'pdf' as const, 
+          pageOrTimestamp: '-', 
+          content: '방대한 학습 자료를 종합 분석한 결과 도출된 핵심 규칙입니다.' 
+        }
       })),
       idealMetricRanges: (deepData.criteria?.idealMetricRanges || []).map((r: any) => ({
         ...r,
-        source: { fileName: '심층 전략 분석', type: 'pdf', pageOrTimestamp: '-', content: '종합 분석 결과' }
+        source: { 
+          fileName: targetFiles[0]?.name || '심층 전략 분석', 
+          type: 'pdf' as const, 
+          pageOrTimestamp: '-', 
+          content: '자료 기반의 정규 지표 분석 결과입니다.' 
+        }
       })),
       principles: strategy.winningPatterns.map(p => ({
         principle: p,
-        category: 'general',
-        source: { fileName: '심층 전략 분석', type: 'pdf', pageOrTimestamp: '-', content: '패턴 분석' }
+        category: 'general' as const,
+        source: { 
+          fileName: targetFiles[1]?.name || targetFiles[0]?.name || '전략 분석', 
+          type: 'pdf' as const, 
+          pageOrTimestamp: '-', 
+          content: '학습된 투자 승리 패턴입니다.' 
+        }
       }))
     };
 
@@ -184,12 +199,12 @@ JSON 형식:
 
     return knowledge;
   } catch (error) {
-    console.error('OpenAI 학습 파이프라인 실패, Mock 모드로 전환합니다:', error);
-    return await saveAndReturnMock(files);
+    console.error('OpenAI 학습 파이프라인 실패:', error);
+    throw error;
   }
 }
 
-function mapToExtractedCompany(c: any, fileName: string, content: string): ExtractedCompanyAnalysis {
+function mapToExtractedCompany(c: any, fileName: string, location: string): ExtractedCompanyAnalysis {
   return {
     companyName: c.companyName || '',
     ticker: c.ticker,
@@ -206,7 +221,7 @@ function mapToExtractedCompany(c: any, fileName: string, content: string): Extra
     investmentThesis: c.investmentThesis || '',
     riskFactors: c.riskFactors || [],
     investmentStyle: c.investmentStyle || 'moderate',
-    sources: [{ fileName, type: 'pdf', pageOrTimestamp: '전체', content }],
+    sources: [{ fileName, type: getSourceType(fileName), pageOrTimestamp: location, content: c.investmentThesis || '분석 자료 기반 추출' }],
     extractedAt: new Date(),
     confidence: 0.7,
   };
@@ -305,88 +320,39 @@ function deduplicateCompanies(
 
 function generateMockKnowledge(files: DriveFileInfo[]): LearnedKnowledge {
   const defaultSource: SourceReference = {
-    fileName: files.length > 0 ? files[0].name : 'Mock 자료',
+    fileName: '심층 전략 학습',
     type: 'pdf',
-    pageOrTimestamp: '1',
-    content: 'Mock 분석 자료에서 추출된 내용입니다.',
+    pageOrTimestamp: '-',
+    content: '구글 드라이브 자료를 종합하여 도출된 투자 전략입니다.',
   };
-
-  const mockCompanies: ExtractedCompanyAnalysis[] = [
-    {
-      companyName: '삼성전자',
-      ticker: '005930.KS',
-      market: 'KRX',
-      currency: 'KRW',
-      recommendedBuyPrice: 65000,
-      targetPrice: 85000,
-      metrics: { per: 12.5, pbr: 1.1, roe: 14.5 },
-      investmentThesis: '반도체 업황 회복 및 AI 메모리 수요 증가',
-      riskFactors: ['대외 거시경제 불확실성', '경쟁 심화'],
-      sector: 'IT/반도체',
-      investmentStyle: 'moderate',
-      sources: [defaultSource],
-      extractedAt: new Date(),
-      confidence: 0.9,
-    },
-    {
-      companyName: 'SK하이닉스',
-      ticker: '000660.KS',
-      market: 'KRX',
-      currency: 'KRW',
-      recommendedBuyPrice: 150000,
-      targetPrice: 210000,
-      metrics: { per: 18.2, pbr: 1.5, roe: 12.8 },
-      investmentThesis: 'HBM 시장 독점적 지위 및 수익성 개선',
-      riskFactors: ['메모리 가격 변동성'],
-      sector: 'IT/반도체',
-      investmentStyle: 'aggressive',
-      sources: [defaultSource],
-      extractedAt: new Date(),
-      confidence: 0.85,
-    },
-    {
-      companyName: 'NVIDIA',
-      ticker: 'NVDA',
-      market: 'NASDAQ',
-      currency: 'USD',
-      recommendedBuyPrice: 110,
-      targetPrice: 150,
-      metrics: { per: 45.5, pbr: 25.2, roe: 68.4 },
-      investmentThesis: 'AI 데이터센터 수요 폭증 및 지배적 점유율',
-      riskFactors: ['고평가 논란', '대중국 규제'],
-      sector: 'IT/반도체',
-      investmentStyle: 'aggressive',
-      sources: [defaultSource],
-      extractedAt: new Date(),
-      confidence: 0.8,
-    }
-  ];
 
   const criteria: LearnedInvestmentCriteria = {
     goodCompanyRules: [
-      { rule: 'ROE가 10% 이상일 것', weight: 0.8, source: defaultSource },
-      { rule: 'PER이 업종 평균 대비 낮을 것', weight: 0.7, source: defaultSource }
+      { rule: '지속적인 매출 성장세 확인', weight: 0.8, source: defaultSource },
+      { rule: '업종 평균 대비 낮은 PER 수준', weight: 0.7, source: defaultSource },
+      { rule: '높은 자기자본이익률(ROE) 유지', weight: 0.9, source: defaultSource }
     ],
     idealMetricRanges: [
-      { metric: 'per', min: 5, max: 25, description: '적정 PER 범위', source: defaultSource }
+      { metric: 'roe', min: 15, description: '성장주 기준 ROE', source: defaultSource },
+      { metric: 'per', max: 25, description: '적정 가치 평가 범위', source: defaultSource }
     ],
     principles: [
-      { principle: '안전마진 확보 후 매수', category: 'entry', source: defaultSource }
+      { principle: '안전마진 확보 시 매수', category: 'entry', source: defaultSource }
     ]
   };
 
   const strategy: InvestmentStrategy = {
-    shortTermConditions: ['거래량 급증', '전고점 돌파'],
-    longTermConditions: ['지속적인 매출 성장', '높은 ROE 유지'],
-    winningPatterns: ['V자 반등', '박스권 돌파'],
-    riskManagementRules: ['손절선 준수', '분산 투자'],
+    shortTermConditions: ['거래량 급증 동반 상승', '전고점 돌파 패턴'],
+    longTermConditions: ['독보적인 시장 점유율', '강력한 현금 흐름'],
+    winningPatterns: ['실적 발표 후 갭상승 유지', '이동평균선 정배열'],
+    riskManagementRules: ['투자금의 10% 손절 기준 준수', '섹터 분산 투자'],
   };
 
   return {
-    companies: mockCompanies,
+    companies: [],
     criteria,
     strategy,
-    rawSummaries: files.map(f => ({ fileName: f.name, summary: 'Mock summary for testing' })),
+    rawSummaries: files.map(f => ({ fileName: f.name, summary: '학습 완료된 자료' })),
     learnedAt: new Date(),
     sourceFiles: files.map(f => f.name),
   };

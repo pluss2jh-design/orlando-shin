@@ -1531,3 +1531,3155 @@ Please consider completing the survey at https://bit.ly/yahoo-finance-api-feedba
  POST /api/analysis 200 in 931ms (compile: 2ms, render: 928ms)
 ✓ Compiled in 153ms
 ✓ Compiled in 106ms
+✓ Compiled in 93ms
+ GET /stock-analysis 200 in 331ms (compile: 162ms, proxy.ts: 15ms, render: 154ms)
+✓ Compiled in 437ms
+ GET /api/gdrive/learn 200 in 2.4s (compile: 2.4s, render: 14ms)
+ GET /stock-analysis 200 in 361ms (compile: 182ms, proxy.ts: 7ms, render: 172ms)
+ GET /api/gdrive/learn 200 in 49ms (compile: 41ms, render: 8ms)
+Starting analysis engine with 3 learned companies and universe screening...
+Please consider completing the survey at https://bit.ly/yahoo-finance-api-feedback if you haven't already; for more info see https://github.com/gadicc/yahoo-finance2/issues/764#issuecomment-2056623851.  This will only be shown once, but you can suppress this message in future with `new YahooFinance({ suppressNotices: ['yahooSurvey'] })`.
+Universe size: 132 tickers
+Please consider completing the survey at https://bit.ly/yahoo-finance-api-feedback if you haven't already; for more info see https://github.com/gadicc/yahoo-finance2/issues/764#issuecomment-2056623851.  This will only be shown once, but you can suppress this message in future with `new YahooFinance({ suppressNotices: ['yahooSurvey'] })`.
+Fetched data for 129 tickers from Yahoo Finance
+Company NVDA failed screening: NVIDIA: 티커 NVDA 매칭 확인됨, 현재가(28만원)가 이미 목표가(22만원)를 초과 - 상승 여력 없음
+Company 005930.KS failed screening: 삼성전자: 티커 005930.KS 매칭 확인됨, 현재가(17만원)가 이미 목표가(9만원)를 초과 - 상승 여력 없음
+Company 000660.KS failed screening: SK하이닉스: 티커 000660.KS 매칭 확인됨, 현재가(89만원)가 이미 목표가(21만원)를 초과 - 상승 여력 없음
+Screened 126 candidates after filters
+Deep-diving into top 30 screened candidates...
+[Deprecated] historical() relies on an API that Yahoo have removed.  We'll map this request to chart() for convenience, but, please consider using chart() directly instead; for more info see https://github.com/gadicc/yahoo-finance2/issues/795.  This will only be shown once, but you can suppress this message in future with `new YahooFinance({ suppressNotices: ['ripHistorical'] })`.
+[yahooFinance.historical] Invalid options ("#/definitions/ChartOptions")
+{
+  "errors": [
+    {
+      "instancePath": "/period2",
+      "schemaPath": "#/definitions/ChartOptions",
+      "message": "should match some schema in anyOf",
+      "subErrors": [
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/0",
+          "message": "Expecting date'ish",
+          "params": {
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          }
+        },
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/1",
+          "message": "Expected a string"
+        },
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/2",
+          "message": "Expected a number'ish"
+        }
+      ]
+    }
+  ],
+  "input": {
+    "period1": "2023-05-09T00:00:00.000Z",
+    "interval": "1d",
+    "events": ""
+  }
+}
+Error deep-diving T: Error [InvalidOptionsError]: yahooFinance.historical called with invalid options.
+    at fetchYahooFinanceData (src\lib\stock-analysis\yahoo-finance.ts:122:18)
+    at runAnalysisEngine (src\lib\stock-analysis\analysis-engine.ts:135:56)
+    at async POST (src\app\api\analysis\route.ts:40:20)
+  120 |       modules: ['financialData', 'price', 'defaultKeyStatistics', 'summaryDetail'],
+  121 |     }),
+> 122 |     yahooFinance.historical(ticker, {
+      |                  ^
+  123 |       period1: period1.toISOString().split('T')[0],
+  124 |     }),
+  125 |   ]);
+[yahooFinance.historical] Invalid options ("#/definitions/ChartOptions")
+{
+  "errors": [
+    {
+      "instancePath": "/period2",
+      "schemaPath": "#/definitions/ChartOptions",
+      "message": "should match some schema in anyOf",
+      "subErrors": [
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/0",
+          "message": "Expecting date'ish",
+          "params": {
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          }
+        },
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/1",
+          "message": "Expected a string"
+        },
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/2",
+          "message": "Expected a number'ish"
+        }
+      ]
+    }
+  ],
+  "input": {
+    "period1": "2023-05-09T00:00:00.000Z",
+    "interval": "1d",
+    "events": ""
+  }
+}
+Error deep-diving PYPL: Error [InvalidOptionsError]: yahooFinance.historical called with invalid options.
+    at fetchYahooFinanceData (src\lib\stock-analysis\yahoo-finance.ts:122:18)
+    at runAnalysisEngine (src\lib\stock-analysis\analysis-engine.ts:135:56)
+    at async POST (src\app\api\analysis\route.ts:40:20)
+  120 |       modules: ['financialData', 'price', 'defaultKeyStatistics', 'summaryDetail'],
+  121 |     }),
+> 122 |     yahooFinance.historical(ticker, {
+      |                  ^
+  123 |       period1: period1.toISOString().split('T')[0],
+  124 |     }),
+  125 |   ]);
+[yahooFinance.historical] Invalid options ("#/definitions/ChartOptions")
+{
+  "errors": [
+    {
+      "instancePath": "/period2",
+      "schemaPath": "#/definitions/ChartOptions",
+      "message": "should match some schema in anyOf",
+      "subErrors": [
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/0",
+          "message": "Expecting date'ish",
+          "params": {
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          }
+        },
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/1",
+          "message": "Expected a string"
+        },
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/2",
+          "message": "Expected a number'ish"
+        }
+      ]
+    }
+  ],
+  "input": {
+    "period1": "2023-05-09T00:00:00.000Z",
+    "interval": "1d",
+    "events": ""
+  }
+}
+Error deep-diving TRV: Error [InvalidOptionsError]: yahooFinance.historical called with invalid options.
+    at fetchYahooFinanceData (src\lib\stock-analysis\yahoo-finance.ts:122:18)
+    at runAnalysisEngine (src\lib\stock-analysis\analysis-engine.ts:135:56)
+    at async POST (src\app\api\analysis\route.ts:40:20)
+  120 |       modules: ['financialData', 'price', 'defaultKeyStatistics', 'summaryDetail'],
+  121 |     }),
+> 122 |     yahooFinance.historical(ticker, {
+      |                  ^
+  123 |       period1: period1.toISOString().split('T')[0],
+  124 |     }),
+  125 |   ]);
+[yahooFinance.historical] Invalid options ("#/definitions/ChartOptions")
+{
+  "errors": [
+    {
+      "instancePath": "/period2",
+      "schemaPath": "#/definitions/ChartOptions",
+      "message": "should match some schema in anyOf",
+      "subErrors": [
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/0",
+          "message": "Expecting date'ish",
+          "params": {
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          }
+        },
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/1",
+          "message": "Expected a string"
+        },
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/2",
+          "message": "Expected a number'ish"
+        }
+      ]
+    }
+  ],
+  "input": {
+    "period1": "2023-05-09T00:00:00.000Z",
+    "interval": "1d",
+    "events": ""
+  }
+}
+Error deep-diving VZ: Error [InvalidOptionsError]: yahooFinance.historical called with invalid options.
+    at fetchYahooFinanceData (src\lib\stock-analysis\yahoo-finance.ts:122:18)
+    at runAnalysisEngine (src\lib\stock-analysis\analysis-engine.ts:135:56)
+    at async POST (src\app\api\analysis\route.ts:40:20)
+  120 |       modules: ['financialData', 'price', 'defaultKeyStatistics', 'summaryDetail'],
+  121 |     }),
+> 122 |     yahooFinance.historical(ticker, {
+      |                  ^
+  123 |       period1: period1.toISOString().split('T')[0],
+  124 |     }),
+  125 |   ]);
+[yahooFinance.historical] Invalid options ("#/definitions/ChartOptions")
+{
+  "errors": [
+    {
+      "instancePath": "/period2",
+      "schemaPath": "#/definitions/ChartOptions",
+      "message": "should match some schema in anyOf",
+      "subErrors": [
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/0",
+          "message": "Expecting date'ish",
+          "params": {
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          }
+        },
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/1",
+          "message": "Expected a string"
+        },
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/2",
+          "message": "Expected a number'ish"
+        }
+      ]
+    }
+  ],
+  "input": {
+    "period1": "2023-05-09T00:00:00.000Z",
+    "interval": "1d",
+    "events": ""
+  }
+}
+Error deep-diving BAC: Error [InvalidOptionsError]: yahooFinance.historical called with invalid options.
+    at fetchYahooFinanceData (src\lib\stock-analysis\yahoo-finance.ts:122:18)
+    at runAnalysisEngine (src\lib\stock-analysis\analysis-engine.ts:135:56)
+    at async POST (src\app\api\analysis\route.ts:40:20)
+  120 |       modules: ['financialData', 'price', 'defaultKeyStatistics', 'summaryDetail'],
+  121 |     }),
+> 122 |     yahooFinance.historical(ticker, {
+      |                  ^
+  123 |       period1: period1.toISOString().split('T')[0],
+  124 |     }),
+  125 |   ]);
+[yahooFinance.historical] Invalid options ("#/definitions/ChartOptions")
+{
+  "errors": [
+    {
+      "instancePath": "/period2",
+      "schemaPath": "#/definitions/ChartOptions",
+      "message": "should match some schema in anyOf",
+      "subErrors": [
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/0",
+          "message": "Expecting date'ish",
+          "params": {
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          }
+        },
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/1",
+          "message": "Expected a string"
+        },
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/2",
+          "message": "Expected a number'ish"
+        }
+      ]
+    }
+  ],
+  "input": {
+    "period1": "2023-05-09T00:00:00.000Z",
+    "interval": "1d",
+    "events": ""
+  }
+}
+Error deep-diving CI: Error [InvalidOptionsError]: yahooFinance.historical called with invalid options.
+    at fetchYahooFinanceData (src\lib\stock-analysis\yahoo-finance.ts:122:18)
+    at runAnalysisEngine (src\lib\stock-analysis\analysis-engine.ts:135:56)
+    at async POST (src\app\api\analysis\route.ts:40:20)
+  120 |       modules: ['financialData', 'price', 'defaultKeyStatistics', 'summaryDetail'],
+  121 |     }),
+> 122 |     yahooFinance.historical(ticker, {
+      |                  ^
+  123 |       period1: period1.toISOString().split('T')[0],
+  124 |     }),
+  125 |   ]);
+[yahooFinance.historical] Invalid options ("#/definitions/ChartOptions")
+{
+  "errors": [
+    {
+      "instancePath": "/period2",
+      "schemaPath": "#/definitions/ChartOptions",
+      "message": "should match some schema in anyOf",
+      "subErrors": [
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/0",
+          "message": "Expecting date'ish",
+          "params": {
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          }
+        },
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/1",
+          "message": "Expected a string"
+        },
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/2",
+          "message": "Expected a number'ish"
+        }
+      ]
+    }
+  ],
+  "input": {
+    "period1": "2023-05-09T00:00:00.000Z",
+    "interval": "1d",
+    "events": ""
+  }
+}
+Error deep-diving DIS: Error [InvalidOptionsError]: yahooFinance.historical called with invalid options.
+    at fetchYahooFinanceData (src\lib\stock-analysis\yahoo-finance.ts:122:18)
+    at runAnalysisEngine (src\lib\stock-analysis\analysis-engine.ts:135:56)
+    at async POST (src\app\api\analysis\route.ts:40:20)
+  120 |       modules: ['financialData', 'price', 'defaultKeyStatistics', 'summaryDetail'],
+  121 |     }),
+> 122 |     yahooFinance.historical(ticker, {
+      |                  ^
+  123 |       period1: period1.toISOString().split('T')[0],
+  124 |     }),
+  125 |   ]);
+[yahooFinance.historical] Invalid options ("#/definitions/ChartOptions")
+{
+  "errors": [
+    {
+      "instancePath": "/period2",
+      "schemaPath": "#/definitions/ChartOptions",
+      "message": "should match some schema in anyOf",
+      "subErrors": [
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/0",
+          "message": "Expecting date'ish",
+          "params": {
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          }
+        },
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/1",
+          "message": "Expected a string"
+        },
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/2",
+          "message": "Expected a number'ish"
+        }
+      ]
+    }
+  ],
+  "input": {
+    "period1": "2023-05-09T00:00:00.000Z",
+    "interval": "1d",
+    "events": ""
+  }
+}
+Error deep-diving UNH: Error [InvalidOptionsError]: yahooFinance.historical called with invalid options.
+    at fetchYahooFinanceData (src\lib\stock-analysis\yahoo-finance.ts:122:18)
+    at runAnalysisEngine (src\lib\stock-analysis\analysis-engine.ts:135:56)
+    at async POST (src\app\api\analysis\route.ts:40:20)
+  120 |       modules: ['financialData', 'price', 'defaultKeyStatistics', 'summaryDetail'],
+  121 |     }),
+> 122 |     yahooFinance.historical(ticker, {
+      |                  ^
+  123 |       period1: period1.toISOString().split('T')[0],
+  124 |     }),
+  125 |   ]);
+[yahooFinance.historical] Invalid options ("#/definitions/ChartOptions")
+{
+  "errors": [
+    {
+      "instancePath": "/period2",
+      "schemaPath": "#/definitions/ChartOptions",
+      "message": "should match some schema in anyOf",
+      "subErrors": [
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/0",
+          "message": "Expecting date'ish",
+          "params": {
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          }
+        },
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/1",
+          "message": "Expected a string"
+        },
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/2",
+          "message": "Expected a number'ish"
+        }
+      ]
+    }
+  ],
+  "input": {
+    "period1": "2023-05-09T00:00:00.000Z",
+    "interval": "1d",
+    "events": ""
+  }
+}
+Error deep-diving PFE: Error [InvalidOptionsError]: yahooFinance.historical called with invalid options.
+    at fetchYahooFinanceData (src\lib\stock-analysis\yahoo-finance.ts:122:18)
+    at runAnalysisEngine (src\lib\stock-analysis\analysis-engine.ts:135:56)
+    at async POST (src\app\api\analysis\route.ts:40:20)
+  120 |       modules: ['financialData', 'price', 'defaultKeyStatistics', 'summaryDetail'],
+  121 |     }),
+> 122 |     yahooFinance.historical(ticker, {
+      |                  ^
+  123 |       period1: period1.toISOString().split('T')[0],
+  124 |     }),
+  125 |   ]);
+[yahooFinance.historical] Invalid options ("#/definitions/ChartOptions")
+{
+  "errors": [
+    {
+      "instancePath": "/period2",
+      "schemaPath": "#/definitions/ChartOptions",
+      "message": "should match some schema in anyOf",
+      "subErrors": [
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/0",
+          "message": "Expecting date'ish",
+          "params": {
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          }
+        },
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/1",
+          "message": "Expected a string"
+        },
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/2",
+          "message": "Expected a number'ish"
+        }
+      ]
+    }
+  ],
+  "input": {
+    "period1": "2023-05-09T00:00:00.000Z",
+    "interval": "1d",
+    "events": ""
+  }
+}
+Error deep-diving EOG: Error [InvalidOptionsError]: yahooFinance.historical called with invalid options.
+    at fetchYahooFinanceData (src\lib\stock-analysis\yahoo-finance.ts:122:18)
+    at runAnalysisEngine (src\lib\stock-analysis\analysis-engine.ts:135:56)
+    at async POST (src\app\api\analysis\route.ts:40:20)
+  120 |       modules: ['financialData', 'price', 'defaultKeyStatistics', 'summaryDetail'],
+  121 |     }),
+> 122 |     yahooFinance.historical(ticker, {
+      |                  ^
+  123 |       period1: period1.toISOString().split('T')[0],
+  124 |     }),
+  125 |   ]);
+[yahooFinance.historical] Invalid options ("#/definitions/ChartOptions")
+{
+  "errors": [
+    {
+      "instancePath": "/period2",
+      "schemaPath": "#/definitions/ChartOptions",
+      "message": "should match some schema in anyOf",
+      "subErrors": [
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/0",
+          "message": "Expecting date'ish",
+          "params": {
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          }
+        },
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/1",
+          "message": "Expected a string"
+        },
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/2",
+          "message": "Expected a number'ish"
+        }
+      ]
+    }
+  ],
+  "input": {
+    "period1": "2023-05-09T00:00:00.000Z",
+    "interval": "1d",
+    "events": ""
+  }
+}
+Error deep-diving GS: Error [InvalidOptionsError]: yahooFinance.historical called with invalid options.
+    at fetchYahooFinanceData (src\lib\stock-analysis\yahoo-finance.ts:122:18)
+    at runAnalysisEngine (src\lib\stock-analysis\analysis-engine.ts:135:56)
+    at async POST (src\app\api\analysis\route.ts:40:20)
+  120 |       modules: ['financialData', 'price', 'defaultKeyStatistics', 'summaryDetail'],
+  121 |     }),
+> 122 |     yahooFinance.historical(ticker, {
+      |                  ^
+  123 |       period1: period1.toISOString().split('T')[0],
+  124 |     }),
+  125 |   ]);
+[yahooFinance.historical] Invalid options ("#/definitions/ChartOptions")
+{
+  "errors": [
+    {
+      "instancePath": "/period2",
+      "schemaPath": "#/definitions/ChartOptions",
+      "message": "should match some schema in anyOf",
+      "subErrors": [
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/0",
+          "message": "Expecting date'ish",
+          "params": {
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          }
+        },
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/1",
+          "message": "Expected a string"
+        },
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/2",
+          "message": "Expected a number'ish"
+        }
+      ]
+    }
+  ],
+  "input": {
+    "period1": "2023-05-09T00:00:00.000Z",
+    "interval": "1d",
+    "events": ""
+  }
+}
+Error deep-diving JPM: Error [InvalidOptionsError]: yahooFinance.historical called with invalid options.
+    at fetchYahooFinanceData (src\lib\stock-analysis\yahoo-finance.ts:122:18)
+    at runAnalysisEngine (src\lib\stock-analysis\analysis-engine.ts:135:56)
+    at async POST (src\app\api\analysis\route.ts:40:20)
+  120 |       modules: ['financialData', 'price', 'defaultKeyStatistics', 'summaryDetail'],
+  121 |     }),
+> 122 |     yahooFinance.historical(ticker, {
+      |                  ^
+  123 |       period1: period1.toISOString().split('T')[0],
+  124 |     }),
+  125 |   ]);
+[yahooFinance.historical] Invalid options ("#/definitions/ChartOptions")
+{
+  "errors": [
+    {
+      "instancePath": "/period2",
+      "schemaPath": "#/definitions/ChartOptions",
+      "message": "should match some schema in anyOf",
+      "subErrors": [
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/0",
+          "message": "Expecting date'ish",
+          "params": {
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          }
+        },
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/1",
+          "message": "Expected a string"
+        },
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/2",
+          "message": "Expected a number'ish"
+        }
+      ]
+    }
+  ],
+  "input": {
+    "period1": "2023-05-09T00:00:00.000Z",
+    "interval": "1d",
+    "events": ""
+  }
+}
+Error deep-diving BRK-B: Error [InvalidOptionsError]: yahooFinance.historical called with invalid options.
+    at fetchYahooFinanceData (src\lib\stock-analysis\yahoo-finance.ts:122:18)
+    at runAnalysisEngine (src\lib\stock-analysis\analysis-engine.ts:135:56)
+    at async POST (src\app\api\analysis\route.ts:40:20)
+  120 |       modules: ['financialData', 'price', 'defaultKeyStatistics', 'summaryDetail'],
+  121 |     }),
+> 122 |     yahooFinance.historical(ticker, {
+      |                  ^
+  123 |       period1: period1.toISOString().split('T')[0],
+  124 |     }),
+  125 |   ]);
+[yahooFinance.historical] Invalid options ("#/definitions/ChartOptions")
+{
+  "errors": [
+    {
+      "instancePath": "/period2",
+      "schemaPath": "#/definitions/ChartOptions",
+      "message": "should match some schema in anyOf",
+      "subErrors": [
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/0",
+          "message": "Expecting date'ish",
+          "params": {
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          }
+        },
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/1",
+          "message": "Expected a string"
+        },
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/2",
+          "message": "Expected a number'ish"
+        }
+      ]
+    }
+  ],
+  "input": {
+    "period1": "2023-05-09T00:00:00.000Z",
+    "interval": "1d",
+    "events": ""
+  }
+}
+Error deep-diving XOM: Error [InvalidOptionsError]: yahooFinance.historical called with invalid options.
+    at fetchYahooFinanceData (src\lib\stock-analysis\yahoo-finance.ts:122:18)
+    at runAnalysisEngine (src\lib\stock-analysis\analysis-engine.ts:135:56)
+    at async POST (src\app\api\analysis\route.ts:40:20)
+  120 |       modules: ['financialData', 'price', 'defaultKeyStatistics', 'summaryDetail'],
+  121 |     }),
+> 122 |     yahooFinance.historical(ticker, {
+      |                  ^
+  123 |       period1: period1.toISOString().split('T')[0],
+  124 |     }),
+  125 |   ]);
+[yahooFinance.historical] Invalid options ("#/definitions/ChartOptions")
+{
+  "errors": [
+    {
+      "instancePath": "/period2",
+      "schemaPath": "#/definitions/ChartOptions",
+      "message": "should match some schema in anyOf",
+      "subErrors": [
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/0",
+          "message": "Expecting date'ish",
+          "params": {
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          }
+        },
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/1",
+          "message": "Expected a string"
+        },
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/2",
+          "message": "Expected a number'ish"
+        }
+      ]
+    }
+  ],
+  "input": {
+    "period1": "2023-05-09T00:00:00.000Z",
+    "interval": "1d",
+    "events": ""
+  }
+}
+Error deep-diving REGN: Error [InvalidOptionsError]: yahooFinance.historical called with invalid options.
+    at fetchYahooFinanceData (src\lib\stock-analysis\yahoo-finance.ts:122:18)
+    at runAnalysisEngine (src\lib\stock-analysis\analysis-engine.ts:135:56)
+    at async POST (src\app\api\analysis\route.ts:40:20)
+  120 |       modules: ['financialData', 'price', 'defaultKeyStatistics', 'summaryDetail'],
+  121 |     }),
+> 122 |     yahooFinance.historical(ticker, {
+      |                  ^
+  123 |       period1: period1.toISOString().split('T')[0],
+  124 |     }),
+  125 |   ]);
+[yahooFinance.historical] Invalid options ("#/definitions/ChartOptions")
+{
+  "errors": [
+    {
+      "instancePath": "/period2",
+      "schemaPath": "#/definitions/ChartOptions",
+      "message": "should match some schema in anyOf",
+      "subErrors": [
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/0",
+          "message": "Expecting date'ish",
+          "params": {
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          }
+        },
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/1",
+          "message": "Expected a string"
+        },
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/2",
+          "message": "Expected a number'ish"
+        }
+      ]
+    }
+  ],
+  "input": {
+    "period1": "2023-05-09T00:00:00.000Z",
+    "interval": "1d",
+    "events": ""
+  }
+}
+Error deep-diving SLB: Error [InvalidOptionsError]: yahooFinance.historical called with invalid options.
+    at fetchYahooFinanceData (src\lib\stock-analysis\yahoo-finance.ts:122:18)
+    at runAnalysisEngine (src\lib\stock-analysis\analysis-engine.ts:135:56)
+    at async POST (src\app\api\analysis\route.ts:40:20)
+  120 |       modules: ['financialData', 'price', 'defaultKeyStatistics', 'summaryDetail'],
+  121 |     }),
+> 122 |     yahooFinance.historical(ticker, {
+      |                  ^
+  123 |       period1: period1.toISOString().split('T')[0],
+  124 |     }),
+  125 |   ]);
+[yahooFinance.historical] Invalid options ("#/definitions/ChartOptions")
+{
+  "errors": [
+    {
+      "instancePath": "/period2",
+      "schemaPath": "#/definitions/ChartOptions",
+      "message": "should match some schema in anyOf",
+      "subErrors": [
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/0",
+          "message": "Expecting date'ish",
+          "params": {
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          }
+        },
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/1",
+          "message": "Expected a string"
+        },
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/2",
+          "message": "Expected a number'ish"
+        }
+      ]
+    }
+  ],
+  "input": {
+    "period1": "2023-05-09T00:00:00.000Z",
+    "interval": "1d",
+    "events": ""
+  }
+}
+Error deep-diving ACN: Error [InvalidOptionsError]: yahooFinance.historical called with invalid options.
+    at fetchYahooFinanceData (src\lib\stock-analysis\yahoo-finance.ts:122:18)
+    at runAnalysisEngine (src\lib\stock-analysis\analysis-engine.ts:135:56)
+    at async POST (src\app\api\analysis\route.ts:40:20)
+  120 |       modules: ['financialData', 'price', 'defaultKeyStatistics', 'summaryDetail'],
+  121 |     }),
+> 122 |     yahooFinance.historical(ticker, {
+      |                  ^
+  123 |       period1: period1.toISOString().split('T')[0],
+  124 |     }),
+  125 |   ]);
+[yahooFinance.historical] Invalid options ("#/definitions/ChartOptions")
+{
+  "errors": [
+    {
+      "instancePath": "/period2",
+      "schemaPath": "#/definitions/ChartOptions",
+      "message": "should match some schema in anyOf",
+      "subErrors": [
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/0",
+          "message": "Expecting date'ish",
+          "params": {
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          }
+        },
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/1",
+          "message": "Expected a string"
+        },
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/2",
+          "message": "Expected a number'ish"
+        }
+      ]
+    }
+  ],
+  "input": {
+    "period1": "2023-05-09T00:00:00.000Z",
+    "interval": "1d",
+    "events": ""
+  }
+}
+Error deep-diving MO: Error [InvalidOptionsError]: yahooFinance.historical called with invalid options.
+    at fetchYahooFinanceData (src\lib\stock-analysis\yahoo-finance.ts:122:18)
+    at runAnalysisEngine (src\lib\stock-analysis\analysis-engine.ts:135:56)
+    at async POST (src\app\api\analysis\route.ts:40:20)
+  120 |       modules: ['financialData', 'price', 'defaultKeyStatistics', 'summaryDetail'],
+  121 |     }),
+> 122 |     yahooFinance.historical(ticker, {
+      |                  ^
+  123 |       period1: period1.toISOString().split('T')[0],
+  124 |     }),
+  125 |   ]);
+[yahooFinance.historical] Invalid options ("#/definitions/ChartOptions")
+{
+  "errors": [
+    {
+      "instancePath": "/period2",
+      "schemaPath": "#/definitions/ChartOptions",
+      "message": "should match some schema in anyOf",
+      "subErrors": [
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/0",
+          "message": "Expecting date'ish",
+          "params": {
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          }
+        },
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/1",
+          "message": "Expected a string"
+        },
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/2",
+          "message": "Expected a number'ish"
+        }
+      ]
+    }
+  ],
+  "input": {
+    "period1": "2023-05-09T00:00:00.000Z",
+    "interval": "1d",
+    "events": ""
+  }
+}
+Error deep-diving MPC: Error [InvalidOptionsError]: yahooFinance.historical called with invalid options.
+    at fetchYahooFinanceData (src\lib\stock-analysis\yahoo-finance.ts:122:18)
+    at runAnalysisEngine (src\lib\stock-analysis\analysis-engine.ts:135:56)
+    at async POST (src\app\api\analysis\route.ts:40:20)
+  120 |       modules: ['financialData', 'price', 'defaultKeyStatistics', 'summaryDetail'],
+  121 |     }),
+> 122 |     yahooFinance.historical(ticker, {
+      |                  ^
+  123 |       period1: period1.toISOString().split('T')[0],
+  124 |     }),
+  125 |   ]);
+[yahooFinance.historical] Invalid options ("#/definitions/ChartOptions")
+{
+  "errors": [
+    {
+      "instancePath": "/period2",
+      "schemaPath": "#/definitions/ChartOptions",
+      "message": "should match some schema in anyOf",
+      "subErrors": [
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/0",
+          "message": "Expecting date'ish",
+          "params": {
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          }
+        },
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/1",
+          "message": "Expected a string"
+        },
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/2",
+          "message": "Expected a number'ish"
+        }
+      ]
+    }
+  ],
+  "input": {
+    "period1": "2023-05-09T00:00:00.000Z",
+    "interval": "1d",
+    "events": ""
+  }
+}
+Error deep-diving GD: Error [InvalidOptionsError]: yahooFinance.historical called with invalid options.
+    at fetchYahooFinanceData (src\lib\stock-analysis\yahoo-finance.ts:122:18)
+    at runAnalysisEngine (src\lib\stock-analysis\analysis-engine.ts:135:56)
+    at async POST (src\app\api\analysis\route.ts:40:20)
+  120 |       modules: ['financialData', 'price', 'defaultKeyStatistics', 'summaryDetail'],
+  121 |     }),
+> 122 |     yahooFinance.historical(ticker, {
+      |                  ^
+  123 |       period1: period1.toISOString().split('T')[0],
+  124 |     }),
+  125 |   ]);
+[yahooFinance.historical] Invalid options ("#/definitions/ChartOptions")
+{
+  "errors": [
+    {
+      "instancePath": "/period2",
+      "schemaPath": "#/definitions/ChartOptions",
+      "message": "should match some schema in anyOf",
+      "subErrors": [
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/0",
+          "message": "Expecting date'ish",
+          "params": {
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          }
+        },
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/1",
+          "message": "Expected a string"
+        },
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/2",
+          "message": "Expected a number'ish"
+        }
+      ]
+    }
+  ],
+  "input": {
+    "period1": "2023-05-09T00:00:00.000Z",
+    "interval": "1d",
+    "events": ""
+  }
+}
+Error deep-diving COIN: Error [InvalidOptionsError]: yahooFinance.historical called with invalid options.
+    at fetchYahooFinanceData (src\lib\stock-analysis\yahoo-finance.ts:122:18)
+    at runAnalysisEngine (src\lib\stock-analysis\analysis-engine.ts:135:56)
+    at async POST (src\app\api\analysis\route.ts:40:20)
+  120 |       modules: ['financialData', 'price', 'defaultKeyStatistics', 'summaryDetail'],
+  121 |     }),
+> 122 |     yahooFinance.historical(ticker, {
+      |                  ^
+  123 |       period1: period1.toISOString().split('T')[0],
+  124 |     }),
+  125 |   ]);
+[yahooFinance.historical] Invalid options ("#/definitions/ChartOptions")
+{
+  "errors": [
+    {
+      "instancePath": "/period2",
+      "schemaPath": "#/definitions/ChartOptions",
+      "message": "should match some schema in anyOf",
+      "subErrors": [
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/0",
+          "message": "Expecting date'ish",
+          "params": {
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          }
+        },
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/1",
+          "message": "Expected a string"
+        },
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/2",
+          "message": "Expected a number'ish"
+        }
+      ]
+    }
+  ],
+  "input": {
+    "period1": "2023-05-09T00:00:00.000Z",
+    "interval": "1d",
+    "events": ""
+  }
+}
+Error deep-diving CVX: Error [InvalidOptionsError]: yahooFinance.historical called with invalid options.
+    at fetchYahooFinanceData (src\lib\stock-analysis\yahoo-finance.ts:122:18)
+    at runAnalysisEngine (src\lib\stock-analysis\analysis-engine.ts:135:56)
+    at async POST (src\app\api\analysis\route.ts:40:20)
+  120 |       modules: ['financialData', 'price', 'defaultKeyStatistics', 'summaryDetail'],
+  121 |     }),
+> 122 |     yahooFinance.historical(ticker, {
+      |                  ^
+  123 |       period1: period1.toISOString().split('T')[0],
+  124 |     }),
+  125 |   ]);
+[yahooFinance.historical] Invalid options ("#/definitions/ChartOptions")
+{
+  "errors": [
+    {
+      "instancePath": "/period2",
+      "schemaPath": "#/definitions/ChartOptions",
+      "message": "should match some schema in anyOf",
+      "subErrors": [
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/0",
+          "message": "Expecting date'ish",
+          "params": {
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          }
+        },
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/1",
+          "message": "Expected a string"
+        },
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/2",
+          "message": "Expected a number'ish"
+        }
+      ]
+    }
+  ],
+  "input": {
+    "period1": "2023-05-09T00:00:00.000Z",
+    "interval": "1d",
+    "events": ""
+  }
+}
+Error deep-diving AXP: Error [InvalidOptionsError]: yahooFinance.historical called with invalid options.
+    at fetchYahooFinanceData (src\lib\stock-analysis\yahoo-finance.ts:122:18)
+    at runAnalysisEngine (src\lib\stock-analysis\analysis-engine.ts:135:56)
+    at async POST (src\app\api\analysis\route.ts:40:20)
+  120 |       modules: ['financialData', 'price', 'defaultKeyStatistics', 'summaryDetail'],
+  121 |     }),
+> 122 |     yahooFinance.historical(ticker, {
+      |                  ^
+  123 |       period1: period1.toISOString().split('T')[0],
+  124 |     }),
+  125 |   ]);
+[yahooFinance.historical] Invalid options ("#/definitions/ChartOptions")
+{
+  "errors": [
+    {
+      "instancePath": "/period2",
+      "schemaPath": "#/definitions/ChartOptions",
+      "message": "should match some schema in anyOf",
+      "subErrors": [
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/0",
+          "message": "Expecting date'ish",
+          "params": {
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          }
+        },
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/1",
+          "message": "Expected a string"
+        },
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/2",
+          "message": "Expected a number'ish"
+        }
+      ]
+    }
+  ],
+  "input": {
+    "period1": "2023-05-09T00:00:00.000Z",
+    "interval": "1d",
+    "events": ""
+  }
+}
+Error deep-diving JNJ: Error [InvalidOptionsError]: yahooFinance.historical called with invalid options.
+    at fetchYahooFinanceData (src\lib\stock-analysis\yahoo-finance.ts:122:18)
+    at runAnalysisEngine (src\lib\stock-analysis\analysis-engine.ts:135:56)
+    at async POST (src\app\api\analysis\route.ts:40:20)
+  120 |       modules: ['financialData', 'price', 'defaultKeyStatistics', 'summaryDetail'],
+  121 |     }),
+> 122 |     yahooFinance.historical(ticker, {
+      |                  ^
+  123 |       period1: period1.toISOString().split('T')[0],
+  124 |     }),
+  125 |   ]);
+[yahooFinance.historical] Invalid options ("#/definitions/ChartOptions")
+{
+  "errors": [
+    {
+      "instancePath": "/period2",
+      "schemaPath": "#/definitions/ChartOptions",
+      "message": "should match some schema in anyOf",
+      "subErrors": [
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/0",
+          "message": "Expecting date'ish",
+          "params": {
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          }
+        },
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/1",
+          "message": "Expected a string"
+        },
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/2",
+          "message": "Expected a number'ish"
+        }
+      ]
+    }
+  ],
+  "input": {
+    "period1": "2023-05-09T00:00:00.000Z",
+    "interval": "1d",
+    "events": ""
+  }
+}
+Error deep-diving MRK: Error [InvalidOptionsError]: yahooFinance.historical called with invalid options.
+    at fetchYahooFinanceData (src\lib\stock-analysis\yahoo-finance.ts:122:18)
+    at runAnalysisEngine (src\lib\stock-analysis\analysis-engine.ts:135:56)
+    at async POST (src\app\api\analysis\route.ts:40:20)
+  120 |       modules: ['financialData', 'price', 'defaultKeyStatistics', 'summaryDetail'],
+  121 |     }),
+> 122 |     yahooFinance.historical(ticker, {
+      |                  ^
+  123 |       period1: period1.toISOString().split('T')[0],
+  124 |     }),
+  125 |   ]);
+[yahooFinance.historical] Invalid options ("#/definitions/ChartOptions")
+{
+  "errors": [
+    {
+      "instancePath": "/period2",
+      "schemaPath": "#/definitions/ChartOptions",
+      "message": "should match some schema in anyOf",
+      "subErrors": [
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/0",
+          "message": "Expecting date'ish",
+          "params": {
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          }
+        },
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/1",
+          "message": "Expected a string"
+        },
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/2",
+          "message": "Expected a number'ish"
+        }
+      ]
+    }
+  ],
+  "input": {
+    "period1": "2023-05-09T00:00:00.000Z",
+    "interval": "1d",
+    "events": ""
+  }
+}
+Error deep-diving PG: Error [InvalidOptionsError]: yahooFinance.historical called with invalid options.
+    at fetchYahooFinanceData (src\lib\stock-analysis\yahoo-finance.ts:122:18)
+    at runAnalysisEngine (src\lib\stock-analysis\analysis-engine.ts:135:56)
+    at async POST (src\app\api\analysis\route.ts:40:20)
+  120 |       modules: ['financialData', 'price', 'defaultKeyStatistics', 'summaryDetail'],
+  121 |     }),
+> 122 |     yahooFinance.historical(ticker, {
+      |                  ^
+  123 |       period1: period1.toISOString().split('T')[0],
+  124 |     }),
+  125 |   ]);
+[yahooFinance.historical] Invalid options ("#/definitions/ChartOptions")
+{
+  "errors": [
+    {
+      "instancePath": "/period2",
+      "schemaPath": "#/definitions/ChartOptions",
+      "message": "should match some schema in anyOf",
+      "subErrors": [
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/0",
+          "message": "Expecting date'ish",
+          "params": {
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          }
+        },
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/1",
+          "message": "Expected a string"
+        },
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/2",
+          "message": "Expected a number'ish"
+        }
+      ]
+    }
+  ],
+  "input": {
+    "period1": "2023-05-09T00:00:00.000Z",
+    "interval": "1d",
+    "events": ""
+  }
+}
+Error deep-diving UNP: Error [InvalidOptionsError]: yahooFinance.historical called with invalid options.
+    at fetchYahooFinanceData (src\lib\stock-analysis\yahoo-finance.ts:122:18)
+    at runAnalysisEngine (src\lib\stock-analysis\analysis-engine.ts:135:56)
+    at async POST (src\app\api\analysis\route.ts:40:20)
+  120 |       modules: ['financialData', 'price', 'defaultKeyStatistics', 'summaryDetail'],
+  121 |     }),
+> 122 |     yahooFinance.historical(ticker, {
+      |                  ^
+  123 |       period1: period1.toISOString().split('T')[0],
+  124 |     }),
+  125 |   ]);
+[yahooFinance.historical] Invalid options ("#/definitions/ChartOptions")
+{
+  "errors": [
+    {
+      "instancePath": "/period2",
+      "schemaPath": "#/definitions/ChartOptions",
+      "message": "should match some schema in anyOf",
+      "subErrors": [
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/0",
+          "message": "Expecting date'ish",
+          "params": {
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          }
+        },
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/1",
+          "message": "Expected a string"
+        },
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/2",
+          "message": "Expected a number'ish"
+        }
+      ]
+    }
+  ],
+  "input": {
+    "period1": "2023-05-09T00:00:00.000Z",
+    "interval": "1d",
+    "events": ""
+  }
+}
+Error deep-diving GILD: Error [InvalidOptionsError]: yahooFinance.historical called with invalid options.
+    at fetchYahooFinanceData (src\lib\stock-analysis\yahoo-finance.ts:122:18)
+    at runAnalysisEngine (src\lib\stock-analysis\analysis-engine.ts:135:56)
+    at async POST (src\app\api\analysis\route.ts:40:20)
+  120 |       modules: ['financialData', 'price', 'defaultKeyStatistics', 'summaryDetail'],
+  121 |     }),
+> 122 |     yahooFinance.historical(ticker, {
+      |                  ^
+  123 |       period1: period1.toISOString().split('T')[0],
+  124 |     }),
+  125 |   ]);
+[yahooFinance.historical] Invalid options ("#/definitions/ChartOptions")
+{
+  "errors": [
+    {
+      "instancePath": "/period2",
+      "schemaPath": "#/definitions/ChartOptions",
+      "message": "should match some schema in anyOf",
+      "subErrors": [
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/0",
+          "message": "Expecting date'ish",
+          "params": {
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          }
+        },
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/1",
+          "message": "Expected a string"
+        },
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/2",
+          "message": "Expected a number'ish"
+        }
+      ]
+    }
+  ],
+  "input": {
+    "period1": "2023-05-09T00:00:00.000Z",
+    "interval": "1d",
+    "events": ""
+  }
+}
+Error deep-diving ADP: Error [InvalidOptionsError]: yahooFinance.historical called with invalid options.
+    at fetchYahooFinanceData (src\lib\stock-analysis\yahoo-finance.ts:122:18)
+    at runAnalysisEngine (src\lib\stock-analysis\analysis-engine.ts:135:56)
+    at async POST (src\app\api\analysis\route.ts:40:20)
+  120 |       modules: ['financialData', 'price', 'defaultKeyStatistics', 'summaryDetail'],
+  121 |     }),
+> 122 |     yahooFinance.historical(ticker, {
+      |                  ^
+  123 |       period1: period1.toISOString().split('T')[0],
+  124 |     }),
+  125 |   ]);
+[yahooFinance.historical] Invalid options ("#/definitions/ChartOptions")
+{
+  "errors": [
+    {
+      "instancePath": "/period2",
+      "schemaPath": "#/definitions/ChartOptions",
+      "message": "should match some schema in anyOf",
+      "subErrors": [
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/0",
+          "message": "Expecting date'ish",
+          "params": {
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          }
+        },
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/1",
+          "message": "Expected a string"
+        },
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/2",
+          "message": "Expected a number'ish"
+        }
+      ]
+    }
+  ],
+  "input": {
+    "period1": "2023-05-09T00:00:00.000Z",
+    "interval": "1d",
+    "events": ""
+  }
+}
+Error deep-diving ZTS: Error [InvalidOptionsError]: yahooFinance.historical called with invalid options.
+    at fetchYahooFinanceData (src\lib\stock-analysis\yahoo-finance.ts:122:18)
+    at runAnalysisEngine (src\lib\stock-analysis\analysis-engine.ts:135:56)
+    at async POST (src\app\api\analysis\route.ts:40:20)
+  120 |       modules: ['financialData', 'price', 'defaultKeyStatistics', 'summaryDetail'],
+  121 |     }),
+> 122 |     yahooFinance.historical(ticker, {
+      |                  ^
+  123 |       period1: period1.toISOString().split('T')[0],
+  124 |     }),
+  125 |   ]);
+Analysis complete. Found 5 top picks.
+ POST /api/analysis 200 in 8.3s (compile: 3.6s, render: 4.7s)
+✓ Compiled in 118ms
+ GET /stock-analysis 200 in 274ms (compile: 121ms, proxy.ts: 15ms, render: 138ms)
+ GET /api/gdrive/learn 200 in 1944ms (compile: 1933ms, render: 11ms)
+ GET /stock-analysis 200 in 65ms (compile: 4ms, proxy.ts: 6ms, render: 56ms)
+ GET /api/gdrive/learn 200 in 14ms (compile: 5ms, render: 9ms)
+✓ Compiled in 84ms
+ GET /stock-analysis 200 in 276ms (compile: 127ms, proxy.ts: 7ms, render: 142ms)
+ GET /api/gdrive/learn 200 in 2.0s (compile: 1996ms, render: 9ms)
+Starting analysis engine with 3 learned companies and universe screening...
+Please consider completing the survey at https://bit.ly/yahoo-finance-api-feedback if you haven't already; for more info see https://github.com/gadicc/yahoo-finance2/issues/764#issuecomment-2056623851.  This will only be shown once, but you can suppress this message in future with `new YahooFinance({ suppressNotices: ['yahooSurvey'] })`.
+Universe size: 132 tickers
+Please consider completing the survey at https://bit.ly/yahoo-finance-api-feedback if you haven't already; for more info see https://github.com/gadicc/yahoo-finance2/issues/764#issuecomment-2056623851.  This will only be shown once, but you can suppress this message in future with `new YahooFinance({ suppressNotices: ['yahooSurvey'] })`.
+Fetched data for 129 tickers from Yahoo Finance
+Company NVDA failed screening: NVIDIA: 티커 NVDA 매칭 확인됨, 현재가(28만원)가 이미 목표가(22만원)를 초과 - 상승 여력 없음
+Company 005930.KS failed screening: 삼성전자: 티커 005930.KS 매칭 확인됨, 현재가(17만원)가 이미 목표가(9만원)를 초과 - 상승 여력 없음
+Company 000660.KS failed screening: SK하이닉스: 티커 000660.KS 매칭 확인됨, 현재가(89만원)가 이미 목표가(21만원)를 초과 - 상승 여력 없음
+Screened 126 candidates after filters
+Deep-diving into top 30 screened candidates...
+[Deprecated] historical() relies on an API that Yahoo have removed.  We'll map this request to chart() for convenience, but, please consider using chart() directly instead; for more info see https://github.com/gadicc/yahoo-finance2/issues/795.  This will only be shown once, but you can suppress this message in future with `new YahooFinance({ suppressNotices: ['ripHistorical'] })`.
+[yahooFinance.historical] Invalid options ("#/definitions/ChartOptions")
+{
+  "errors": [
+    {
+      "instancePath": "/period2",
+      "schemaPath": "#/definitions/ChartOptions",
+      "message": "should match some schema in anyOf",
+      "subErrors": [
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/0",
+          "message": "Expecting date'ish",
+          "params": {
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          }
+        },
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/1",
+          "message": "Expected a string"
+        },
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/2",
+          "message": "Expected a number'ish"
+        }
+      ]
+    }
+  ],
+  "input": {
+    "period1": "2025-02-10T00:00:00.000Z",
+    "interval": "1d",
+    "events": ""
+  }
+}
+Error deep-diving T: Error [InvalidOptionsError]: yahooFinance.historical called with invalid options.
+    at fetchYahooFinanceData (src\lib\stock-analysis\yahoo-finance.ts:122:18)
+    at runAnalysisEngine (src\lib\stock-analysis\analysis-engine.ts:152:56)
+    at async POST (src\app\api\analysis\route.ts:40:20)
+  120 |       modules: ['financialData', 'price', 'defaultKeyStatistics', 'summaryDetail'],
+  121 |     }),
+> 122 |     yahooFinance.historical(ticker, {
+      |                  ^
+  123 |       period1: period1.toISOString().split('T')[0],
+  124 |     }),
+  125 |   ]);
+[yahooFinance.historical] Invalid options ("#/definitions/ChartOptions")
+{
+  "errors": [
+    {
+      "instancePath": "/period2",
+      "schemaPath": "#/definitions/ChartOptions",
+      "message": "should match some schema in anyOf",
+      "subErrors": [
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/0",
+          "message": "Expecting date'ish",
+          "params": {
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          }
+        },
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/1",
+          "message": "Expected a string"
+        },
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/2",
+          "message": "Expected a number'ish"
+        }
+      ]
+    }
+  ],
+  "input": {
+    "period1": "2025-02-10T00:00:00.000Z",
+    "interval": "1d",
+    "events": ""
+  }
+}
+Error deep-diving PYPL: Error [InvalidOptionsError]: yahooFinance.historical called with invalid options.
+    at fetchYahooFinanceData (src\lib\stock-analysis\yahoo-finance.ts:122:18)
+    at runAnalysisEngine (src\lib\stock-analysis\analysis-engine.ts:152:56)
+    at async POST (src\app\api\analysis\route.ts:40:20)
+  120 |       modules: ['financialData', 'price', 'defaultKeyStatistics', 'summaryDetail'],
+  121 |     }),
+> 122 |     yahooFinance.historical(ticker, {
+      |                  ^
+  123 |       period1: period1.toISOString().split('T')[0],
+  124 |     }),
+  125 |   ]);
+[yahooFinance.historical] Invalid options ("#/definitions/ChartOptions")
+{
+  "errors": [
+    {
+      "instancePath": "/period2",
+      "schemaPath": "#/definitions/ChartOptions",
+      "message": "should match some schema in anyOf",
+      "subErrors": [
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/0",
+          "message": "Expecting date'ish",
+          "params": {
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          }
+        },
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/1",
+          "message": "Expected a string"
+        },
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/2",
+          "message": "Expected a number'ish"
+        }
+      ]
+    }
+  ],
+  "input": {
+    "period1": "2025-02-10T00:00:00.000Z",
+    "interval": "1d",
+    "events": ""
+  }
+}
+Error deep-diving TRV: Error [InvalidOptionsError]: yahooFinance.historical called with invalid options.
+    at fetchYahooFinanceData (src\lib\stock-analysis\yahoo-finance.ts:122:18)
+    at runAnalysisEngine (src\lib\stock-analysis\analysis-engine.ts:152:56)
+    at async POST (src\app\api\analysis\route.ts:40:20)
+  120 |       modules: ['financialData', 'price', 'defaultKeyStatistics', 'summaryDetail'],
+  121 |     }),
+> 122 |     yahooFinance.historical(ticker, {
+      |                  ^
+  123 |       period1: period1.toISOString().split('T')[0],
+  124 |     }),
+  125 |   ]);
+[yahooFinance.historical] Invalid options ("#/definitions/ChartOptions")
+{
+  "errors": [
+    {
+      "instancePath": "/period2",
+      "schemaPath": "#/definitions/ChartOptions",
+      "message": "should match some schema in anyOf",
+      "subErrors": [
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/0",
+          "message": "Expecting date'ish",
+          "params": {
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          }
+        },
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/1",
+          "message": "Expected a string"
+        },
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/2",
+          "message": "Expected a number'ish"
+        }
+      ]
+    }
+  ],
+  "input": {
+    "period1": "2025-02-10T00:00:00.000Z",
+    "interval": "1d",
+    "events": ""
+  }
+}
+Error deep-diving VZ: Error [InvalidOptionsError]: yahooFinance.historical called with invalid options.
+    at fetchYahooFinanceData (src\lib\stock-analysis\yahoo-finance.ts:122:18)
+    at runAnalysisEngine (src\lib\stock-analysis\analysis-engine.ts:152:56)
+    at async POST (src\app\api\analysis\route.ts:40:20)
+  120 |       modules: ['financialData', 'price', 'defaultKeyStatistics', 'summaryDetail'],
+  121 |     }),
+> 122 |     yahooFinance.historical(ticker, {
+      |                  ^
+  123 |       period1: period1.toISOString().split('T')[0],
+  124 |     }),
+  125 |   ]);
+[yahooFinance.historical] Invalid options ("#/definitions/ChartOptions")
+{
+  "errors": [
+    {
+      "instancePath": "/period2",
+      "schemaPath": "#/definitions/ChartOptions",
+      "message": "should match some schema in anyOf",
+      "subErrors": [
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/0",
+          "message": "Expecting date'ish",
+          "params": {
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          }
+        },
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/1",
+          "message": "Expected a string"
+        },
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/2",
+          "message": "Expected a number'ish"
+        }
+      ]
+    }
+  ],
+  "input": {
+    "period1": "2025-02-10T00:00:00.000Z",
+    "interval": "1d",
+    "events": ""
+  }
+}
+Error deep-diving BAC: Error [InvalidOptionsError]: yahooFinance.historical called with invalid options.
+    at fetchYahooFinanceData (src\lib\stock-analysis\yahoo-finance.ts:122:18)
+    at runAnalysisEngine (src\lib\stock-analysis\analysis-engine.ts:152:56)
+    at async POST (src\app\api\analysis\route.ts:40:20)
+  120 |       modules: ['financialData', 'price', 'defaultKeyStatistics', 'summaryDetail'],
+  121 |     }),
+> 122 |     yahooFinance.historical(ticker, {
+      |                  ^
+  123 |       period1: period1.toISOString().split('T')[0],
+  124 |     }),
+  125 |   ]);
+[yahooFinance.historical] Invalid options ("#/definitions/ChartOptions")
+{
+  "errors": [
+    {
+      "instancePath": "/period2",
+      "schemaPath": "#/definitions/ChartOptions",
+      "message": "should match some schema in anyOf",
+      "subErrors": [
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/0",
+          "message": "Expecting date'ish",
+          "params": {
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          }
+        },
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/1",
+          "message": "Expected a string"
+        },
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/2",
+          "message": "Expected a number'ish"
+        }
+      ]
+    }
+  ],
+  "input": {
+    "period1": "2025-02-10T00:00:00.000Z",
+    "interval": "1d",
+    "events": ""
+  }
+}
+Error deep-diving CI: Error [InvalidOptionsError]: yahooFinance.historical called with invalid options.
+    at fetchYahooFinanceData (src\lib\stock-analysis\yahoo-finance.ts:122:18)
+    at runAnalysisEngine (src\lib\stock-analysis\analysis-engine.ts:152:56)
+    at async POST (src\app\api\analysis\route.ts:40:20)
+  120 |       modules: ['financialData', 'price', 'defaultKeyStatistics', 'summaryDetail'],
+  121 |     }),
+> 122 |     yahooFinance.historical(ticker, {
+      |                  ^
+  123 |       period1: period1.toISOString().split('T')[0],
+  124 |     }),
+  125 |   ]);
+[yahooFinance.historical] Invalid options ("#/definitions/ChartOptions")
+{
+  "errors": [
+    {
+      "instancePath": "/period2",
+      "schemaPath": "#/definitions/ChartOptions",
+      "message": "should match some schema in anyOf",
+      "subErrors": [
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/0",
+          "message": "Expecting date'ish",
+          "params": {
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          }
+        },
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/1",
+          "message": "Expected a string"
+        },
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/2",
+          "message": "Expected a number'ish"
+        }
+      ]
+    }
+  ],
+  "input": {
+    "period1": "2025-02-10T00:00:00.000Z",
+    "interval": "1d",
+    "events": ""
+  }
+}
+Error deep-diving DIS: Error [InvalidOptionsError]: yahooFinance.historical called with invalid options.
+    at fetchYahooFinanceData (src\lib\stock-analysis\yahoo-finance.ts:122:18)
+    at runAnalysisEngine (src\lib\stock-analysis\analysis-engine.ts:152:56)
+    at async POST (src\app\api\analysis\route.ts:40:20)
+  120 |       modules: ['financialData', 'price', 'defaultKeyStatistics', 'summaryDetail'],
+  121 |     }),
+> 122 |     yahooFinance.historical(ticker, {
+      |                  ^
+  123 |       period1: period1.toISOString().split('T')[0],
+  124 |     }),
+  125 |   ]);
+[yahooFinance.historical] Invalid options ("#/definitions/ChartOptions")
+{
+  "errors": [
+    {
+      "instancePath": "/period2",
+      "schemaPath": "#/definitions/ChartOptions",
+      "message": "should match some schema in anyOf",
+      "subErrors": [
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/0",
+          "message": "Expecting date'ish",
+          "params": {
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          }
+        },
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/1",
+          "message": "Expected a string"
+        },
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/2",
+          "message": "Expected a number'ish"
+        }
+      ]
+    }
+  ],
+  "input": {
+    "period1": "2025-02-10T00:00:00.000Z",
+    "interval": "1d",
+    "events": ""
+  }
+}
+Error deep-diving UNH: Error [InvalidOptionsError]: yahooFinance.historical called with invalid options.
+    at fetchYahooFinanceData (src\lib\stock-analysis\yahoo-finance.ts:122:18)
+    at runAnalysisEngine (src\lib\stock-analysis\analysis-engine.ts:152:56)
+    at async POST (src\app\api\analysis\route.ts:40:20)
+  120 |       modules: ['financialData', 'price', 'defaultKeyStatistics', 'summaryDetail'],
+  121 |     }),
+> 122 |     yahooFinance.historical(ticker, {
+      |                  ^
+  123 |       period1: period1.toISOString().split('T')[0],
+  124 |     }),
+  125 |   ]);
+[yahooFinance.historical] Invalid options ("#/definitions/ChartOptions")
+{
+  "errors": [
+    {
+      "instancePath": "/period2",
+      "schemaPath": "#/definitions/ChartOptions",
+      "message": "should match some schema in anyOf",
+      "subErrors": [
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/0",
+          "message": "Expecting date'ish",
+          "params": {
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          }
+        },
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/1",
+          "message": "Expected a string"
+        },
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/2",
+          "message": "Expected a number'ish"
+        }
+      ]
+    }
+  ],
+  "input": {
+    "period1": "2025-02-10T00:00:00.000Z",
+    "interval": "1d",
+    "events": ""
+  }
+}
+Error deep-diving PFE: Error [InvalidOptionsError]: yahooFinance.historical called with invalid options.
+    at fetchYahooFinanceData (src\lib\stock-analysis\yahoo-finance.ts:122:18)
+    at runAnalysisEngine (src\lib\stock-analysis\analysis-engine.ts:152:56)
+    at async POST (src\app\api\analysis\route.ts:40:20)
+  120 |       modules: ['financialData', 'price', 'defaultKeyStatistics', 'summaryDetail'],
+  121 |     }),
+> 122 |     yahooFinance.historical(ticker, {
+      |                  ^
+  123 |       period1: period1.toISOString().split('T')[0],
+  124 |     }),
+  125 |   ]);
+[yahooFinance.historical] Invalid options ("#/definitions/ChartOptions")
+{
+  "errors": [
+    {
+      "instancePath": "/period2",
+      "schemaPath": "#/definitions/ChartOptions",
+      "message": "should match some schema in anyOf",
+      "subErrors": [
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/0",
+          "message": "Expecting date'ish",
+          "params": {
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          }
+        },
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/1",
+          "message": "Expected a string"
+        },
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/2",
+          "message": "Expected a number'ish"
+        }
+      ]
+    }
+  ],
+  "input": {
+    "period1": "2025-02-10T00:00:00.000Z",
+    "interval": "1d",
+    "events": ""
+  }
+}
+Error deep-diving EOG: Error [InvalidOptionsError]: yahooFinance.historical called with invalid options.
+    at fetchYahooFinanceData (src\lib\stock-analysis\yahoo-finance.ts:122:18)
+    at runAnalysisEngine (src\lib\stock-analysis\analysis-engine.ts:152:56)
+    at async POST (src\app\api\analysis\route.ts:40:20)
+  120 |       modules: ['financialData', 'price', 'defaultKeyStatistics', 'summaryDetail'],
+  121 |     }),
+> 122 |     yahooFinance.historical(ticker, {
+      |                  ^
+  123 |       period1: period1.toISOString().split('T')[0],
+  124 |     }),
+  125 |   ]);
+[yahooFinance.historical] Invalid options ("#/definitions/ChartOptions")
+{
+  "errors": [
+    {
+      "instancePath": "/period2",
+      "schemaPath": "#/definitions/ChartOptions",
+      "message": "should match some schema in anyOf",
+      "subErrors": [
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/0",
+          "message": "Expecting date'ish",
+          "params": {
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          }
+        },
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/1",
+          "message": "Expected a string"
+        },
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/2",
+          "message": "Expected a number'ish"
+        }
+      ]
+    }
+  ],
+  "input": {
+    "period1": "2025-02-10T00:00:00.000Z",
+    "interval": "1d",
+    "events": ""
+  }
+}
+Error deep-diving GS: Error [InvalidOptionsError]: yahooFinance.historical called with invalid options.
+    at fetchYahooFinanceData (src\lib\stock-analysis\yahoo-finance.ts:122:18)
+    at runAnalysisEngine (src\lib\stock-analysis\analysis-engine.ts:152:56)
+    at async POST (src\app\api\analysis\route.ts:40:20)
+  120 |       modules: ['financialData', 'price', 'defaultKeyStatistics', 'summaryDetail'],
+  121 |     }),
+> 122 |     yahooFinance.historical(ticker, {
+      |                  ^
+  123 |       period1: period1.toISOString().split('T')[0],
+  124 |     }),
+  125 |   ]);
+[yahooFinance.historical] Invalid options ("#/definitions/ChartOptions")
+{
+  "errors": [
+    {
+      "instancePath": "/period2",
+      "schemaPath": "#/definitions/ChartOptions",
+      "message": "should match some schema in anyOf",
+      "subErrors": [
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/0",
+          "message": "Expecting date'ish",
+          "params": {
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          }
+        },
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/1",
+          "message": "Expected a string"
+        },
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/2",
+          "message": "Expected a number'ish"
+        }
+      ]
+    }
+  ],
+  "input": {
+    "period1": "2025-02-10T00:00:00.000Z",
+    "interval": "1d",
+    "events": ""
+  }
+}
+Error deep-diving JPM: Error [InvalidOptionsError]: yahooFinance.historical called with invalid options.
+    at fetchYahooFinanceData (src\lib\stock-analysis\yahoo-finance.ts:122:18)
+    at runAnalysisEngine (src\lib\stock-analysis\analysis-engine.ts:152:56)
+    at async POST (src\app\api\analysis\route.ts:40:20)
+  120 |       modules: ['financialData', 'price', 'defaultKeyStatistics', 'summaryDetail'],
+  121 |     }),
+> 122 |     yahooFinance.historical(ticker, {
+      |                  ^
+  123 |       period1: period1.toISOString().split('T')[0],
+  124 |     }),
+  125 |   ]);
+[yahooFinance.historical] Invalid options ("#/definitions/ChartOptions")
+{
+  "errors": [
+    {
+      "instancePath": "/period2",
+      "schemaPath": "#/definitions/ChartOptions",
+      "message": "should match some schema in anyOf",
+      "subErrors": [
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/0",
+          "message": "Expecting date'ish",
+          "params": {
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          }
+        },
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/1",
+          "message": "Expected a string"
+        },
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/2",
+          "message": "Expected a number'ish"
+        }
+      ]
+    }
+  ],
+  "input": {
+    "period1": "2025-02-10T00:00:00.000Z",
+    "interval": "1d",
+    "events": ""
+  }
+}
+Error deep-diving BRK-B: Error [InvalidOptionsError]: yahooFinance.historical called with invalid options.
+    at fetchYahooFinanceData (src\lib\stock-analysis\yahoo-finance.ts:122:18)
+    at runAnalysisEngine (src\lib\stock-analysis\analysis-engine.ts:152:56)
+    at async POST (src\app\api\analysis\route.ts:40:20)
+  120 |       modules: ['financialData', 'price', 'defaultKeyStatistics', 'summaryDetail'],
+  121 |     }),
+> 122 |     yahooFinance.historical(ticker, {
+      |                  ^
+  123 |       period1: period1.toISOString().split('T')[0],
+  124 |     }),
+  125 |   ]);
+[yahooFinance.historical] Invalid options ("#/definitions/ChartOptions")
+{
+  "errors": [
+    {
+      "instancePath": "/period2",
+      "schemaPath": "#/definitions/ChartOptions",
+      "message": "should match some schema in anyOf",
+      "subErrors": [
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/0",
+          "message": "Expecting date'ish",
+          "params": {
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          }
+        },
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/1",
+          "message": "Expected a string"
+        },
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/2",
+          "message": "Expected a number'ish"
+        }
+      ]
+    }
+  ],
+  "input": {
+    "period1": "2025-02-10T00:00:00.000Z",
+    "interval": "1d",
+    "events": ""
+  }
+}
+Error deep-diving XOM: Error [InvalidOptionsError]: yahooFinance.historical called with invalid options.
+    at fetchYahooFinanceData (src\lib\stock-analysis\yahoo-finance.ts:122:18)
+    at runAnalysisEngine (src\lib\stock-analysis\analysis-engine.ts:152:56)
+    at async POST (src\app\api\analysis\route.ts:40:20)
+  120 |       modules: ['financialData', 'price', 'defaultKeyStatistics', 'summaryDetail'],
+  121 |     }),
+> 122 |     yahooFinance.historical(ticker, {
+      |                  ^
+  123 |       period1: period1.toISOString().split('T')[0],
+  124 |     }),
+  125 |   ]);
+[yahooFinance.historical] Invalid options ("#/definitions/ChartOptions")
+{
+  "errors": [
+    {
+      "instancePath": "/period2",
+      "schemaPath": "#/definitions/ChartOptions",
+      "message": "should match some schema in anyOf",
+      "subErrors": [
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/0",
+          "message": "Expecting date'ish",
+          "params": {
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          }
+        },
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/1",
+          "message": "Expected a string"
+        },
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/2",
+          "message": "Expected a number'ish"
+        }
+      ]
+    }
+  ],
+  "input": {
+    "period1": "2025-02-10T00:00:00.000Z",
+    "interval": "1d",
+    "events": ""
+  }
+}
+Error deep-diving REGN: Error [InvalidOptionsError]: yahooFinance.historical called with invalid options.
+    at fetchYahooFinanceData (src\lib\stock-analysis\yahoo-finance.ts:122:18)
+    at runAnalysisEngine (src\lib\stock-analysis\analysis-engine.ts:152:56)
+    at async POST (src\app\api\analysis\route.ts:40:20)
+  120 |       modules: ['financialData', 'price', 'defaultKeyStatistics', 'summaryDetail'],
+  121 |     }),
+> 122 |     yahooFinance.historical(ticker, {
+      |                  ^
+  123 |       period1: period1.toISOString().split('T')[0],
+  124 |     }),
+  125 |   ]);
+[yahooFinance.historical] Invalid options ("#/definitions/ChartOptions")
+{
+  "errors": [
+    {
+      "instancePath": "/period2",
+      "schemaPath": "#/definitions/ChartOptions",
+      "message": "should match some schema in anyOf",
+      "subErrors": [
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/0",
+          "message": "Expecting date'ish",
+          "params": {
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          }
+        },
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/1",
+          "message": "Expected a string"
+        },
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/2",
+          "message": "Expected a number'ish"
+        }
+      ]
+    }
+  ],
+  "input": {
+    "period1": "2025-02-10T00:00:00.000Z",
+    "interval": "1d",
+    "events": ""
+  }
+}
+Error deep-diving SLB: Error [InvalidOptionsError]: yahooFinance.historical called with invalid options.
+    at fetchYahooFinanceData (src\lib\stock-analysis\yahoo-finance.ts:122:18)
+    at runAnalysisEngine (src\lib\stock-analysis\analysis-engine.ts:152:56)
+    at async POST (src\app\api\analysis\route.ts:40:20)
+  120 |       modules: ['financialData', 'price', 'defaultKeyStatistics', 'summaryDetail'],
+  121 |     }),
+> 122 |     yahooFinance.historical(ticker, {
+      |                  ^
+  123 |       period1: period1.toISOString().split('T')[0],
+  124 |     }),
+  125 |   ]);
+[yahooFinance.historical] Invalid options ("#/definitions/ChartOptions")
+{
+  "errors": [
+    {
+      "instancePath": "/period2",
+      "schemaPath": "#/definitions/ChartOptions",
+      "message": "should match some schema in anyOf",
+      "subErrors": [
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/0",
+          "message": "Expecting date'ish",
+          "params": {
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          }
+        },
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/1",
+          "message": "Expected a string"
+        },
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/2",
+          "message": "Expected a number'ish"
+        }
+      ]
+    }
+  ],
+  "input": {
+    "period1": "2025-02-10T00:00:00.000Z",
+    "interval": "1d",
+    "events": ""
+  }
+}
+Error deep-diving ACN: Error [InvalidOptionsError]: yahooFinance.historical called with invalid options.
+    at fetchYahooFinanceData (src\lib\stock-analysis\yahoo-finance.ts:122:18)
+    at runAnalysisEngine (src\lib\stock-analysis\analysis-engine.ts:152:56)
+    at async POST (src\app\api\analysis\route.ts:40:20)
+  120 |       modules: ['financialData', 'price', 'defaultKeyStatistics', 'summaryDetail'],
+  121 |     }),
+> 122 |     yahooFinance.historical(ticker, {
+      |                  ^
+  123 |       period1: period1.toISOString().split('T')[0],
+  124 |     }),
+  125 |   ]);
+[yahooFinance.historical] Invalid options ("#/definitions/ChartOptions")
+{
+  "errors": [
+    {
+      "instancePath": "/period2",
+      "schemaPath": "#/definitions/ChartOptions",
+      "message": "should match some schema in anyOf",
+      "subErrors": [
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/0",
+          "message": "Expecting date'ish",
+          "params": {
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          }
+        },
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/1",
+          "message": "Expected a string"
+        },
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/2",
+          "message": "Expected a number'ish"
+        }
+      ]
+    }
+  ],
+  "input": {
+    "period1": "2025-02-10T00:00:00.000Z",
+    "interval": "1d",
+    "events": ""
+  }
+}
+Error deep-diving MO: Error [InvalidOptionsError]: yahooFinance.historical called with invalid options.
+    at fetchYahooFinanceData (src\lib\stock-analysis\yahoo-finance.ts:122:18)
+    at runAnalysisEngine (src\lib\stock-analysis\analysis-engine.ts:152:56)
+    at async POST (src\app\api\analysis\route.ts:40:20)
+  120 |       modules: ['financialData', 'price', 'defaultKeyStatistics', 'summaryDetail'],
+  121 |     }),
+> 122 |     yahooFinance.historical(ticker, {
+      |                  ^
+  123 |       period1: period1.toISOString().split('T')[0],
+  124 |     }),
+  125 |   ]);
+[yahooFinance.historical] Invalid options ("#/definitions/ChartOptions")
+{
+  "errors": [
+    {
+      "instancePath": "/period2",
+      "schemaPath": "#/definitions/ChartOptions",
+      "message": "should match some schema in anyOf",
+      "subErrors": [
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/0",
+          "message": "Expecting date'ish",
+          "params": {
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          }
+        },
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/1",
+          "message": "Expected a string"
+        },
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/2",
+          "message": "Expected a number'ish"
+        }
+      ]
+    }
+  ],
+  "input": {
+    "period1": "2025-02-10T00:00:00.000Z",
+    "interval": "1d",
+    "events": ""
+  }
+}
+Error deep-diving MPC: Error [InvalidOptionsError]: yahooFinance.historical called with invalid options.
+    at fetchYahooFinanceData (src\lib\stock-analysis\yahoo-finance.ts:122:18)
+    at runAnalysisEngine (src\lib\stock-analysis\analysis-engine.ts:152:56)
+    at async POST (src\app\api\analysis\route.ts:40:20)
+  120 |       modules: ['financialData', 'price', 'defaultKeyStatistics', 'summaryDetail'],
+  121 |     }),
+> 122 |     yahooFinance.historical(ticker, {
+      |                  ^
+  123 |       period1: period1.toISOString().split('T')[0],
+  124 |     }),
+  125 |   ]);
+[yahooFinance.historical] Invalid options ("#/definitions/ChartOptions")
+{
+  "errors": [
+    {
+      "instancePath": "/period2",
+      "schemaPath": "#/definitions/ChartOptions",
+      "message": "should match some schema in anyOf",
+      "subErrors": [
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/0",
+          "message": "Expecting date'ish",
+          "params": {
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          }
+        },
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/1",
+          "message": "Expected a string"
+        },
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/2",
+          "message": "Expected a number'ish"
+        }
+      ]
+    }
+  ],
+  "input": {
+    "period1": "2025-02-10T00:00:00.000Z",
+    "interval": "1d",
+    "events": ""
+  }
+}
+Error deep-diving GD: Error [InvalidOptionsError]: yahooFinance.historical called with invalid options.
+    at fetchYahooFinanceData (src\lib\stock-analysis\yahoo-finance.ts:122:18)
+    at runAnalysisEngine (src\lib\stock-analysis\analysis-engine.ts:152:56)
+    at async POST (src\app\api\analysis\route.ts:40:20)
+  120 |       modules: ['financialData', 'price', 'defaultKeyStatistics', 'summaryDetail'],
+  121 |     }),
+> 122 |     yahooFinance.historical(ticker, {
+      |                  ^
+  123 |       period1: period1.toISOString().split('T')[0],
+  124 |     }),
+  125 |   ]);
+[yahooFinance.historical] Invalid options ("#/definitions/ChartOptions")
+{
+  "errors": [
+    {
+      "instancePath": "/period2",
+      "schemaPath": "#/definitions/ChartOptions",
+      "message": "should match some schema in anyOf",
+      "subErrors": [
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/0",
+          "message": "Expecting date'ish",
+          "params": {
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          }
+        },
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/1",
+          "message": "Expected a string"
+        },
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/2",
+          "message": "Expected a number'ish"
+        }
+      ]
+    }
+  ],
+  "input": {
+    "period1": "2025-02-10T00:00:00.000Z",
+    "interval": "1d",
+    "events": ""
+  }
+}
+Error deep-diving COIN: Error [InvalidOptionsError]: yahooFinance.historical called with invalid options.
+    at fetchYahooFinanceData (src\lib\stock-analysis\yahoo-finance.ts:122:18)
+    at runAnalysisEngine (src\lib\stock-analysis\analysis-engine.ts:152:56)
+    at async POST (src\app\api\analysis\route.ts:40:20)
+  120 |       modules: ['financialData', 'price', 'defaultKeyStatistics', 'summaryDetail'],
+  121 |     }),
+> 122 |     yahooFinance.historical(ticker, {
+      |                  ^
+  123 |       period1: period1.toISOString().split('T')[0],
+  124 |     }),
+  125 |   ]);
+[yahooFinance.historical] Invalid options ("#/definitions/ChartOptions")
+{
+  "errors": [
+    {
+      "instancePath": "/period2",
+      "schemaPath": "#/definitions/ChartOptions",
+      "message": "should match some schema in anyOf",
+      "subErrors": [
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/0",
+          "message": "Expecting date'ish",
+          "params": {
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          }
+        },
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/1",
+          "message": "Expected a string"
+        },
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/2",
+          "message": "Expected a number'ish"
+        }
+      ]
+    }
+  ],
+  "input": {
+    "period1": "2025-02-10T00:00:00.000Z",
+    "interval": "1d",
+    "events": ""
+  }
+}
+Error deep-diving CVX: Error [InvalidOptionsError]: yahooFinance.historical called with invalid options.
+    at fetchYahooFinanceData (src\lib\stock-analysis\yahoo-finance.ts:122:18)
+    at runAnalysisEngine (src\lib\stock-analysis\analysis-engine.ts:152:56)
+    at async POST (src\app\api\analysis\route.ts:40:20)
+  120 |       modules: ['financialData', 'price', 'defaultKeyStatistics', 'summaryDetail'],
+  121 |     }),
+> 122 |     yahooFinance.historical(ticker, {
+      |                  ^
+  123 |       period1: period1.toISOString().split('T')[0],
+  124 |     }),
+  125 |   ]);
+[yahooFinance.historical] Invalid options ("#/definitions/ChartOptions")
+{
+  "errors": [
+    {
+      "instancePath": "/period2",
+      "schemaPath": "#/definitions/ChartOptions",
+      "message": "should match some schema in anyOf",
+      "subErrors": [
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/0",
+          "message": "Expecting date'ish",
+          "params": {
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          }
+        },
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/1",
+          "message": "Expected a string"
+        },
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/2",
+          "message": "Expected a number'ish"
+        }
+      ]
+    }
+  ],
+  "input": {
+    "period1": "2025-02-10T00:00:00.000Z",
+    "interval": "1d",
+    "events": ""
+  }
+}
+Error deep-diving AXP: Error [InvalidOptionsError]: yahooFinance.historical called with invalid options.
+    at fetchYahooFinanceData (src\lib\stock-analysis\yahoo-finance.ts:122:18)
+    at runAnalysisEngine (src\lib\stock-analysis\analysis-engine.ts:152:56)
+    at async POST (src\app\api\analysis\route.ts:40:20)
+  120 |       modules: ['financialData', 'price', 'defaultKeyStatistics', 'summaryDetail'],
+  121 |     }),
+> 122 |     yahooFinance.historical(ticker, {
+      |                  ^
+  123 |       period1: period1.toISOString().split('T')[0],
+  124 |     }),
+  125 |   ]);
+[yahooFinance.historical] Invalid options ("#/definitions/ChartOptions")
+{
+  "errors": [
+    {
+      "instancePath": "/period2",
+      "schemaPath": "#/definitions/ChartOptions",
+      "message": "should match some schema in anyOf",
+      "subErrors": [
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/0",
+          "message": "Expecting date'ish",
+          "params": {
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          }
+        },
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/1",
+          "message": "Expected a string"
+        },
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/2",
+          "message": "Expected a number'ish"
+        }
+      ]
+    }
+  ],
+  "input": {
+    "period1": "2025-02-10T00:00:00.000Z",
+    "interval": "1d",
+    "events": ""
+  }
+}
+Error deep-diving JNJ: Error [InvalidOptionsError]: yahooFinance.historical called with invalid options.
+    at fetchYahooFinanceData (src\lib\stock-analysis\yahoo-finance.ts:122:18)
+    at runAnalysisEngine (src\lib\stock-analysis\analysis-engine.ts:152:56)
+    at async POST (src\app\api\analysis\route.ts:40:20)
+  120 |       modules: ['financialData', 'price', 'defaultKeyStatistics', 'summaryDetail'],
+  121 |     }),
+> 122 |     yahooFinance.historical(ticker, {
+      |                  ^
+  123 |       period1: period1.toISOString().split('T')[0],
+  124 |     }),
+  125 |   ]);
+[yahooFinance.historical] Invalid options ("#/definitions/ChartOptions")
+{
+  "errors": [
+    {
+      "instancePath": "/period2",
+      "schemaPath": "#/definitions/ChartOptions",
+      "message": "should match some schema in anyOf",
+      "subErrors": [
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/0",
+          "message": "Expecting date'ish",
+          "params": {
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          }
+        },
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/1",
+          "message": "Expected a string"
+        },
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/2",
+          "message": "Expected a number'ish"
+        }
+      ]
+    }
+  ],
+  "input": {
+    "period1": "2025-02-10T00:00:00.000Z",
+    "interval": "1d",
+    "events": ""
+  }
+}
+Error deep-diving MRK: Error [InvalidOptionsError]: yahooFinance.historical called with invalid options.
+    at fetchYahooFinanceData (src\lib\stock-analysis\yahoo-finance.ts:122:18)
+    at runAnalysisEngine (src\lib\stock-analysis\analysis-engine.ts:152:56)
+    at async POST (src\app\api\analysis\route.ts:40:20)
+  120 |       modules: ['financialData', 'price', 'defaultKeyStatistics', 'summaryDetail'],
+  121 |     }),
+> 122 |     yahooFinance.historical(ticker, {
+      |                  ^
+  123 |       period1: period1.toISOString().split('T')[0],
+  124 |     }),
+  125 |   ]);
+[yahooFinance.historical] Invalid options ("#/definitions/ChartOptions")
+{
+  "errors": [
+    {
+      "instancePath": "/period2",
+      "schemaPath": "#/definitions/ChartOptions",
+      "message": "should match some schema in anyOf",
+      "subErrors": [
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/0",
+          "message": "Expecting date'ish",
+          "params": {
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          }
+        },
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/1",
+          "message": "Expected a string"
+        },
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/2",
+          "message": "Expected a number'ish"
+        }
+      ]
+    }
+  ],
+  "input": {
+    "period1": "2025-02-10T00:00:00.000Z",
+    "interval": "1d",
+    "events": ""
+  }
+}
+Error deep-diving PG: Error [InvalidOptionsError]: yahooFinance.historical called with invalid options.
+    at fetchYahooFinanceData (src\lib\stock-analysis\yahoo-finance.ts:122:18)
+    at runAnalysisEngine (src\lib\stock-analysis\analysis-engine.ts:152:56)
+    at async POST (src\app\api\analysis\route.ts:40:20)
+  120 |       modules: ['financialData', 'price', 'defaultKeyStatistics', 'summaryDetail'],
+  121 |     }),
+> 122 |     yahooFinance.historical(ticker, {
+      |                  ^
+  123 |       period1: period1.toISOString().split('T')[0],
+  124 |     }),
+  125 |   ]);
+[yahooFinance.historical] Invalid options ("#/definitions/ChartOptions")
+{
+  "errors": [
+    {
+      "instancePath": "/period2",
+      "schemaPath": "#/definitions/ChartOptions",
+      "message": "should match some schema in anyOf",
+      "subErrors": [
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/0",
+          "message": "Expecting date'ish",
+          "params": {
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          }
+        },
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/1",
+          "message": "Expected a string"
+        },
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/2",
+          "message": "Expected a number'ish"
+        }
+      ]
+    }
+  ],
+  "input": {
+    "period1": "2025-02-10T00:00:00.000Z",
+    "interval": "1d",
+    "events": ""
+  }
+}
+Error deep-diving UNP: Error [InvalidOptionsError]: yahooFinance.historical called with invalid options.
+    at fetchYahooFinanceData (src\lib\stock-analysis\yahoo-finance.ts:122:18)
+    at runAnalysisEngine (src\lib\stock-analysis\analysis-engine.ts:152:56)
+    at async POST (src\app\api\analysis\route.ts:40:20)
+  120 |       modules: ['financialData', 'price', 'defaultKeyStatistics', 'summaryDetail'],
+  121 |     }),
+> 122 |     yahooFinance.historical(ticker, {
+      |                  ^
+  123 |       period1: period1.toISOString().split('T')[0],
+  124 |     }),
+  125 |   ]);
+[yahooFinance.historical] Invalid options ("#/definitions/ChartOptions")
+{
+  "errors": [
+    {
+      "instancePath": "/period2",
+      "schemaPath": "#/definitions/ChartOptions",
+      "message": "should match some schema in anyOf",
+      "subErrors": [
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/0",
+          "message": "Expecting date'ish",
+          "params": {
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          }
+        },
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/1",
+          "message": "Expected a string"
+        },
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/2",
+          "message": "Expected a number'ish"
+        }
+      ]
+    }
+  ],
+  "input": {
+    "period1": "2025-02-10T00:00:00.000Z",
+    "interval": "1d",
+    "events": ""
+  }
+}
+Error deep-diving GILD: Error [InvalidOptionsError]: yahooFinance.historical called with invalid options.
+    at fetchYahooFinanceData (src\lib\stock-analysis\yahoo-finance.ts:122:18)
+    at runAnalysisEngine (src\lib\stock-analysis\analysis-engine.ts:152:56)
+    at async POST (src\app\api\analysis\route.ts:40:20)
+  120 |       modules: ['financialData', 'price', 'defaultKeyStatistics', 'summaryDetail'],
+  121 |     }),
+> 122 |     yahooFinance.historical(ticker, {
+      |                  ^
+  123 |       period1: period1.toISOString().split('T')[0],
+  124 |     }),
+  125 |   ]);
+[yahooFinance.historical] Invalid options ("#/definitions/ChartOptions")
+{
+  "errors": [
+    {
+      "instancePath": "/period2",
+      "schemaPath": "#/definitions/ChartOptions",
+      "message": "should match some schema in anyOf",
+      "subErrors": [
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/0",
+          "message": "Expecting date'ish",
+          "params": {
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          }
+        },
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/1",
+          "message": "Expected a string"
+        },
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/2",
+          "message": "Expected a number'ish"
+        }
+      ]
+    }
+  ],
+  "input": {
+    "period1": "2025-02-10T00:00:00.000Z",
+    "interval": "1d",
+    "events": ""
+  }
+}
+Error deep-diving ADP: Error [InvalidOptionsError]: yahooFinance.historical called with invalid options.
+    at fetchYahooFinanceData (src\lib\stock-analysis\yahoo-finance.ts:122:18)
+    at runAnalysisEngine (src\lib\stock-analysis\analysis-engine.ts:152:56)
+    at async POST (src\app\api\analysis\route.ts:40:20)
+  120 |       modules: ['financialData', 'price', 'defaultKeyStatistics', 'summaryDetail'],
+  121 |     }),
+> 122 |     yahooFinance.historical(ticker, {
+      |                  ^
+  123 |       period1: period1.toISOString().split('T')[0],
+  124 |     }),
+  125 |   ]);
+[yahooFinance.historical] Invalid options ("#/definitions/ChartOptions")
+{
+  "errors": [
+    {
+      "instancePath": "/period2",
+      "schemaPath": "#/definitions/ChartOptions",
+      "message": "should match some schema in anyOf",
+      "subErrors": [
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/0",
+          "message": "Expecting date'ish",
+          "params": {
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          }
+        },
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/1",
+          "message": "Expected a string"
+        },
+        {
+          "instancePath": "/period2",
+          "schemaPath": "#/definitions/ChartOptions/anyOf/2",
+          "message": "Expected a number'ish"
+        }
+      ]
+    }
+  ],
+  "input": {
+    "period1": "2025-02-10T00:00:00.000Z",
+    "interval": "1d",
+    "events": ""
+  }
+}
+Error deep-diving ZTS: Error [InvalidOptionsError]: yahooFinance.historical called with invalid options.
+    at fetchYahooFinanceData (src\lib\stock-analysis\yahoo-finance.ts:122:18)
+    at runAnalysisEngine (src\lib\stock-analysis\analysis-engine.ts:152:56)
+    at async POST (src\app\api\analysis\route.ts:40:20)
+  120 |       modules: ['financialData', 'price', 'defaultKeyStatistics', 'summaryDetail'],
+  121 |     }),
+> 122 |     yahooFinance.historical(ticker, {
+      |                  ^
+  123 |       period1: period1.toISOString().split('T')[0],
+  124 |     }),
+  125 |   ]);
+Reasoning generation failed for BAC: Error: 429 You exceeded your current quota, please check your plan and billing details. For more information on this error, read the docs: https://platform.openai.com/docs/guides/error-codes/api-errors.
+    at async (src\lib\stock-analysis\analysis-engine.ts:232:24)
+    at async runAnalysisEngine (src\lib\stock-analysis\analysis-engine.ts:255:3)
+    at async POST (src\app\api\analysis\route.ts:40:20)
+  230 |       });
+  231 |
+> 232 |       const response = await openai.chat.completions.create({
+      |                        ^
+  233 |         model: 'gpt-4o-mini',
+  234 |         messages: [
+  235 |           { {
+  status: 429,
+  headers: Headers {
+    date: 'Tue, 10 Feb 2026 02:37:09 GMT',
+    'content-type': 'application/json; charset=utf-8',
+    'content-length': '337',
+    connection: 'keep-alive',
+    vary: 'Origin',
+    'x-request-id': 'req_ff156c3fdee04068b00da3a64c639a1a',
+    'x-openai-proxy-wasm': 'v0.1',
+    server: 'cloudflare',
+    'cf-cache-status': 'DYNAMIC',
+    'set-cookie': '__cf_bm=QQ3A5JbfqXHfdWKN8w5CknYGl9Fca0WwvrIZwCl1Od0-1770691029.5980356-1.0.1.1-g5tCRWCODqQtnfGY1vccEPCE7Z001AZWmnBElnuK9ORi4ab7BclsGW8PJvGKkcWKeJIndhCWYn4XCZncRDHfVyEFI53L8HefK1PyNovlKk2VAwsJI2H_mttYl9BBg_xI; HttpOnly; Secure; Path=/; Domain=api.openai.com; Expires=Tue, 10 Feb 2026 03:07:09 GMT, _cfuvid=xv2n1lSe4wPqiKcIyup7CTkdlg.oKK9pGuZrQcJrB34-1770691029.5980356-1.0.1.1-dn96k6z_xNNHCKynDHAHtThb6gr7_M6C7Spovp7CjmE; HttpOnly; SameSite=None; Secure; Path=/; Domain=api.openai.com',
+    'strict-transport-security': 'max-age=31536000; includeSubDomains; preload',
+    'x-content-type-options': 'nosniff',
+    'cf-ray': '9cb83916fd89eab1-ICN',
+    'alt-svc': 'h3=":443"; ma=86400'
+  },
+  requestID: 'req_ff156c3fdee04068b00da3a64c639a1a',
+  error: [Object],
+  code: 'insufficient_quota',
+  param: null,
+  type: 'insufficient_quota'
+}
+Reasoning generation failed for TRV: Error: 429 You exceeded your current quota, please check your plan and billing details. For more information on this error, read the docs: https://platform.openai.com/docs/guides/error-codes/api-errors.
+    at async (src\lib\stock-analysis\analysis-engine.ts:232:24)
+    at async runAnalysisEngine (src\lib\stock-analysis\analysis-engine.ts:255:3)
+    at async POST (src\app\api\analysis\route.ts:40:20)
+  230 |       });
+  231 |
+> 232 |       const response = await openai.chat.completions.create({
+      |                        ^
+  233 |         model: 'gpt-4o-mini',
+  234 |         messages: [
+  235 |           { {
+  status: 429,
+  headers: Headers {
+    date: 'Tue, 10 Feb 2026 02:37:09 GMT',
+    'content-type': 'application/json; charset=utf-8',
+    'content-length': '337',
+    connection: 'keep-alive',
+    vary: 'Origin',
+    'x-request-id': 'req_cad4754bde144ecc85ffe26c866262f9',
+    'x-openai-proxy-wasm': 'v0.1',
+    server: 'cloudflare',
+    'cf-cache-status': 'DYNAMIC',
+    'set-cookie': '__cf_bm=AWCgW9yO7pm7YDl0NQvifQfFCmDaE6aaFTjfjuRbUjA-1770691029.6130962-1.0.1.1-VTgIeFy0Jfqlo8wbu7HJlRrxKVGb0J6Pe4vtULUp_QCJqDxpdqB7B.wAgFufGEWAdUrnyRb6Ud08mclsSPsOuipgM_QijxDDx8jTjGA47xxGi6rJ.UAfP9cRkjycrQkD; HttpOnly; Secure; Path=/; Domain=api.openai.com; Expires=Tue, 10 Feb 2026 03:07:09 GMT, _cfuvid=lbLycwKNIVY2szHtb.DeOZkmfIQ05_8M8Oq1BkSAuGY-1770691029.6130962-1.0.1.1-21zPoSyiwz0JDdRIWhNQGH3Tzmso3XTfqa1e_e2KvTI; HttpOnly; SameSite=None; Secure; Path=/; Domain=api.openai.com',
+    'strict-transport-security': 'max-age=31536000; includeSubDomains; preload',
+    'x-content-type-options': 'nosniff',
+    'cf-ray': '9cb839171a795b64-ICN',
+    'alt-svc': 'h3=":443"; ma=86400'
+  },
+  requestID: 'req_cad4754bde144ecc85ffe26c866262f9',
+  error: [Object],
+  code: 'insufficient_quota',
+  param: null,
+  type: 'insufficient_quota'
+}
+Reasoning generation failed for T: Error: 429 You exceeded your current quota, please check your plan and billing details. For more information on this error, read the docs: https://platform.openai.com/docs/guides/error-codes/api-errors.
+    at async (src\lib\stock-analysis\analysis-engine.ts:232:24)
+    at async runAnalysisEngine (src\lib\stock-analysis\analysis-engine.ts:255:3)
+    at async POST (src\app\api\analysis\route.ts:40:20)
+  230 |       });
+  231 |
+> 232 |       const response = await openai.chat.completions.create({
+      |                        ^
+  233 |         model: 'gpt-4o-mini',
+  234 |         messages: [
+  235 |           { {
+  status: 429,
+  headers: Headers {
+    date: 'Tue, 10 Feb 2026 02:37:10 GMT',
+    'content-type': 'application/json; charset=utf-8',
+    'content-length': '337',
+    connection: 'keep-alive',
+    vary: 'Origin',
+    'x-request-id': 'req_2ecd78e7575f46df971879d3a4bc30fe',
+    'x-openai-proxy-wasm': 'v0.1',
+    server: 'cloudflare',
+    'cf-cache-status': 'DYNAMIC',
+    'set-cookie': '__cf_bm=Wt8zODZQrBtGfGbyfLMC.d46KB_g.7qjxTD.d5NyIOU-1770691029.9422927-1.0.1.1-6vn7z.6BGGfVi6ogP9uxqq168538dcZDJGF7QQUeY8JmR0GB_dxin8s9oP.yudPtHXxzqsvj_yaxk4ArVi1mHtARst5AajxAoywTKlijCdu7WK.IIFl3jB5e8y6pFYWB; HttpOnly; Secure; Path=/; Domain=api.openai.com; Expires=Tue, 10 Feb 2026 03:07:10 GMT, _cfuvid=Zvjpjeql9hAwT2fsFBCqTGqn3LN9ktvgR3t4B58qjz4-1770691029.9422927-1.0.1.1-8YmBYpN7w4N9Qwr8A0YYSdVLS.1m2OQVHOnXqm9T3EM; HttpOnly; SameSite=None; Secure; Path=/; Domain=api.openai.com',
+    'strict-transport-security': 'max-age=31536000; includeSubDomains; preload',
+    'x-content-type-options': 'nosniff',
+    'cf-ray': '9cb839192af1eab1-ICN',
+    'alt-svc': 'h3=":443"; ma=86400'
+  },
+  requestID: 'req_2ecd78e7575f46df971879d3a4bc30fe',
+  error: [Object],
+  code: 'insufficient_quota',
+  param: null,
+  type: 'insufficient_quota'
+}
+Reasoning generation failed for VZ: Error: 429 You exceeded your current quota, please check your plan and billing details. For more information on this error, read the docs: https://platform.openai.com/docs/guides/error-codes/api-errors.
+    at async (src\lib\stock-analysis\analysis-engine.ts:232:24)
+    at async runAnalysisEngine (src\lib\stock-analysis\analysis-engine.ts:255:3)
+    at async POST (src\app\api\analysis\route.ts:40:20)
+  230 |       });
+  231 |
+> 232 |       const response = await openai.chat.completions.create({
+      |                        ^
+  233 |         model: 'gpt-4o-mini',
+  234 |         messages: [
+  235 |           { {
+  status: 429,
+  headers: Headers {
+    date: 'Tue, 10 Feb 2026 02:37:10 GMT',
+    'content-type': 'application/json; charset=utf-8',
+    'content-length': '337',
+    connection: 'keep-alive',
+    vary: 'Origin',
+    'x-request-id': 'req_e3b2111534cd43f1a0eddb650f5af37a',
+    'x-openai-proxy-wasm': 'v0.1',
+    server: 'cloudflare',
+    'cf-cache-status': 'DYNAMIC',
+    'set-cookie': '__cf_bm=7XLuGpXBsb3gp7Ox6eztPgztPbW2nTal.sMtCOUVTx4-1770691029.978845-1.0.1.1-g.dDaectdvGlKvWug0E1ewsNkuiXDuVK_xwetdxTHfOLb3Wd7qP9diX_huTkPQ4xr8FxDtcM.l4Njf4Ioj9D9bMj_6v89cqHf54ApI7nJl2PTEaFJCmJ7yKR0yoT_idc; HttpOnly; Secure; Path=/; Domain=api.openai.com; Expires=Tue, 10 Feb 2026 03:07:10 GMT, _cfuvid=dNd3Os703CulytDk3DsJ111cYdFq9RTuIagbDWvusjg-1770691029.978845-1.0.1.1-8YIHmWOP4IK7v60dWngNJmXcNDc2imRiY9Wbf9GdL60; HttpOnly; SameSite=None; Secure; Path=/; Domain=api.openai.com',
+    'strict-transport-security': 'max-age=31536000; includeSubDomains; preload',
+    'x-content-type-options': 'nosniff',
+    'cf-ray': '9cb839195854ac13-ICN',
+    'alt-svc': 'h3=":443"; ma=86400'
+  },
+  requestID: 'req_e3b2111534cd43f1a0eddb650f5af37a',
+  error: [Object],
+  code: 'insufficient_quota',
+  param: null,
+  type: 'insufficient_quota'
+}
+Reasoning generation failed for PYPL: Error: 429 You exceeded your current quota, please check your plan and billing details. For more information on this error, read the docs: https://platform.openai.com/docs/guides/error-codes/api-errors.
+    at async (src\lib\stock-analysis\analysis-engine.ts:232:24)
+    at async runAnalysisEngine (src\lib\stock-analysis\analysis-engine.ts:255:3)
+    at async POST (src\app\api\analysis\route.ts:40:20)
+  230 |       });
+  231 |
+> 232 |       const response = await openai.chat.completions.create({
+      |                        ^
+  233 |         model: 'gpt-4o-mini',
+  234 |         messages: [
+  235 |           { {
+  status: 429,
+  headers: Headers {
+    date: 'Tue, 10 Feb 2026 02:37:10 GMT',
+    'content-type': 'application/json; charset=utf-8',
+    'content-length': '337',
+    connection: 'keep-alive',
+    vary: 'Origin',
+    'x-request-id': 'req_fc5dc97aa020458da3723d7514b23229',
+    'x-openai-proxy-wasm': 'v0.1',
+    server: 'cloudflare',
+    'cf-cache-status': 'DYNAMIC',
+    'set-cookie': '__cf_bm=o6YIITZGHSCmkCgff8dV60j.ZdHAXwrDZhx1bjizHqk-1770691029.944003-1.0.1.1-Cjy_AaXSpxULQ_S6Bhrd1wUDD9ltpcqQhivKOoea24UUK0QIVnWo4S_KpxyOglpXQrC1zLo3.bM0ow6a_z0IpG3B9Vfjjtt2VfzORy_b8B_W8BYQsi_90OC64JI3JTqo; HttpOnly; Secure; Path=/; Domain=api.openai.com; Expires=Tue, 10 Feb 2026 03:07:10 GMT, _cfuvid=DeBuDvIx3uOuybHGATN953Lom93WJ.tmx88PVbkeL38-1770691029.944003-1.0.1.1-f_UzTYFUh.ff0_Kpgd4s5fdb3IALWTyCpFEOnRR0sNQ; HttpOnly; SameSite=None; Secure; Path=/; Domain=api.openai.com',
+    'strict-transport-security': 'max-age=31536000; includeSubDomains; preload',
+    'x-content-type-options': 'nosniff',
+    'cf-ray': '9cb839192fce5b64-ICN',
+    'alt-svc': 'h3=":443"; ma=86400'
+  },
+  requestID: 'req_fc5dc97aa020458da3723d7514b23229',
+  error: [Object],
+  code: 'insufficient_quota',
+  param: null,
+  type: 'insufficient_quota'
+}
+ POST /api/analysis 200 in 12.8s (compile: 4.8s, render: 8.0s)
+✓ Compiled in 164ms
+✓ Compiled in 91ms
+[?25h

@@ -1,5 +1,22 @@
 import { NextResponse } from 'next/server';
-import { runLearningPipeline } from '@/lib/stock-analysis/ai-learning';
+import { runLearningPipeline, getLearnedKnowledge } from '@/lib/stock-analysis/ai-learning';
+
+export async function GET() {
+  try {
+    const knowledge = await getLearnedKnowledge();
+    if (knowledge) {
+      return NextResponse.json({
+        exists: true,
+        companiesFound: knowledge.companies.length,
+        rulesLearned: knowledge.criteria.goodCompanyRules.length,
+        learnedAt: knowledge.learnedAt,
+      });
+    }
+    return NextResponse.json({ exists: false });
+  } catch (error) {
+    return NextResponse.json({ exists: false, error: 'Check failed' }, { status: 500 });
+  }
+}
 
 export async function POST() {
   try {

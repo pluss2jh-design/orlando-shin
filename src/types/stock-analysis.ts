@@ -23,12 +23,28 @@ export interface AnalysisResult {
   market?: StockMarket;
   expectedReturnRate: number;
   confidenceScore: number;
+  confidenceDetails?: string[];
   reasoning: string;
   sources: SourceReference[];
   riskLevel: RiskLevel;
   currentPrice?: number;
   targetPrice?: number;
   currency?: CurrencyCode;
+}
+
+export interface FilteredCandidate {
+  company: ExtractedCompanyAnalysis;
+  yahooData: YahooFinanceData;
+
+  normalizedPrices: NormalizedPrices;
+  filterResults: FilterStageResult[];
+  passedAllFilters: boolean;
+
+  score: number;
+  expectedReturnRate: number;
+  confidenceScore: number;
+  confidenceDetails?: string[];
+  riskLevel: RiskLevel;
 }
 
 export interface SourceReference {
@@ -208,6 +224,7 @@ export interface FilteredCandidate {
   score: number;
   expectedReturnRate: number;
   confidenceScore: number;
+  confidenceDetails?: string[];
   riskLevel: RiskLevel;
 }
 

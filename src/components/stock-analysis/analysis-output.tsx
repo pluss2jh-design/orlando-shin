@@ -134,6 +134,13 @@ export function AnalysisOutput({ results, conditions, isLoading }: AnalysisOutpu
                     <span className="font-bold">{result.confidenceScore}%</span>
                   </div>
                   <Progress value={result.confidenceScore} className="h-2" />
+                  {result.confidenceDetails && result.confidenceDetails.length > 0 && (
+                    <ul className="text-[10px] text-muted-foreground list-disc list-inside mt-1 space-y-0.5">
+                      {result.confidenceDetails.map((detail, dIdx) => (
+                        <li key={dIdx}>{detail}</li>
+                      ))}
+                    </ul>
+                  )}
                 </div>
                 
                 <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50 border">
@@ -156,18 +163,23 @@ export function AnalysisOutput({ results, conditions, isLoading }: AnalysisOutpu
             {result.sources.length > 0 && (
               <div className="pt-4 border-t">
                 <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
-                  학습 근거 데이터
+                  학습 근거 및 위치 (Source & Location)
                 </h4>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {result.sources.slice(0, 2).map((source, sIdx) => (
+                <div className="grid grid-cols-1 gap-3">
+                  {result.sources.slice(0, 3).map((source, sIdx) => (
                     <div
                       key={sIdx}
-                      className="flex items-start gap-2 p-2 rounded border bg-muted/20 text-xs"
+                      className="flex items-start gap-3 p-3 rounded border bg-muted/20 text-xs"
                     >
                       {getSourceIcon(source.type)}
                       <div className="flex-1 min-w-0">
-                        <p className="font-medium truncate">{source.fileName}</p>
-                        <p className="text-muted-foreground line-clamp-1">{source.content}</p>
+                        <div className="flex items-center justify-between mb-1">
+                          <p className="font-bold truncate">{source.fileName}</p>
+                          <Badge variant="outline" className="text-[10px] h-5">
+                            {source.pageOrTimestamp !== '-' ? `P/T.${source.pageOrTimestamp}` : '전략 분석'}
+                          </Badge>
+                        </div>
+                        <p className="text-muted-foreground line-clamp-2 italic">"{source.content}"</p>
                       </div>
                     </div>
                   ))}

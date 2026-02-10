@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Brain, Sparkles } from 'lucide-react';
 import { DataControl } from '@/components/stock-analysis/data-control';
 import { InvestmentInput } from '@/components/stock-analysis/investment-input';
@@ -15,11 +15,33 @@ import {
 export default function StockAnalysisPage() {
   const [files, setFiles] = useState<UploadedFile[]>([]);
   const [, setSyncStatus] = useState<CloudSyncStatus>({ status: 'idle' });
-  const [conditions, setConditions] = useState<InvestmentConditions | null>(null);
-  const [analysisResults, setAnalysisResults] = useState<AnalysisResult[]>([]);
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [analysisState, setAnalysisState] = useState<{
+    conditions: InvestmentConditions | null;
+    results: AnalysisResult[];
+    isAnalyzing: boolean;
+    error: string | null;
+  }>({
+    conditions: null,
+    results: [],
+    isAnalyzing: false,
+    error: null,
+  });
   const [isLearned, setIsLearned] = useState(false);
-  const [analysisError, setAnalysisError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const checkKnowledge = async () => {
+      try {
+        const response = await fetch('/api/gdrive/learn');
+        const data = await response.json();
+        if (data.exists) {
+          setIsLearned(true);
+        }
+      } catch (error) {
+        console.error('Failed to check existing knowledge:', error);
+      }
+    };
+    checkKnowledge();
+  }, []);
 
   const handleFilesChange = (newFiles: UploadedFile[]) => {
     setFiles(newFiles);
@@ -34,10 +56,13 @@ export default function StockAnalysisPage() {
   };
 
   const handleAnalyze = async (newConditions: InvestmentConditions) => {
-    console.log('Analysis started with conditions:', newConditions);
-    setConditions(newConditions);
-    setIsAnalyzing(true);
-    setAnalysisError(null);
+    console.log('Starting analysis with:', newConditions);
+    setAnalysisState(prev => ({
+      ...prev,
+      conditions: newConditions,
+      isAnalyzing: true,
+      error: null,
+    }));
 
     try {
       const response = await fetch('/api/analysis', {
@@ -50,20 +75,20 @@ export default function StockAnalysisPage() {
       });
 
       const data = await response.json();
-      console.log('Analysis API response:', data);
+      console.log('API Response data:', data);
 
       if (!response.ok) {
         throw new Error(data.error || '분석 실패');
       }
 
       if (data.topPicks && Array.isArray(data.topPicks)) {
-        console.log(`Found ${data.topPicks.length} top picks`);
         const results: AnalysisResult[] = data.topPicks.map((pick: any) => ({
           companyName: pick.company.companyName,
           ticker: pick.yahooData?.ticker,
           market: pick.company.market,
           expectedReturnRate: pick.expectedReturnRate,
           confidenceScore: Math.round(pick.confidenceScore * 100),
+          confidenceDetails: pick.confidenceDetails,
           reasoning: pick.company.investmentThesis || '시장 지표 및 재무 분석 결과 우수한 성장 잠재력이 확인되었습니다.',
           sources: pick.company.sources || [],
           riskLevel: pick.riskLevel,
@@ -71,19 +96,29 @@ export default function StockAnalysisPage() {
           targetPrice: pick.company.targetPrice,
           currency: pick.yahooData?.currency,
         }));
-        setAnalysisResults(results);
+        
+        setAnalysisState(prev => ({
+          ...prev,
+          results,
+          isAnalyzing: false,
+        }));
       } else {
-        console.log('No top picks in response');
-        setAnalysisResults([]);
-        setAnalysisError(data.summary || '조건에 맞는 기업을 찾지 못했습니다.');
+        setAnalysisState(prev => ({
+          ...prev,
+          results: [],
+          isAnalyzing: false,
+          error: data.summary || '조건에 맞는 기업을 찾지 못했습니다.',
+        }));
       }
     } catch (error) {
       console.error('Analysis error:', error);
       const message = error instanceof Error ? error.message : '분석 실패';
-      setAnalysisError(message);
-      setAnalysisResults([]);
-    } finally {
-      setIsAnalyzing(false);
+      setAnalysisState(prev => ({
+        ...prev,
+        results: [],
+        isAnalyzing: false,
+        error: message,
+      }));
     }
   };
 
@@ -116,7 +151,7 @@ export default function StockAnalysisPage() {
             
             <InvestmentInput 
               onAnalyze={handleAnalyze}
-              disabled={!canAnalyze}
+              disabled={!canAnalyze || analysisState.isAnalyzing}
             />
 
             {(hasCompletedFiles || isLearned) && (
@@ -140,16 +175,16 @@ export default function StockAnalysisPage() {
           </div>
 
           <div className="lg:col-span-8 space-y-6">
-            {analysisError && !isAnalyzing && (
+            {analysisState.error && !analysisState.isAnalyzing && (
               <div className="p-4 rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm">
-                {analysisError}
+                {analysisState.error}
               </div>
             )}
             
             <AnalysisOutput 
-              results={analysisResults}
-              conditions={conditions}
-              isLoading={isAnalyzing}
+              results={analysisState.results}
+              conditions={analysisState.conditions}
+              isLoading={analysisState.isAnalyzing}
             />
           </div>
         </div>
