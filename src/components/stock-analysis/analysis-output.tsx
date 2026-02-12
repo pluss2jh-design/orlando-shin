@@ -158,6 +158,35 @@ export function AnalysisOutput({ results, conditions, isLoading }: AnalysisOutpu
                   {result.reasoning}
                 </p>
               </div>
+              
+              {result.totalRuleScore !== undefined && result.maxPossibleScore !== undefined && (
+                <div className="space-y-2 p-3 rounded-lg bg-primary/5 border border-primary/20">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-bold">규칙 기반 평가 점수</span>
+                    <span className="text-lg font-black text-primary">
+                      {result.totalRuleScore} / {result.maxPossibleScore}점
+                    </span>
+                  </div>
+                  <Progress value={(result.totalRuleScore / result.maxPossibleScore) * 100} className="h-2" />
+                  <p className="text-xs text-muted-foreground">
+                    총 {result.maxPossibleScore / 10}개 투자 규칙 중 {result.totalRuleScore / 10}개 규칙에 부합
+                  </p>
+                  {result.ruleScores && result.ruleScores.length > 0 && (
+                    <div className="mt-2 space-y-1">
+                      <p className="text-xs font-semibold text-muted-foreground">상위 부합 규칙:</p>
+                      {result.ruleScores
+                        .filter(r => r.score === 10)
+                        .slice(0, 3)
+                        .map((rule, idx) => (
+                          <div key={idx} className="flex items-center gap-2 text-xs">
+                            <span className="text-green-600 font-bold">✓</span>
+                            <span className="truncate">{rule.rule}</span>
+                          </div>
+                        ))}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
             {result.sources.length > 0 && (

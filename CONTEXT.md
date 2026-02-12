@@ -1,5 +1,58 @@
 # Project Context History
 
+## 2026-02-10
+
+### 파일 기반 학습 시스템으로 전환 + 기간별 수익률 분석 구현
+
+#### 변경사항 (Part 1: 파일 기반 학습)
+1. **LearnedKnowledge 구조 변경**
+   - `companies: ExtractedCompanyAnalysis[]` 제거
+   - `fileAnalyses: FileAnalysis[]` 추가 (파일별 핵심 조건 저장)
+   - 각 파일에서 추출한 주가 상승 핵심 조건(keyConditions) 저장
+
+2. **AI 학습 파이프라인 개선 (`ai-learning.ts`)**
+   - 학습 시작 시 기존 learned-knowledge.json 자동 삭제
+   - 파일별로 OpenAI GPT-4o-mini 호출하여 keyConditions 추출
+   - 모든 파일의 조건을 종합하여 투자 전략(strategy)과 기준(criteria) 생성
+   - Mock AI 모드도 fileAnalyses 기반으로 업데이트
+
+3. **관련 파일 수정**
+   - `src/types/stock-analysis.ts`: FileAnalysis 인터페이스 추가, LearnedKnowledge 수정
+   - `src/lib/stock-analysis/ai-learning.ts`: 파일 기반 학습 로직 구현
+   - `src/app/api/gdrive/learn/route.ts`: companiesFound -> filesAnalyzed 변경
+   - `src/components/stock-analysis/data-control.tsx`: 학습 완료 메시지 수정
+
+#### 변경사항 (Part 2: 기간별 수익률 분석)
+1. **시장 유니버스 확장 (`universe.ts`)**
+   - S&P500 시가총액 상위 100개 기업 추가
+   - Dow Jones 30 기업 정의
+   - Russell 1000 대형주 상위 100개 추가
+   - 총 300개 기업 대상 분석
+
+2. **분석 엔진 전면 개편 (`analysis-engine.ts`)**
+   - 입력된 기간(periodMonths) 동안의 실제 주가 데이터 조회
+   - 기간별 수익률 계산: ((종가 - 시작가) / 시작가) * 100
+   - 연환산 수익률 계산 추가
+   - 수익률 기준 TOP 5 기업 선정
+
+3. **고유 투자 논거 생성**
+   - 각 TOP 5 기업별로 OpenAI GPT-4o-mini를 사용하여 고유한 투자 논거 생성
+   - 기간별 수익률, PER/PBR/ROE 등 재무지표 포함
+   - 학습된 전략 패턴과 연결된 분석 제공
+
+4. **필터링 파이프라인 단순화**
+   - 기존 5단계 필터링에서 기간별 수익률 계산 중심으로 변경
+   - 학습된 criteria와 strategy는 참고 자료로 활용
+   - 실제 과거 데이터 기반客관적 분석 강화
+   - `src/lib/stock-analysis/ai-learning.ts`: 파일 기반 학습 로직 구현
+   - `src/app/api/gdrive/learn/route.ts`: companiesFound → filesAnalyzed 변경
+   - `src/components/stock-analysis/data-control.tsx`: 학습 완료 메시지 수정
+   - `src/lib/stock-analysis/analysis-engine.ts`: companies 참조 제거, fileAnalyses 기반으로 수정
+
+#### 해결된 문제
+- "투자 논거"와 "학습 근거 및 위치"가 5개 기업 모두 동일하게 표시되던 문제 해결
+- "Mock 분석 자료에서 추출된 내용입니다" 메시지 제거 (실제 파일별 분석 결과 표시)
+
 ## 2026-02-09
 
 ### 시장 유니버스 기반 심층 학습 및 분석 시스템 고도화
@@ -273,7 +326,7 @@
 - `src/app/api/analysis/route.ts` - 학습 결과 자동 로드
 - `src/components/stock-analysis/data-control.tsx` - 실제 API 호출, 학습 상태 UI
 - `src/app/stock-analysis/page.tsx` - 실제 분석 호출, 하드코딩 제거
-- `.env.example` - GOOGLE_API_KEY, GOOGLE_SERVICE_ACCOUNT_KEY 추가
+- `.env` - GOOGLE_API_KEY, GOOGLE_SERVICE_ACCOUNT_KEY 추가
 
 #### 설치된 패키지
 - `googleapis` - Google Drive API 클라이언트
@@ -299,7 +352,7 @@
    - 학습 실패 시 로그 기록 및 자동 복구 로직 추가
 
 3. **환경 설정 자동화**
-   - `.env.local`의 복잡한 JSON 형식(서비스 계정 키)을 자동으로 파싱하도록 개선
+   - `.env`의 복잡한 JSON 형식(서비스 계정 키)을 자동으로 파싱하도록 개선
 
 #### 수정된 파일
 - `src/lib/google-drive/index.ts`: `listDriveFiles` 함수 재귀 로직 추가

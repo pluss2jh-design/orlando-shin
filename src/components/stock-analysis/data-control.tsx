@@ -167,7 +167,7 @@ export function DataControl({ onFilesChange, onSyncStatusChange, onLearningCompl
       }
 
       setLearningStatus(
-        `학습 완료! ${data.companiesFound}개 기업 분석, ${data.rulesLearned}개 투자 규칙 학습됨`
+        `학습 완료! ${data.filesAnalyzed}개 파일 분석, ${data.rulesLearned}개 투자 규칙 학습됨`
       );
       onLearningComplete?.();
     } catch (error) {

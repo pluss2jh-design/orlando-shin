@@ -1,6 +1,6 @@
 const fs = require('fs');
 
-const envPath = '.env.local';
+const envPath = '.env';
 const envContent = fs.readFileSync(envPath, 'utf-8');
 
 // Find and extract the multiline JSON
@@ -18,19 +18,19 @@ let jsonStr = keyMatch[0].replace('GOOGLE_SERVICE_ACCOUNT_KEY=', '');
 try {
   const parsed = JSON.parse(jsonStr);
   const singleLineJson = JSON.stringify(parsed);
-  
+
   // Replace in env file
   const newEnvContent = envContent.replace(
     keyMatch[0],
     `GOOGLE_SERVICE_ACCOUNT_KEY=${singleLineJson}`
   );
-  
+
   fs.writeFileSync(envPath, newEnvContent);
   console.log('✅ GOOGLE_SERVICE_ACCOUNT_KEY converted to single line format');
-  console.log('   Backup created at .env.local.backup');
-  
+  console.log('   Backup created at .env.backup');
+
   // Create backup
-  fs.copyFileSync(envPath, '.env.local.backup');
+  fs.copyFileSync(envPath, '.env.backup');
 } catch (e) {
   console.log('❌ Failed to parse JSON:', e.message);
 }

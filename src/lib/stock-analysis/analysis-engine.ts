@@ -7,48 +7,32 @@ import type {
   RecommendationResult,
   SourceReference,
   InvestmentStrategy,
+  YahooFinanceData,
+  RuleScore,
 } from '@/types/stock-analysis';
 import { fetchExchangeRate } from './currency';
 import {
   fetchYahooFinanceData,
-  calculateHistoricalVolatility,
   fetchBatchQuotes,
 } from './yahoo-finance';
 import { getStockUniverse } from './universe';
-import {
-  filterStage1Validity,
-  filterStage2PriceCheck,
-  filterStage4PeriodFeasibility,
-} from './filtering-pipeline';
-import {
-  normalizePrices,
-  calculateExpectedReturn,
-  calculateFundamentalsScore,
-  calculateFeasibilityScore,
-  calculateFinalScore,
-  assessRiskLevel,
-  calculateConfidenceScore,
-  calculateStrategyScore,
-} from './scoring';
-
-import {
-  getOpenAIClient,
-  USE_MOCK_AI,
-} from './ai-learning';
 
 export async function runAnalysisEngine(
   conditions: InvestmentConditions,
-  knowledge: { criteria: LearnedInvestmentCriteria; strategy: InvestmentStrategy; companies: ExtractedCompanyAnalysis[] },
+  knowledge: { criteria: LearnedInvestmentCriteria; strategy: InvestmentStrategy; fileAnalyses: { fileName: string; keyConditions: string[] }[] },
   style: InvestmentStyle = 'moderate'
 ): Promise<RecommendationResult> {
-  console.log(`Starting analysis engine with ${knowledge.companies.length} learned companies and universe screening...`);
+  console.log(`Starting analysis engine with ${knowledge.fileAnalyses.length} learned files and universe screening...`);
   
   const exchangeRate = await fetchExchangeRate();
   const universe = getStockUniverse();
   console.log(`Universe size: ${universe.length} tickers`);
   
+  const allRules = knowledge.criteria.goodCompanyRules.map(r => r.rule);
+  console.log(`Total rules to evaluate: ${allRules.length}`);
+  
   const batchSize = 40;
-  const allYahooData: any[] = [];
+  const allYahooData: YahooFinanceData[] = [];
   
   for (let i = 0; i < universe.length; i += batchSize) {
     const batch = universe.slice(i, i + batchSize);
@@ -61,227 +45,269 @@ export async function runAnalysisEngine(
     }
   }
 
-  console.log(`Fetched data for ${allYahooData.length} tickers from Yahoo Finance`);
+  console.log(`Fetched basic data for ${allYahooData.length} tickers`);
 
-  const screenedCandidates: FilteredCandidate[] = [];
+  const validStocks = allYahooData.filter(d => d.ticker && d.currentPrice > 0);
+  console.log(`Valid stocks: ${validStocks.length}`);
 
-  for (const yahooData of allYahooData) {
+  const stocksWithScores: Array<{
+    ticker: string;
+    yahooData: YahooFinanceData;
+    periodReturn: number;
+    annualizedReturn: number;
+    company: ExtractedCompanyAnalysis;
+    ruleScores: RuleScore[];
+    totalScore: number;
+  }> = [];
+
+  for (const stock of validStocks.slice(0, 100)) {
     try {
-      if (!yahooData.ticker || yahooData.currentPrice <= 0) continue;
-
-      const matchingExtracted = knowledge.companies.find(c => 
-        c.ticker?.split('.')[0] === yahooData.ticker.split('.')[0] ||
-        c.companyName?.toLowerCase() === yahooData.ticker.toLowerCase()
-      );
+      const fullData = await fetchYahooFinanceData(stock.ticker, conditions.periodMonths);
       
-      const company: ExtractedCompanyAnalysis = matchingExtracted || {
-        companyName: yahooData.ticker,
-        ticker: yahooData.ticker,
-        market: yahooData.ticker.endsWith('.KS') || yahooData.ticker.endsWith('.KQ') ? 'KRX' : 'unknown',
-        currency: yahooData.currency,
-        metrics: {},
-        investmentThesis: 'Universe screening based on core strategy',
+      if (!fullData.priceHistory || fullData.priceHistory.length < 2) {
+        continue;
+      }
+
+      const history = fullData.priceHistory;
+      const startPrice = history[0].close;
+      const endPrice = history[history.length - 1].close;
+      
+      if (startPrice <= 0 || endPrice <= 0) continue;
+
+      const periodReturn = ((endPrice - startPrice) / startPrice) * 100;
+      const years = conditions.periodMonths / 12;
+      const annualizedReturn = years > 0 
+        ? ((Math.pow((endPrice / startPrice), (1 / years)) - 1) * 100)
+        : periodReturn;
+
+      const company: ExtractedCompanyAnalysis = {
+        companyName: stock.ticker,
+        ticker: stock.ticker,
+        market: stock.ticker.endsWith('.KS') || stock.ticker.endsWith('.KQ') ? 'KRX' : 'NYSE',
+        currency: stock.currency,
+        metrics: {
+          per: fullData.trailingPE,
+          pbr: fullData.priceToBook,
+          roe: fullData.returnOnEquity ? fullData.returnOnEquity * 100 : undefined,
+        },
+        investmentThesis: '',
         riskFactors: [],
-        investmentStyle: 'moderate',
+        investmentStyle: style,
         sources: [],
         extractedAt: new Date(),
-        confidence: 0.5,
+        confidence: 0.7,
       };
 
-      const stage1 = filterStage1Validity(company, yahooData.ticker, true);
-      const stage2 = filterStage2PriceCheck(company, yahooData, exchangeRate);
-      
-      const passScreening = stage1.passed && (company.targetPrice ? stage2.passed : true);
-      
-      if (!passScreening) {
-        if (matchingExtracted) {
-          console.log(`Company ${yahooData.ticker} failed screening: ${stage1.reason}, ${stage2.reason}`);
-        }
-        continue;
+      // 각 규칙에 대해 점수 계산
+      const ruleScores: RuleScore[] = [];
+      for (const rule of allRules) {
+        const score = calculateRuleScore(rule, fullData, company);
+        ruleScores.push(score);
       }
 
-      const prices = normalizePrices(company, yahooData, exchangeRate);
-      const fundamentalsScore = calculateFundamentalsScore(
+      const totalScore = ruleScores.reduce((sum, rs) => sum + rs.score, 0);
+
+      stocksWithScores.push({
+        ticker: stock.ticker,
+        yahooData: fullData,
+        periodReturn,
+        annualizedReturn,
         company,
-        yahooData,
-        knowledge.criteria
-      );
-
-      const strategyScore = calculateStrategyScore(yahooData, knowledge.strategy);
-      
-      const appliedRules = knowledge.criteria.goodCompanyRules.filter(r => {
-        const ruleLower = r.rule.toLowerCase();
-        if (ruleLower.includes('roe') && (yahooData.returnOnEquity ?? 0) > 0.12) return true;
-        if (ruleLower.includes('per') && (yahooData.trailingPE ?? 100) < 22) return true;
-        if (ruleLower.includes('성장') && (yahooData.revenueGrowth ?? 0) > 0.05) return true;
-        return false;
+        ruleScores,
+        totalScore,
       });
 
-      const strategySources = appliedRules.map(r => r.source);
-      const extractionBonus = matchingExtracted ? 100 : 0;
-      
-      const finalSources = matchingExtracted 
-        ? [...matchingExtracted.sources, ...strategySources] 
-        : strategySources.length > 0 
-          ? strategySources 
-          : [
-              {
-                fileName: '시장 유니버스 스크리닝',
-                type: 'pdf' as const,
-                pageOrTimestamp: '-',
-                content: '핵심 투자 전략 부합도 분석 결과입니다.'
-              }
-            ];
-
-      screenedCandidates.push({
-        company: {
-          ...company,
-          sources: deduplicateSources(finalSources)
-        },
-        yahooData,
-        normalizedPrices: prices,
-        filterResults: [stage1, stage2],
-        passedAllFilters: true,
-        score: fundamentalsScore + strategyScore + extractionBonus + (Math.random() * 5),
-        expectedReturnRate: 0,
-        confidenceScore: 0.5,
-        riskLevel: 'medium',
-      });
     } catch (error) {
-      console.error(`Error screening ${yahooData.ticker}:`, error);
+      console.error(`Error calculating returns for ${stock.ticker}:`, error);
     }
   }
 
-  console.log(`Screened ${screenedCandidates.length} candidates after filters`);
+  console.log(`Calculated returns and scores for ${stocksWithScores.length} stocks`);
 
-  const topScreened = screenedCandidates
-    .sort((a, b) => b.score - a.score)
-    .slice(0, 30);
+  const topByScore = stocksWithScores
+    .sort((a, b) => b.totalScore - a.totalScore)
+    .slice(0, 5);
 
-  console.log(`Deep-diving into top ${topScreened.length} screened candidates...`);
+  console.log(`TOP 5 by rule scores: ${topByScore.map(s => `${s.ticker}(${s.totalScore}점)`).join(', ')}`);
 
-  const finalResults: FilteredCandidate[] = [];
-
-  for (const cand of topScreened) {
-    try {
-      const fullYahooData = await fetchYahooFinanceData(cand.yahooData.ticker, conditions.periodMonths);
-      
-      if (!fullYahooData || !fullYahooData.priceHistory || fullYahooData.priceHistory.length === 0) {
-        console.log(`No history for ${cand.yahooData.ticker}, using screening data`);
-        finalResults.push(cand);
-        continue;
-      }
-
-      const stage4 = filterStage4PeriodFeasibility(cand.company, fullYahooData, conditions.periodMonths, exchangeRate);
-      
-      const prices = normalizePrices(cand.company, fullYahooData, exchangeRate);
-
-      const volatility = calculateHistoricalVolatility(fullYahooData.priceHistory);
-      const expectedReturnRate = calculateExpectedReturn(
-        prices.currentPriceKRW,
-        prices.targetPriceKRW,
-        conditions.periodMonths,
-        volatility
-      );
-
-      const feasibilityScore = calculateFeasibilityScore(
-        prices.currentPriceKRW,
-        prices.targetPriceKRW,
-        conditions.periodMonths,
-        fullYahooData.priceHistory
-      );
-
-      const confidenceData = calculateConfidenceScore(cand.company, fullYahooData);
-      const strategyScore = calculateStrategyScore(fullYahooData, knowledge.strategy);
-
-      const score = calculateFinalScore({
-        expectedReturnRate,
-        fundamentalsScore: cand.score,
-        strategyScore,
-        feasibilityScore,
-        dataConfidence: confidenceData.score,
-        style,
-      });
-
-      const priceVsTarget = prices.targetPriceKRW > 0
-        ? prices.currentPriceKRW / prices.targetPriceKRW
-        : 0.6;
-      const riskLevel = assessRiskLevel(volatility, priceVsTarget, style);
-
-      finalResults.push({
-        ...cand,
-        yahooData: fullYahooData,
-        normalizedPrices: prices,
-        filterResults: [...cand.filterResults, stage4],
-        score,
-        expectedReturnRate,
-        confidenceScore: confidenceData.score,
-        confidenceDetails: confidenceData.details,
-        riskLevel,
-      });
-    } catch (error) {
-      console.error(`Error deep-diving ${cand.yahooData.ticker}:`, error);
-      finalResults.push(cand);
+  const topPicks: FilteredCandidate[] = topByScore.map((stock, index) => {
+    const riskLevel = stock.periodReturn > 50 ? 'high' : stock.periodReturn > 20 ? 'medium' : 'low';
+    
+    const maxPossibleScore = allRules.length * 10;
+    const scorePercentage = (stock.totalScore / maxPossibleScore) * 100;
+    
+    // 상위 3개 규칙과 하위 3개 규칙 추출
+    const sortedRules = [...stock.ruleScores].sort((a, b) => b.score - a.score);
+    const topRules = sortedRules.filter(r => r.score === 10).slice(0, 3);
+    const bottomRules = sortedRules.filter(r => r.score === 0).slice(0, 3);
+    
+    let investmentThesisText = `${stock.company.companyName}는 총 ${allRules.length}개 투자 규칙 중 ${stock.totalScore / 10}개 규칙에 부합하여 ${stock.totalScore}점을 획득했습니다. `;
+    
+    if (topRules.length > 0) {
+      investmentThesisText += `특히 ${topRules.map(r => r.rule.substring(0, 20) + '...').join(', ')} 등에서 우수한 평가를 받았습니다. `;
     }
-  }
-
-  const sortedFinal = finalResults.sort((a, b) => b.score - a.score);
-  const topPicks = sortedFinal.slice(0, 5);
-
-  if (topPicks.length === 0 && screenedCandidates.length > 0) {
-    topPicks.push(...screenedCandidates.sort((a, b) => b.score - a.score).slice(0, 5));
-  }
-
-  const openai = getOpenAIClient();
-  const reasoningTasks = topPicks.map(async (pick) => {
-    try {
-      const metricsText = JSON.stringify({
-        price: pick.yahooData.currentPrice,
-        pe: pick.yahooData.trailingPE,
-        pbr: pick.yahooData.priceToBook,
-        roe: pick.yahooData.returnOnEquity,
-        target: pick.yahooData.targetMeanPrice,
-        marketCap: pick.yahooData.marketCap
-      });
-
-      const response = await openai.chat.completions.create({
-        model: 'gpt-4o-mini',
-        messages: [
-          {
-            role: 'system',
-            content: '당신은 주식 투자 전문가입니다. 기업의 실시간 지표와 학습된 투자 전략, 그리고 자료에서 추출된 분석 내용을 종합하여 독창적인 투자 논거를 3문장 이내로 작성하세요. 자료의 핵심 요약을 반드시 반영하고, 수치를 언급하여 전문성을 높이세요.'
-          },
-          {
-            role: 'user',
-            content: `기업: ${pick.company.companyName} (${pick.yahooData.ticker})\n추출된 분석 내용: ${pick.company.investmentThesis}\n투자 전략 패턴: ${knowledge.strategy.winningPatterns.join(', ')}\n실시간 데이터: ${metricsText}\n참고 자료: ${pick.company.sources.map(s => s.fileName).join(', ')}`
-          }
-        ],
-        max_tokens: 350,
-        temperature: 0.8,
-      });
-
-      pick.company.investmentThesis = response.choices[0]?.message?.content || pick.company.investmentThesis;
-    } catch (error) {
-      console.error(`Reasoning generation failed for ${pick.yahooData.ticker}:`, error);
-      pick.company.investmentThesis = `${pick.company.companyName}은 학습된 투자 전략에 따라 재무 지표가 우수하며, 현재 시장 유니버스 내에서 ${conditions.periodMonths}개월 내에 높은 성장성이 기대되는 상위권 종목입니다.`;
-    }
+    
+    investmentThesisText += `PER ${stock.yahooData.trailingPE?.toFixed(1) || 'N/A'}, ` +
+      `ROE ${stock.yahooData.returnOnEquity ? (stock.yahooData.returnOnEquity * 100).toFixed(1) : 'N/A'}% 수준으로 ` +
+      `재무건전성이 양호합니다.`;
+    
+    return {
+      company: {
+        ...stock.company,
+        investmentThesis: investmentThesisText,
+      },
+      yahooData: stock.yahooData,
+      normalizedPrices: {
+        currentPriceKRW: stock.yahooData.currentPrice * (stock.yahooData.currency === 'USD' ? exchangeRate.rate : 1),
+        targetPriceKRW: stock.yahooData.currentPrice * (stock.yahooData.currency === 'USD' ? exchangeRate.rate : 1) * 1.1,
+        recommendedBuyPriceKRW: stock.yahooData.currentPrice * (stock.yahooData.currency === 'USD' ? exchangeRate.rate : 1),
+        exchangeRateUsed: exchangeRate.rate,
+      },
+      filterResults: [
+        { stage: 1, stageName: '유효성 검증', passed: true, reason: '유효한 티커' },
+        { stage: 2, stageName: '규칙 기반 점수 계산', passed: true, reason: `${allRules.length}개 규칙 중 ${stock.totalScore / 10}개 부합` },
+      ],
+      passedAllFilters: true,
+      score: scorePercentage,
+      expectedReturnRate: stock.periodReturn,
+      confidenceScore: 70 + (scorePercentage * 0.3),
+      riskLevel,
+      ruleScores: stock.ruleScores,
+      totalRuleScore: stock.totalScore,
+      maxPossibleScore: maxPossibleScore,
+    };
   });
 
-  await Promise.all(reasoningTasks);
-
   return {
-    candidates: sortedFinal,
+    candidates: topPicks,
     topPicks,
     investmentConditions: conditions,
     investmentStyle: style,
     exchangeRate,
     processedAt: new Date(),
-    summary: `학습된 고유 투자 전략을 바탕으로 S&P 500, Russell 1000, Dow Jones 유니버스 내 ${allYahooData.length}개 종목을 정밀 스크리닝하여 현재 가장 적합한 상위 5개 유망 기업을 선정했습니다.`,
+    summary: `S&P 500, Russell 1000, Dow Jones 유니버스 내 ${stocksWithScores.length}개 종목을 ${allRules.length}개 투자 규칙으로 분석하여, 총점 기준 TOP 5 기업을 선정했습니다.`,
     allSourcesUsed: deduplicateSources([
-      ...knowledge.companies.flatMap(c => c.sources),
       ...knowledge.criteria.goodCompanyRules.map(r => r.source)
     ]),
   };
+}
+
+function calculateRuleScore(rule: string, data: YahooFinanceData, company: ExtractedCompanyAnalysis): RuleScore {
+  const ruleLower = rule.toLowerCase();
+  
+  if (ruleLower.includes('roe')) {
+    const roe = data.returnOnEquity ? data.returnOnEquity * 100 : undefined;
+    if (!roe) return { rule, score: 0, reason: 'ROE 데이터 없음' };
+    
+    if (ruleLower.includes('15%') && roe >= 15) {
+      return { rule, score: 10, reason: `ROE ${roe.toFixed(1)}% >= 15%` };
+    }
+    if (ruleLower.includes('10%') && roe >= 10) {
+      return { rule, score: 10, reason: `ROE ${roe.toFixed(1)}% >= 10%` };
+    }
+    if (ruleLower.includes('8%') && roe >= 8) {
+      return { rule, score: 10, reason: `ROE ${roe.toFixed(1)}% >= 8%` };
+    }
+    return { rule, score: 0, reason: `ROE ${roe.toFixed(1)}%가 기준 미달` };
+  }
+  
+  if (ruleLower.includes('per')) {
+    const per = data.trailingPE;
+    if (!per) return { rule, score: 0, reason: 'PER 데이터 없음' };
+    
+    if (ruleLower.includes('10~20') || ruleLower.includes('10-20')) {
+      if (per >= 10 && per <= 20) {
+        return { rule, score: 10, reason: `PER ${per.toFixed(1)}이 10~20배 적정 구간` };
+      }
+      return { rule, score: 0, reason: `PER ${per.toFixed(1)}이 10~20배 범위 밖` };
+    }
+    if (ruleLower.includes('10 이하') || ruleLower.includes('10이하')) {
+      if (per <= 10) {
+        return { rule, score: 10, reason: `PER ${per.toFixed(1)} <= 10` };
+      }
+      return { rule, score: 0, reason: `PER ${per.toFixed(1)} > 10` };
+    }
+    if (ruleLower.includes('30 이상') || ruleLower.includes('30이상')) {
+      // 고평가 조건은 반대로 - 30 이상이면 감점 대상이지만 여기서는 그냥 0점
+      return { rule, score: 0, reason: `PER ${per.toFixed(1)} - 고평가 구간` };
+    }
+    return { rule, score: 5, reason: `PER ${per.toFixed(1)} - 중간 평가` };
+  }
+  
+  if (ruleLower.includes('pbr')) {
+    const pbr = data.priceToBook;
+    if (!pbr) return { rule, score: 0, reason: 'PBR 데이터 없음' };
+    
+    if (ruleLower.includes('1~2') || ruleLower.includes('1-2')) {
+      if (pbr >= 1 && pbr <= 2) {
+        return { rule, score: 10, reason: `PBR ${pbr.toFixed(1)}이 1~2배 적정 구간` };
+      }
+      return { rule, score: 0, reason: `PBR ${pbr.toFixed(1)}이 1~2배 범위 밖` };
+    }
+    return { rule, score: 5, reason: `PBR ${pbr.toFixed(1)}` };
+  }
+  
+  if (ruleLower.includes('ev/ebitda') || ruleLower.includes('evebitda')) {
+    // Yahoo Finance API에서 EV/EBITDA 데이터가 없을 수 있음
+    const evEbitda = (data as any).enterpriseToEbitda;
+    if (!evEbitda) {
+      // EV/EBITDA가 없으면 PER 기반으로 간접 평가
+      const per = data.trailingPE;
+      if (per && per < 15) {
+        return { rule, score: 10, reason: 'EV/EBITDA 데이터 없음, PER 기반 추정' };
+      }
+      return { rule, score: 5, reason: 'EV/EBITDA 데이터 없음' };
+    }
+    
+    if (ruleLower.includes('10배 이하') || ruleLower.includes('10이하')) {
+      if (evEbitda <= 10) {
+        return { rule, score: 10, reason: `EV/EBITDA ${evEbitda.toFixed(1)} <= 10` };
+      }
+      return { rule, score: 0, reason: `EV/EBITDA ${evEbitda.toFixed(1)} > 10` };
+    }
+    return { rule, score: 5, reason: `EV/EBITDA ${evEbitda.toFixed(1)}` };
+  }
+  
+  if (ruleLower.includes('eps') || ruleLower.includes('성장률')) {
+    // EPS 성장률 데이터가 없으므로 PER과 주가 변동으로 추정
+    const per = data.trailingPE;
+    if (per && per < 20) {
+      return { rule, score: 10, reason: 'PER 기반 추정 시 성장성 양호' };
+    }
+    return { rule, score: 5, reason: 'EPS 데이터 없음' };
+  }
+  
+  if (ruleLower.includes('부채') || ruleLower.includes('debt')) {
+    // 부채비율 데이터가 없으므로 PBR로 간접 추정
+    const pbr = data.priceToBook;
+    if (pbr && pbr < 1.5) {
+      return { rule, score: 10, reason: 'PBR 기반 추정 시 재무구조 양호' };
+    }
+    return { rule, score: 5, reason: '부채비율 데이터 없음' };
+  }
+  
+  if (ruleLower.includes('fcf') || ruleLower.includes('현금흐름') || ruleLower.includes('현금 흐름')) {
+    // FCF 데이터가 없으므로 시가액으로 추정
+    if (data.marketCap && data.marketCap > 1e10) {
+      return { rule, score: 10, reason: '대형주로 추정 시 현금흐름 양호' };
+    }
+    return { rule, score: 5, reason: 'FCF 데이터 없음' };
+  }
+  
+  if (ruleLower.includes('배당') || ruleLower.includes('dividend')) {
+    const divYield = data.dividendYield ? data.dividendYield * 100 : undefined;
+    if (!divYield) return { rule, score: 0, reason: '배당 데이터 없음' };
+    
+    if (ruleLower.includes('2~4%') || ruleLower.includes('2-4%')) {
+      if (divYield >= 2 && divYield <= 4) {
+        return { rule, score: 10, reason: `배당수익률 ${divYield.toFixed(1)}%가 2~4% 적정` };
+      }
+      return { rule, score: 0, reason: `배당수익률 ${divYield.toFixed(1)}%가 2~4% 범위 밖` };
+    }
+    return { rule, score: 5, reason: `배당수익률 ${divYield.toFixed(1)}%` };
+  }
+  
+  return { rule, score: 5, reason: '규칙 해석 불가 - 중간 평가' };
 }
 
 function deduplicateSources(sources: SourceReference[]): SourceReference[] {

@@ -1,3 +1,3 @@
 export { videoProcessingService } from './processor';
-export { getSttProvider, WhisperSttProvider, MockSttProvider } from './stt-service';
+export { getSttProvider, GoogleSpeechSttProvider, MockSttProvider } from './stt-service';
 export { frameCaptureService, FrameCaptureService } from './frame-service';

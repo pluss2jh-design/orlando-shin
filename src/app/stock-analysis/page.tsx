@@ -95,6 +95,9 @@ export default function StockAnalysisPage() {
           currentPrice: pick.yahooData?.currentPrice,
           targetPrice: pick.company.targetPrice,
           currency: pick.yahooData?.currency,
+          ruleScores: pick.ruleScores,
+          totalRuleScore: pick.totalRuleScore,
+          maxPossibleScore: pick.maxPossibleScore,
         }));
         
         setAnalysisState(prev => ({

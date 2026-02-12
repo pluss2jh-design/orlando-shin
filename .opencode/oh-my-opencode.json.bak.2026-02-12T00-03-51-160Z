@@ -1,0 +1,39 @@
+{
+    "agents": {
+        "planner-sisyphus": {
+            "model": "google/gemini-2.5-pro",
+            "description": "설계와 실행 계획 수립 (한도가 2M으로 넉넉한 모델 권장)"
+        },
+        "prometheus": {
+            "model": "google/gemini-2.5-pro",
+            "description": "복잡한 코딩과 로직 실행 담당"
+        },
+        "oracle": {
+            "model": "google/gemini-3-flash",
+            "description": "빠르고 정확한 논리 분석 및 질의응답"
+        },
+        "librarian": {
+            "model": "google/gemini-2.5-flash",
+            "description": "빠른 문서 검색 및 반복 작업용"
+        },
+        "explore": {
+            "model": "google/gemini-2.0-flash",
+            "description": "코드베이스 구조 탐색 전용"
+        }
+    },
+    "lsp": {
+        "typescript-language-server": {
+            "command": [
+                "typescript-language-server.cmd",
+                "--stdio"
+            ],
+            "extensions": [
+                ".ts",
+                ".tsx",
+                ".js",
+                ".jsx"
+            ],
+            "priority": 10
+        }
+    }
+}

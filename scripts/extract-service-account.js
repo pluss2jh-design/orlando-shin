@@ -1,10 +1,10 @@
 const fs = require('fs');
-require('dotenv').config({ path: '.env.local' });
+require('dotenv').config({ path: '.env' });
 
 const key = process.env.GOOGLE_SERVICE_ACCOUNT_KEY;
 
 if (!key) {
-  console.log('❌ GOOGLE_SERVICE_ACCOUNT_KEY not found in .env.local');
+  console.log('❌ GOOGLE_SERVICE_ACCOUNT_KEY not found in .env');
   process.exit(1);
 }
 

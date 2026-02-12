@@ -1,47 +1,100 @@
 import { VideoTranscript, TranscriptSegment, SttProvider } from '@/types/video-processing';
-import OpenAI from 'openai';
+import { google } from 'googleapis';
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY || '',
-});
+function parseServiceAccountKey(key: string): object {
+  try {
+    return JSON.parse(key);
+  } catch {
+    try {
+      return JSON.parse(key.replace(/\n/g, '\\n'));
+    } catch {
+      throw new Error(
+        'GOOGLE_SERVICE_ACCOUNT_KEY 형식이 잘못되었습니다. 유효한 JSON 형식이어야 합니다.'
+      );
+    }
+  }
+}
 
-export class WhisperSttProvider implements SttProvider {
-  name = 'OpenAI Whisper';
+async function getSpeechClient() {
+  const credentials = process.env.GOOGLE_SERVICE_ACCOUNT_KEY;
+  if (!credentials) {
+    throw new Error('GOOGLE_SERVICE_ACCOUNT_KEY 환경변수가 설정되지 않았습니다.');
+  }
+  
+  const parsedCredentials = parseServiceAccountKey(credentials);
+  const auth = new google.auth.GoogleAuth({
+    credentials: parsedCredentials,
+    scopes: ['https://www.googleapis.com/auth/cloud-platform'],
+  });
+  
+  return google.speech({ version: 'v1', auth });
+}
+
+export class GoogleSpeechSttProvider implements SttProvider {
+  name = 'Google Cloud Speech-to-Text';
 
   async transcribe(audioBuffer: Buffer, mimeType: string): Promise<VideoTranscript> {
     try {
-      const uint8Array = new Uint8Array(audioBuffer);
-      const file = new File([uint8Array], 'audio.mp3', { type: mimeType });
+      const speechClient = await getSpeechClient();
       
-      const response = await openai.audio.transcriptions.create({
-        file: file,
-        model: 'whisper-1',
-        language: 'ko',
-        response_format: 'verbose_json',
-        timestamp_granularities: ['word', 'segment'],
+      const base64Audio = audioBuffer.toString('base64');
+      
+      const response = await speechClient.speech.recognize({
+        requestBody: {
+          audio: {
+            content: base64Audio,
+          },
+          config: {
+            encoding: 'MP3',
+            sampleRateHertz: 16000,
+            languageCode: 'ko-KR',
+            enableWordTimeOffsets: true,
+            enableAutomaticPunctuation: true,
+            model: 'latest_long',
+          },
+        },
       });
 
-      const segments: TranscriptSegment[] = response.segments?.map((segment, index) => ({
-        id: `segment-${index}`,
-        startTime: segment.start,
-        endTime: segment.end,
-        text: segment.text.trim(),
-        confidence: segment.avg_logprob ? Math.exp(segment.avg_logprob) : 0.9,
-      })) || [];
+      const results = response.data.results || [];
+      const segments: TranscriptSegment[] = [];
+
+      results.forEach((result, resultIndex) => {
+        const alternatives = result.alternatives || [];
+        if (alternatives.length > 0) {
+          const alternative = alternatives[0];
+          const words = alternative.words || [];
+          
+          if (words.length > 0) {
+            const firstWord = words[0] as any;
+            const lastWord = words[words.length - 1] as any;
+            const startTime = Number(firstWord.startTime?.seconds || 0) + (firstWord.startTime?.nanos || 0) / 1e9;
+            const endTime = Number(lastWord.endTime?.seconds || 0) + (lastWord.endTime?.nanos || 0) / 1e9;
+            
+            segments.push({
+              id: `segment-${resultIndex}`,
+              startTime,
+              endTime,
+              text: alternative.transcript || '',
+              confidence: alternative.confidence || 0.9,
+            });
+          }
+        }
+      });
 
       const fullText = segments.map(s => s.text).join(' ');
+      const duration = segments.length > 0 ? segments[segments.length - 1].endTime : 0;
 
       return {
         fileId: '',
         fileName: '',
         segments,
         fullText,
-        duration: segments.length > 0 ? segments[segments.length - 1].endTime : 0,
+        duration,
         processedAt: new Date(),
       };
     } catch (error) {
-      console.error('STT transcription error:', error);
-      throw new Error('Failed to transcribe audio');
+      console.error('Google Speech-to-Text transcription error:', error);
+      throw new Error('Failed to transcribe audio with Google Speech-to-Text');
     }
   }
 }
@@ -95,8 +148,8 @@ export class MockSttProvider implements SttProvider {
 }
 
 export function getSttProvider(): SttProvider {
-  if (process.env.OPENAI_API_KEY) {
-    return new WhisperSttProvider();
+  if (process.env.GOOGLE_SERVICE_ACCOUNT_KEY) {
+    return new GoogleSpeechSttProvider();
   }
   return new MockSttProvider();
 }

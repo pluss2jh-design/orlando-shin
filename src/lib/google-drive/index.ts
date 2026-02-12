@@ -35,12 +35,6 @@ function parseServiceAccountKey(key: string): object {
 }
 
 function getGoogleDriveClient() {
-  const apiKey = process.env.GOOGLE_API_KEY;
-
-  if (apiKey) {
-    return google.drive({ version: 'v3', auth: apiKey });
-  }
-
   const credentials = process.env.GOOGLE_SERVICE_ACCOUNT_KEY;
   if (credentials) {
     const parsedCredentials = parseServiceAccountKey(credentials);
@@ -52,7 +46,7 @@ function getGoogleDriveClient() {
   }
 
   throw new Error(
-    'GOOGLE_API_KEY 또는 GOOGLE_SERVICE_ACCOUNT_KEY 환경변수가 필요합니다.'
+    'GOOGLE_SERVICE_ACCOUNT_KEY 환경변수가 필요합니다.'
   );
 }
 
@@ -67,6 +61,8 @@ export async function listDriveFiles(
   let nextPageToken: string | undefined = undefined;
 
   try {
+    console.log(`Fetching files from folder: ${folderId}`);
+    
     do {
       const response: any = await drive.files.list({
         q: `'${folderId}' in parents and trashed = false`,
@@ -77,7 +73,10 @@ export async function listDriveFiles(
       });
 
       const driveFiles = response.data.files || [];
+      console.log(`Found ${driveFiles.length} items in folder ${folderId}`);
+      
       for (const f of driveFiles) {
+        console.log(`  - ${f.name} (${f.mimeType})`);
         if (f.mimeType === 'application/vnd.google-apps.folder') {
           const subFiles = await listDriveFiles(f.id!, depth + 1);
           allFiles.push(...subFiles.files);
@@ -94,6 +93,7 @@ export async function listDriveFiles(
       nextPageToken = response.data.nextPageToken;
     } while (nextPageToken);
 
+    console.log(`Total files found: ${allFiles.length}`);
     return {
       files: allFiles,
       totalCount: allFiles.length,
@@ -161,6 +161,19 @@ export async function downloadTextContent(fileId: string): Promise<string> {
       { responseType: 'text' }
     );
     return response.data as string;
+  }
+
+  if (mimeType === 'application/pdf') {
+    try {
+      const exported = await drive.files.export({
+        fileId,
+        mimeType: 'text/plain',
+      });
+      return exported.data as string;
+    } catch (error) {
+      console.error('PDF export error:', error);
+      return '';
+    }
   }
 
   return '';

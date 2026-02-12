@@ -7,7 +7,7 @@ export async function GET() {
     if (knowledge) {
       return NextResponse.json({
         exists: true,
-        companiesFound: knowledge.companies.length,
+        filesAnalyzed: knowledge.fileAnalyses.length,
         rulesLearned: knowledge.criteria.goodCompanyRules.length,
         learnedAt: knowledge.learnedAt,
       });
@@ -24,7 +24,7 @@ export async function POST() {
 
     return NextResponse.json({
       status: 'completed',
-      companiesFound: knowledge.companies.length,
+      filesAnalyzed: knowledge.fileAnalyses.length,
       rulesLearned: knowledge.criteria.goodCompanyRules.length,
       principlesLearned: knowledge.criteria.principles.length,
       sourceFiles: knowledge.sourceFiles,

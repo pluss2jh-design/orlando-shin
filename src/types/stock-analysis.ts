@@ -30,6 +30,9 @@ export interface AnalysisResult {
   currentPrice?: number;
   targetPrice?: number;
   currency?: CurrencyCode;
+  ruleScores?: RuleScore[];
+  totalRuleScore?: number;
+  maxPossibleScore?: number;
 }
 
 export interface FilteredCandidate {
@@ -137,8 +140,15 @@ export interface InvestmentStrategy {
   riskManagementRules: string[];
 }
 
+export interface FileAnalysis {
+  fileName: string;
+  fileId: string;
+  keyConditions: string[];
+  extractedAt: Date;
+}
+
 export interface LearnedKnowledge {
-  companies: ExtractedCompanyAnalysis[];
+  fileAnalyses: FileAnalysis[];
   criteria: LearnedInvestmentCriteria;
   strategy: InvestmentStrategy;
   rawSummaries: { fileName: string; summary: string }[];
@@ -212,6 +222,12 @@ export interface NormalizedPrices {
   exchangeRateUsed?: number;
 }
 
+export interface RuleScore {
+  rule: string;
+  score: number;
+  reason: string;
+}
+
 /** 필터링을 거친 후보 기업 */
 export interface FilteredCandidate {
   company: ExtractedCompanyAnalysis;
@@ -226,6 +242,9 @@ export interface FilteredCandidate {
   confidenceScore: number;
   confidenceDetails?: string[];
   riskLevel: RiskLevel;
+  ruleScores?: RuleScore[];
+  totalRuleScore?: number;
+  maxPossibleScore?: number;
 }
 
 // ===========================
