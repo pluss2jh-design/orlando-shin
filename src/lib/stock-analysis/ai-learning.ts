@@ -146,37 +146,24 @@ export async function runLearningPipeline(): Promise<LearnedKnowledge> {
 
       const model = genAI.getGenerativeModel({ model: 'gemini-2.5-pro' });
       
-      const prompt = `당신은 전문 주식 투자 분석가입니다. 제공된 PDF 자료에서 주가 상승에 핵심적인 "모든" 재무지표와 분석 기법을 최대한 많이 추출하세요.
+      const prompt = `당신은 전문 주식 투자 분석가입니다. 제공된 자료(PDF 또는 텍스트)에서 주가 상승 및 기업 분석에 핵심적인 "모든" 규칙과 지표를 최대한 많이 추출하세요.
 
-자료에 언급된 내용을 바탕으로 구체적인 수치 기반 조건을 작성하세요. 다음은 예시일 뿐이며, 자료에서 찾을 수 있는 모든 지표와 규칙을 추출해야 합니다:
+특히 다음 요소들을 반드시 포함하여 상세하게 추출해 주세요:
+1. 재무지표: ROE, PER, PBR, EPS 성장률, EV/EBITDA, 부채비율, FCF 등
+2. 기술적 지표: 스토캐스틱(Stochastic), RSI, MACD, 이동평균선, 골든크로스 등
+3. 시장 분석: TAM(전체시장), SAM(목표시장), SOM(수익시장) 규모 및 성장성
+4. 수익성 지표: CAC(고객획득비용), LTV(고객생애가치), 공헌이익률 등
+5. 기업 생애주기: 도입기, 성장기, 성숙기, 쇠퇴기 중 현재 단계 및 특징
+6. 매수/매도 타이밍: 지금 매수해도 되는 구체적인 기술적/기본적 근거
 
-예시 지표들:
-- ROE: 일반 기업 평균 8~12%, 최고 수준 25% 이상, 5% 미만은 위험, ROE 15% 이상을 수년간 유지하면 우량 기업
-- PER: 10 이하 저평가 구간, 30 이상 고평가 구간
-- PBR: 1~2배 건전, 1 미만+저ROE 시 주의
-- EV/EBITDA: 5배 이하 매우 저평가, 6~10배 일반, 10배 이상 고평가
-- EPS: 주당순이익 성장세
-- PEG: 1 이하 저평가, 1~2 적정, 2 이상 고평가
-- 부채비율: 200% 이상 위험
-- 현금흐름: FCFF 양호
-- 배당수익률: 2~4% 안정적
-
-추가로 찾아야 할 지표들:
-- 매출성장률, 영업이익률, 순이익률
-- 시가총액, 거래량 변화
-- 기술적 분석 지표(이동평균선, RSI, MACD 등)
-- 산업/섹터별 특수 지표
-- 시장 타이밍 관련 규칙
-- 리스크 관리 규칙
-
-중요: 자료에서 찾을 수 있는 모든 규칙을 추출하세요. 7개로 제한하지 말고, 자료에 있는 만큼 모두 추출하세요(20~30개 이상도 가능).
+중요: 자료에 언급된 수치나 구체적인 논리가 있다면 하나도 빠짐없이 "keyConditions" 배열에 담아주세요. 최소 10개 이상의 풍부한 조건을 추출하는 것이 목표입니다.
 
 다음 형식의 JSON으로 응답하세요:
 {
   "keyConditions": [
     "조건1: 구체적인 수치와 기준",
-    "조건2: 구체적인 수치와 기준",
-    "조건3: 구체적인 수치와 기준"
+    "조건2: 구체적인 지표와 분석 기법",
+    "..."
   ]
 }
 
@@ -265,7 +252,16 @@ ${content.substring(0, 12000)}`;
   
   const strategyModel = genAI.getGenerativeModel({ model: 'gemini-2.5-pro' });
   
-  const strategyPrompt = `전설적인 투자 전략가로서 PDF 자료에서 추출된 핵심 조건들을 종합하여 투자 전략과 기업 선정 규칙을 도출하세요.
+  const strategyPrompt = `전설적인 투자 전략가로서 PDF 자료에서 추출된 핵심 조건들을 종합하여 포괄적인 투자 전략과 기업 선정 규칙을 도출하세요.
+
+다음 카테고리별로 규칙을 최대한 많이 추출하세요 (각 카테고리당 5~15개 이상):
+
+1. 재무지표 규칙 (goodCompanyRules): ROE, PER, PBR, EPS, EV/EBITDA, 부채비율, FCF 등
+2. 기술적 분석 규칙 (technicalRules): 스토캐스틱, RSI, MACD, 이동평균선, 볼린저밴드, 거래량 등
+3. 시장 규모 규칙 (marketSizeRules): TAM, SAM, SOM, 시장 성장률, 시장 점유율 등
+4. 단위 경제성 규칙 (unitEconomicsRules): CAC(고객획득비용), LTV(고객생애가치), 공헌이익률, 매출채권회전율 등
+5. 기업 생애주기 규칙 (lifecycleRules): 도입기, 성장기, 성숙기, 쇠퇴기별 투자 기준
+6. 매수 타이밍 규칙 (buyTimingRules): 지금 당장 매수하기 좋은 시점 판단 기준
 
 JSON 형식:
 {
@@ -276,9 +272,14 @@ JSON 형식:
     "riskManagementRules": ["리스크 관리1", "..."]
   },
   "criteria": {
-    "goodCompanyRules": [{ "rule": "규칙", "weight": 0.1~1.0 }],
+    "goodCompanyRules": [{ "rule": "규칙", "weight": 0.1~1.0, "category": "fundamental"|"technical"|"market"|"unit_economics"|"lifecycle"|"timing"|"risk" }],
     "idealMetricRanges": [{ "metric": "per"|"pbr"|"roe"|"dividendYield", "min": 0, "max": 0, "description": "..." }],
-    "principles": [{ "principle": "원칙", "category": "entry"|"exit"|"risk"|"general" }]
+    "principles": [{ "principle": "원칙", "category": "entry"|"exit"|"risk"|"general" }],
+    "technicalRules": [{ "indicator": "스토캐스틱|RSI|MACD", "rule": "규칙", "weight": 0.1~1.0 }],
+    "marketSizeRules": [{ "rule": "규칙", "weight": 0.1~1.0 }],
+    "unitEconomicsRules": [{ "metric": "CAC|LTV|공헌이익률", "rule": "규칙", "weight": 0.1~1.0 }],
+    "lifecycleRules": [{ "stage": "introduction|growth|maturity|decline", "rule": "규칙", "weight": 0.1~1.0 }],
+    "buyTimingRules": [{ "rule": "규칙", "weight": 0.1~1.0, "conditions": ["조건1", "..."] }]
   }
 }
 
@@ -313,13 +314,13 @@ ${pdfConditions.substring(0, 15000)}`;
   };
 
   const defaultRules = [
-    { rule: 'ROE 15% 이상을 3년 이상 유지하며 일반 기업 평균(8~12%)을 상회하는 수익성 확보', weight: 0.9, source: defaultSource },
-    { rule: 'PER 10~20배 사이의 적정가치 구간에 위치하되, 업종 평균과 비교해 저평가 상태', weight: 0.8, source: defaultSource },
-    { rule: 'PBR 1~2배 범위에서 ROE와 괴리가 없는 건전한 자산 구조', weight: 0.7, source: defaultSource },
-    { rule: 'EV/EBITDA 10배 이하로 부채를 고려한 실제 기업가치가 적정', weight: 0.7, source: defaultSource },
-    { rule: 'EPS 성장률 15% 이상 유지하며 PER 대비 성장성이 우수(PEG 1.5 이하)', weight: 0.8, source: defaultSource },
-    { rule: '부채비율 100% 이하로 재무안정성 확보 및 이자상환능력 우수', weight: 0.6, source: defaultSource },
-    { rule: 'FCF(잉여현금흐름) 양호하여 실제 현금 창출능력 보유', weight: 0.7, source: defaultSource },
+    { rule: 'ROE 15% 이상을 3년 이상 유지하며 일반 기업 평균(8~12%)을 상회하는 수익성 확보', weight: 0.9, category: 'fundamental' as const, source: defaultSource },
+    { rule: 'PER 10~20배 사이의 적정가치 구간에 위치하되, 업종 평균과 비교해 저평가 상태', weight: 0.8, category: 'fundamental' as const, source: defaultSource },
+    { rule: 'PBR 1~2배 범위에서 ROE와 괴리가 없는 건전한 자산 구조', weight: 0.7, category: 'fundamental' as const, source: defaultSource },
+    { rule: 'EV/EBITDA 10배 이하로 부채를 고려한 실제 기업가치가 적정', weight: 0.7, category: 'fundamental' as const, source: defaultSource },
+    { rule: 'EPS 성장률 15% 이상 유지하며 PER 대비 성장성이 우수(PEG 1.5 이하)', weight: 0.8, category: 'fundamental' as const, source: defaultSource },
+    { rule: '부채비율 100% 이하로 재무안정성 확보 및 이자상환능력 우수', weight: 0.6, category: 'fundamental' as const, source: defaultSource },
+    { rule: 'FCF(잉여현금흐름) 양호하여 실제 현금 창출능력 보유', weight: 0.7, category: 'fundamental' as const, source: defaultSource },
   ];
 
   const defaultMetricRanges = [
@@ -363,14 +364,51 @@ ${pdfConditions.substring(0, 15000)}`;
       : 'PDF 자료를 종합하여 도출된 투자 전략입니다.',
   };
 
+  const defaultTechnicalRules = [
+    { indicator: '스토캐스틱', rule: '스토캐스틱 %K가 %D를 상향 돌파하고 20 이하에서 상승할 때 매수', weight: 0.8 },
+    { indicator: 'RSI', rule: 'RSI가 30 이하 과매도 구간에서 반등 시작 시 매수', weight: 0.7 },
+    { indicator: 'MACD', rule: 'MACD가 시그널 선을 상향 돌파할 때 매수', weight: 0.7 },
+    { indicator: '이동평균선', rule: '단기 이동평균선(5일, 20일)이 장기 이동평균선(60일) 위에 정배열', weight: 0.8 },
+    { indicator: '거래량', rule: '주가 상승 시 거래량 동반 증가 확인', weight: 0.7 },
+  ];
+
+  const defaultMarketSizeRules = [
+    { rule: 'TAM(전체시장)이 100억 달러 이상이며 연평균 성장률 10% 이상', weight: 0.7 },
+    { rule: 'SAM(목표시장) 내 시장점유율 10% 이상이거나 증가 추세', weight: 0.6 },
+    { rule: 'SOM(획득가능시장) 대비 매출 성장률이 시장 성장률보다 높음', weight: 0.6 },
+  ];
+
+  const defaultUnitEconomicsRules = [
+    { metric: 'LTV/CAC', rule: 'LTV/CAC 비율이 3:1 이상이면 건전한 단위경제', weight: 0.8 },
+    { metric: 'CAC', rule: 'CAC(고객획득비용)가 LTV의 30% 이하', weight: 0.7 },
+    { metric: '공헌이익률', rule: '공헌이익률이 30% 이상이며 증가 추세', weight: 0.7 },
+    { metric: '매출채권회전율', rule: '매출채권회전율이 업종 평균 이상', weight: 0.6 },
+  ];
+
+  const defaultLifecycleRules = [
+    { stage: 'growth' as const, rule: '성장기 기업은 매출 성장률 20% 이상, 시장점유율 확대 중', weight: 0.8 },
+    { stage: 'maturity' as const, rule: '성숙기 기업은 안정적 현금흐름, 높은 배당수익률', weight: 0.7 },
+    { stage: 'introduction' as const, rule: '도입기 기업은 혁신적 제품, 높은 R&D 투자, 장기적 관점 필요', weight: 0.6 },
+  ];
+
+  const defaultBuyTimingRules = [
+    { rule: '스토캐스틱이 과매도 구간(20 이하)에서 상향 반전', weight: 0.8, conditions: ['%K > %D', '%K < 20에서 상승'] },
+    { rule: 'RSI가 30 이하 과매도 구간에서 반등 시작', weight: 0.7, conditions: ['RSI < 30', '상승 반전 확인'] },
+    { rule: 'MACD 골든크로스 발생 (MACD 선이 시그널 선 상향 돌파)', weight: 0.7, conditions: ['MACD > Signal', '히스토그램 양전환'] },
+    { rule: '주가가 20일 이동평균선을 상향 돌파', weight: 0.6, conditions: ['주가 > 20일 MA', '거래량 동반 증가'] },
+    { rule: '실적 발표 후 주가 조정 완료 및 재상승 시작', weight: 0.7, conditions: ['실적 양호', '주가 조정 후 반등'] },
+    { rule: '대형 기관의 순매수 전환 및 보유 비중 증가', weight: 0.6, conditions: ['기관 순매수', '보유 비중 증가'] },
+  ];
+
   const criteria: LearnedInvestmentCriteria = {
     goodCompanyRules: hasValidCriteria 
       ? strategyData.criteria.goodCompanyRules.map((r: any) => ({
           rule: r.rule,
           weight: r.weight || 0.5,
           source: fallbackSource,
+          category: r.category || 'fundamental',
         }))
-      : defaultRules.map(r => ({ ...r, source: fallbackSource })),
+      : defaultRules.map(r => ({ ...r, category: 'fundamental' as const, source: fallbackSource })),
     idealMetricRanges: hasValidCriteria
       ? (strategyData.criteria.idealMetricRanges || []).map((r: any) => ({
           metric: r.metric,
@@ -387,12 +425,51 @@ ${pdfConditions.substring(0, 15000)}`;
           source: fallbackSource,
         }))
       : defaultPrinciples.map(p => ({ ...p, source: fallbackSource })),
+    technicalRules: hasValidCriteria && strategyData.criteria?.technicalRules?.length > 0
+      ? strategyData.criteria.technicalRules.map((r: any) => ({
+          indicator: r.indicator,
+          rule: r.rule,
+          weight: r.weight || 0.5,
+          source: fallbackSource,
+        }))
+      : defaultTechnicalRules.map(r => ({ ...r, source: fallbackSource })),
+    marketSizeRules: hasValidCriteria && strategyData.criteria?.marketSizeRules?.length > 0
+      ? strategyData.criteria.marketSizeRules.map((r: any) => ({
+          rule: r.rule,
+          weight: r.weight || 0.5,
+          source: fallbackSource,
+        }))
+      : defaultMarketSizeRules.map(r => ({ ...r, source: fallbackSource })),
+    unitEconomicsRules: hasValidCriteria && strategyData.criteria?.unitEconomicsRules?.length > 0
+      ? strategyData.criteria.unitEconomicsRules.map((r: any) => ({
+          metric: r.metric,
+          rule: r.rule,
+          weight: r.weight || 0.5,
+          source: fallbackSource,
+        }))
+      : defaultUnitEconomicsRules.map(r => ({ ...r, source: fallbackSource })),
+    lifecycleRules: hasValidCriteria && strategyData.criteria?.lifecycleRules?.length > 0
+      ? strategyData.criteria.lifecycleRules.map((r: any) => ({
+          stage: r.stage || 'growth',
+          rule: r.rule,
+          weight: r.weight || 0.5,
+          source: fallbackSource,
+        }))
+      : defaultLifecycleRules.map(r => ({ ...r, source: fallbackSource })),
+    buyTimingRules: hasValidCriteria && strategyData.criteria?.buyTimingRules?.length > 0
+      ? strategyData.criteria.buyTimingRules.map((r: any) => ({
+          rule: r.rule,
+          weight: r.weight || 0.5,
+          conditions: r.conditions || [],
+          source: fallbackSource,
+        }))
+      : defaultBuyTimingRules.map(r => ({ ...r, source: fallbackSource })),
   };
   
-  console.log(`Final criteria: ${criteria.goodCompanyRules.length} rules, ${criteria.idealMetricRanges.length} metrics, ${criteria.principles.length} principles`);
-  if (usingFallbackRules) {
-    console.log('✅ 기본 규칙 7개가 성공적으로 적용되었습니다.');
-  }
+   console.log(`Final criteria: ${criteria.goodCompanyRules.length} fundamental rules, ${criteria.technicalRules.length} technical rules, ${criteria.marketSizeRules.length} market rules, ${criteria.unitEconomicsRules.length} unit economics rules, ${criteria.lifecycleRules.length} lifecycle rules, ${criteria.buyTimingRules.length} buy timing rules`);
+   if (usingFallbackRules) {
+     console.log('✅ 기본 규칙 30+개가 성공적으로 적용되었습니다.');
+   }
 
   const knowledge: LearnedKnowledge = {
     fileAnalyses,

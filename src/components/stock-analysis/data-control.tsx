@@ -1,13 +1,25 @@
 'use client';
 
-import React, { useCallback, useState } from 'react';
-import { Upload, File, Video, FileText, X, Cloud, Check, Loader2 } from 'lucide-react';
+import React, { useCallback, useState, useEffect } from 'react';
+import { Upload, File, Video, FileText, X, Cloud, Check, Loader2, BookOpen, ListChecks } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { cn, formatFileSize, getFileType, generateId } from '@/lib/stock-analysis/utils';
-import { UploadedFile, CloudSyncStatus } from '@/types/stock-analysis';
+import { UploadedFile, CloudSyncStatus, LearnedKnowledge } from '@/types/stock-analysis';
+
+function getTotalRulesCount(knowledge: LearnedKnowledge): number {
+  const criteria = knowledge.criteria;
+  return (
+    (criteria?.goodCompanyRules?.length || 0) +
+    (criteria?.technicalRules?.length || 0) +
+    (criteria?.marketSizeRules?.length || 0) +
+    (criteria?.unitEconomicsRules?.length || 0) +
+    (criteria?.lifecycleRules?.length || 0) +
+    (criteria?.buyTimingRules?.length || 0)
+  );
+}
 
 interface DriveFileInfo {
   id: string;
@@ -29,6 +41,27 @@ export function DataControl({ onFilesChange, onSyncStatusChange, onLearningCompl
   const [syncStatus, setSyncStatus] = useState<CloudSyncStatus>({ status: 'idle' });
   const [isLearning, setIsLearning] = useState(false);
   const [learningStatus, setLearningStatus] = useState<string | null>(null);
+  const [learnedKnowledge, setLearnedKnowledge] = useState<LearnedKnowledge | null>(null);
+  const [showRules, setShowRules] = useState(false);
+
+  useEffect(() => {
+    const fetchKnowledge = async () => {
+      try {
+        const response = await fetch('/api/gdrive/learn');
+        const data = await response.json();
+        if (data.exists) {
+          const knowledgeResponse = await fetch('/api/gdrive/knowledge');
+          if (knowledgeResponse.ok) {
+            const knowledgeData = await knowledgeResponse.json();
+            setLearnedKnowledge(knowledgeData);
+          }
+        }
+      } catch (error) {
+        console.error('Failed to fetch knowledge:', error);
+      }
+    };
+    fetchKnowledge();
+  }, []);
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -155,6 +188,9 @@ export function DataControl({ onFilesChange, onSyncStatusChange, onLearningCompl
   };
 
   const handleLearn = async () => {
+    const confirmed = window.confirm('학습을 위해 AI 모델을 사용하며 비용이 발생할 수 있습니다. 계속하시겠습니까?');
+    if (!confirmed) return;
+
     setIsLearning(true);
     setLearningStatus('Google Drive 자료를 AI가 학습 중입니다...');
 
@@ -169,6 +205,13 @@ export function DataControl({ onFilesChange, onSyncStatusChange, onLearningCompl
       setLearningStatus(
         `학습 완료! ${data.filesAnalyzed}개 파일 분석, ${data.rulesLearned}개 투자 규칙 학습됨`
       );
+      
+      const knowledgeResponse = await fetch('/api/gdrive/knowledge');
+      if (knowledgeResponse.ok) {
+        const knowledgeData = await knowledgeResponse.json();
+        setLearnedKnowledge(knowledgeData);
+      }
+      
       onLearningComplete?.();
     } catch (error) {
       const message = error instanceof Error ? error.message : '학습 실패';
@@ -346,6 +389,142 @@ export function DataControl({ onFilesChange, onSyncStatusChange, onLearningCompl
             "bg-yellow-50 text-yellow-700"
           )}>
             {learningStatus}
+          </div>
+        )}
+
+        {learnedKnowledge && (
+          <div className="border rounded-lg p-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <BookOpen className="h-4 w-4 text-primary" />
+                <h4 className="text-sm font-semibold">
+                  학습된 투자 규칙 ({getTotalRulesCount(learnedKnowledge)}개)
+                </h4>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowRules(!showRules)}
+              >
+                {showRules ? '접기' : '펼치기'}
+              </Button>
+            </div>
+            
+            {showRules && (
+              <div className="space-y-4 max-h-96 overflow-y-auto">
+                {learnedKnowledge.criteria?.goodCompanyRules?.length > 0 && (
+                  <div>
+                    <h5 className="text-xs font-semibold text-muted-foreground mb-2">재무지표 규칙</h5>
+                    <div className="space-y-1">
+                      {learnedKnowledge.criteria.goodCompanyRules.map((rule, index) => (
+                        <div key={`fund-${index}`} className="flex items-start gap-2 p-2 rounded bg-muted/50 text-xs">
+                          <ListChecks className="h-3 w-3 text-primary mt-0.5 shrink-0" />
+                          <div className="flex-1">
+                            <p className="font-medium">{rule.rule}</p>
+                            <p className="text-muted-foreground mt-0.5">가중치: {(rule.weight * 100).toFixed(0)}%</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {learnedKnowledge.criteria?.technicalRules?.length > 0 && (
+                  <div>
+                    <h5 className="text-xs font-semibold text-muted-foreground mb-2">기술적 분석 규칙 (스토캐스틱, RSI, MACD 등)</h5>
+                    <div className="space-y-1">
+                      {learnedKnowledge.criteria.technicalRules.map((rule, index) => (
+                        <div key={`tech-${index}`} className="flex items-start gap-2 p-2 rounded bg-muted/50 text-xs">
+                          <ListChecks className="h-3 w-3 text-blue-500 mt-0.5 shrink-0" />
+                          <div className="flex-1">
+                            <p className="font-medium">[{rule.indicator}] {rule.rule}</p>
+                            <p className="text-muted-foreground mt-0.5">가중치: {(rule.weight * 100).toFixed(0)}%</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {learnedKnowledge.criteria?.marketSizeRules?.length > 0 && (
+                  <div>
+                    <h5 className="text-xs font-semibold text-muted-foreground mb-2">시장 규모 규칙 (TAM/SAM/SOM)</h5>
+                    <div className="space-y-1">
+                      {learnedKnowledge.criteria.marketSizeRules.map((rule, index) => (
+                        <div key={`market-${index}`} className="flex items-start gap-2 p-2 rounded bg-muted/50 text-xs">
+                          <ListChecks className="h-3 w-3 text-green-500 mt-0.5 shrink-0" />
+                          <div className="flex-1">
+                            <p className="font-medium">{rule.rule}</p>
+                            <p className="text-muted-foreground mt-0.5">가중치: {(rule.weight * 100).toFixed(0)}%</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {learnedKnowledge.criteria?.unitEconomicsRules?.length > 0 && (
+                  <div>
+                    <h5 className="text-xs font-semibold text-muted-foreground mb-2">단위 경제성 규칙 (CAC, LTV, 공헌이익률)</h5>
+                    <div className="space-y-1">
+                      {learnedKnowledge.criteria.unitEconomicsRules.map((rule, index) => (
+                        <div key={`unit-${index}`} className="flex items-start gap-2 p-2 rounded bg-muted/50 text-xs">
+                          <ListChecks className="h-3 w-3 text-purple-500 mt-0.5 shrink-0" />
+                          <div className="flex-1">
+                            <p className="font-medium">[{rule.metric}] {rule.rule}</p>
+                            <p className="text-muted-foreground mt-0.5">가중치: {(rule.weight * 100).toFixed(0)}%</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {learnedKnowledge.criteria?.lifecycleRules?.length > 0 && (
+                  <div>
+                    <h5 className="text-xs font-semibold text-muted-foreground mb-2">기업 생애주기 규칙</h5>
+                    <div className="space-y-1">
+                      {learnedKnowledge.criteria.lifecycleRules.map((rule, index) => (
+                        <div key={`life-${index}`} className="flex items-start gap-2 p-2 rounded bg-muted/50 text-xs">
+                          <ListChecks className="h-3 w-3 text-orange-500 mt-0.5 shrink-0" />
+                          <div className="flex-1">
+                            <p className="font-medium">[{rule.stage}] {rule.rule}</p>
+                            <p className="text-muted-foreground mt-0.5">가중치: {(rule.weight * 100).toFixed(0)}%</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {learnedKnowledge.criteria?.buyTimingRules?.length > 0 && (
+                  <div>
+                    <h5 className="text-xs font-semibold text-muted-foreground mb-2">매수 타이밍 규칙</h5>
+                    <div className="space-y-1">
+                      {learnedKnowledge.criteria.buyTimingRules.map((rule, index) => (
+                        <div key={`timing-${index}`} className="flex items-start gap-2 p-2 rounded bg-muted/50 text-xs">
+                          <ListChecks className="h-3 w-3 text-red-500 mt-0.5 shrink-0" />
+                          <div className="flex-1">
+                            <p className="font-medium">{rule.rule}</p>
+                            <p className="text-muted-foreground mt-0.5">가중치: {(rule.weight * 100).toFixed(0)}%</p>
+                            {rule.conditions && rule.conditions.length > 0 && (
+                              <p className="text-[10px] text-muted-foreground mt-0.5">조건: {rule.conditions.join(', ')}</p>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+            
+            {!showRules && (
+              <p className="text-xs text-muted-foreground">
+                총 {getTotalRulesCount(learnedKnowledge)}개의 투자 규칙이 학습되었습니다.
+                '펼치기'를 클릭하여 모든 규칙을 확인하세요.
+              </p>
+            )}
           </div>
         )}
       </CardContent>

@@ -116,6 +116,7 @@ export interface LearnedInvestmentCriteria {
     rule: string;
     weight: number;
     source: SourceReference;
+    category: 'fundamental' | 'technical' | 'market' | 'unit_economics' | 'lifecycle' | 'timing' | 'risk';
   }[];
 
   idealMetricRanges: {
@@ -129,6 +130,45 @@ export interface LearnedInvestmentCriteria {
   principles: {
     principle: string;
     category: 'entry' | 'exit' | 'risk' | 'general';
+    source: SourceReference;
+  }[];
+
+  // 기술적 분석 규칙
+  technicalRules: {
+    indicator: string;
+    rule: string;
+    weight: number;
+    source: SourceReference;
+  }[];
+
+  // 시장 규모 관련 규칙 (TAM/SAM/SOM)
+  marketSizeRules: {
+    rule: string;
+    weight: number;
+    source: SourceReference;
+  }[];
+
+  // 단위 경제성 규칙 (CAC, LTV, 공헌이익률)
+  unitEconomicsRules: {
+    metric: string;
+    rule: string;
+    weight: number;
+    source: SourceReference;
+  }[];
+
+  // 기업 생애주기 관련 규칙
+  lifecycleRules: {
+    stage: 'introduction' | 'growth' | 'maturity' | 'decline';
+    rule: string;
+    weight: number;
+    source: SourceReference;
+  }[];
+
+  // 매수 타이밍 규칙
+  buyTimingRules: {
+    rule: string;
+    weight: number;
+    conditions: string[];
     source: SourceReference;
   }[];
 }
@@ -284,4 +324,30 @@ export interface RecommendationResult {
   processedAt: Date;
   summary: string;
   allSourcesUsed: SourceReference[];
+}
+
+// ===========================
+// G. 뉴스 및 공시 정보
+// ===========================
+
+export interface NewsItem {
+  id: string;
+  ticker: string;
+  title: string;
+  content: string;
+  summary: string;
+  source: string;
+  publishedAt: Date;
+  url?: string;
+  sentiment: 'positive' | 'neutral' | 'negative';
+}
+
+export interface NewsSummary {
+  ticker: string;
+  companyName: string;
+  totalNews: number;
+  keyHighlights: string[];
+  overallSentiment: 'positive' | 'neutral' | 'negative';
+  latestNews: NewsItem[];
+  generatedAt: Date;
 }

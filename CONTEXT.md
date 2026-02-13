@@ -1,7 +1,73 @@
 # Project Context History
 
 ## Current Session Tracking
-- **질의 횟수**: 3 (커밋 완료, 초기화 예정)
+- **질의 횟수**: 1
+
+## 2026-02-13
+
+### 주요 기능 구현 완료: 접이식 점수 UI, 이메일 발송, 소셜 로그인, 1:1 문의 게시판
+
+#### 변경사항
+1. **접이식 종합 평가 점수 UI (`analysis-output.tsx`)**
+   - `Collapsible` 컴포넌트를 사용하여 "종합 평가 점수" 섹션을 접고 펼 수 있도록 개선.
+   - 기본적으로 총점만 표시하고, 클릭 시 규칙별 상세 평가 내역이 펼쳐지도록 구현.
+   - 투자 기간에 따른 예상 수익률 계산 로직 추가 (월별 환산).
+
+2. **분석 결과 이메일 발송 기능**
+   - `src/lib/email-service.ts`: Nodemailer를 사용한 이메일 발송 서비스 구현.
+   - `src/app/api/email/send-analysis/route.ts`: 분석 결과 이메일 발송 API 엔드포인트 생성.
+   - 전문적인 HTML 이메일 템플릿 디자인 (반응형, 기업별 상세 정보 포함).
+   - API 비용 알림(Confirm) 로직 포함.
+   - UI에 이메일 입력 필드 및 발송 버튼 추가.
+
+3. **NextAuth.js 소셜 로그인 시스템**
+   - 카카오, 네이버, 구글 OAuth 연동.
+   - Prisma Adapter를 사용한 데이터베이스 연동.
+   - `src/lib/auth.ts`: 인증 설정 파일 생성.
+   - `src/app/api/auth/[...nextauth]/route.ts`: NextAuth API 라우트 설정.
+   - 사용자 멤버십 티어(FREE/PRO) 필드 추가.
+
+4. **1:1 고객 문의 게시판**
+   - Prisma 스키마에 `Inquiry`, `InquiryResponse` 모델 추가.
+   - `src/app/api/inquiry/route.ts`: 문의 목록 조회 및 생성 API.
+   - `src/app/api/inquiry/[id]/route.ts`: 문의 상세, 수정, 삭제 API.
+   - `src/app/api/inquiry/[id]/response/route.ts`: 문의 답변 생성 API.
+   - 권한 기반 접근 제어 (본인 문의만 조회/수정 가능, 관리자는 전체 조회 가능).
+
+5. **환경 변수 설정 업데이트**
+   - `.env.example`: SMTP 설정, OAuth 클라이언트 ID/시크릿 추가.
+
+#### 수정된 파일
+- `src/components/stock-analysis/analysis-output.tsx`: 접이식 UI, 이메일 입력 필드 추가
+- `src/lib/email-service.ts` (신규): 이메일 발송 서비스
+- `src/app/api/email/send-analysis/route.ts` (신규): 이메일 발송 API
+- `src/lib/auth.ts` (신규): NextAuth 설정
+- `src/app/api/auth/[...nextauth]/route.ts` (신규): NextAuth 핸들러
+- `src/lib/db/index.ts`: Prisma 클라이언트 낳品
+- `src/app/api/inquiry/route.ts` (신규): 문의 목록/생성 API
+- `src/app/api/inquiry/[id]/route.ts` (신규): 문의 상세/수정/삭제 API
+- `src/app/api/inquiry/[id]/response/route.ts` (신규): 문의 답변 API
+- `prisma/schema.prisma`: User, Inquiry, InquiryResponse 모델 추가
+- `.env.example`: SMTP, OAuth 환경 변수 추가
+
+#### 설치된 패키지
+- `nodemailer`, `@types/nodemailer`: 이메일 발송
+- `next-auth@beta`, `@auth/prisma-adapter`: 소셜 로그인
+- `prisma`, `@prisma/client`: 데이터베이스 ORM
+
+5. **뉴스 및 공시 정보 조회 기능**
+   - `src/app/api/stock/news/route.ts`: Yahoo Finance API를 활용한 뉴스 조회 API.
+   - `src/components/stock-analysis/news-section.tsx`: 뉴스 표시 UI 컴포넌트.
+   - AI 기반 뉴스 요약 기능 (긍정/부정/중립 감정 분석).
+   - 최신 뉴스 5건 표시 및 핵심 사항 요약.
+   - 접이식 UI로 기업별 뉴스 섹션 구현.
+   - API 비용 알림(Confirm) 로직 포함.
+
+#### 수정된 파일 (추가)
+- `src/types/stock-analysis.ts`: NewsItem, NewsSummary 타입 추가
+- `src/app/api/stock/news/route.ts` (신규): 뉴스 조회 API
+- `src/components/stock-analysis/news-section.tsx` (신규): 뉴스 UI 컴포넌트
+- `src/app/stock-analysis/page.tsx`: 뉴스 섹션 통합
 
 ## 2026-02-12
 

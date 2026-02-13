@@ -1,10 +1,13 @@
 'use client';
 
-import React from 'react';
-import { TrendingUp, AlertCircle, FileText, Video, CheckCircle } from 'lucide-react';
+import React, { useState } from 'react';
+import { TrendingUp, AlertCircle, FileText, Video, CheckCircle, ChevronDown, ChevronUp, Mail, Newspaper } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { AnalysisResult, InvestmentConditions } from '@/types/stock-analysis';
 import { cn } from '@/lib/utils';
 
@@ -12,9 +15,27 @@ interface AnalysisOutputProps {
   results: AnalysisResult[];
   conditions: InvestmentConditions | null;
   isLoading?: boolean;
+  onSendEmail?: (email: string) => Promise<void>;
 }
 
-export function AnalysisOutput({ results, conditions, isLoading }: AnalysisOutputProps) {
+export function AnalysisOutput({ results, conditions, isLoading, onSendEmail }: AnalysisOutputProps) {
+  const [email, setEmail] = useState('');
+  const [isSendingEmail, setIsSendingEmail] = useState(false);
+  const [emailSent, setEmailSent] = useState(false);
+
+  const handleSendEmail = async () => {
+    if (!email || !onSendEmail) return;
+    setIsSendingEmail(true);
+    try {
+      await onSendEmail(email);
+      setEmailSent(true);
+      setTimeout(() => setEmailSent(false), 3000);
+    } catch (error) {
+      console.error('Failed to send email:', error);
+    } finally {
+      setIsSendingEmail(false);
+    }
+  };
   if (isLoading) {
     return (
       <Card className="w-full">
@@ -119,9 +140,11 @@ export function AnalysisOutput({ results, conditions, isLoading }: AnalysisOutpu
                 </div>
               </div>
               <div className="text-right">
-                <p className="text-xs text-muted-foreground mb-1">예상 수익률</p>
+                <p className="text-xs text-muted-foreground mb-1">
+                  {conditions?.periodMonths}개월 예상 수익률
+                </p>
                 <p className="text-2xl font-black text-green-600">
-                  +{result.expectedReturnRate.toFixed(1)}%
+                  +{calculateExpectedReturn(result.expectedReturnRate, conditions?.periodMonths || 12).toFixed(1)}%
                 </p>
               </div>
             </div>
@@ -161,40 +184,47 @@ export function AnalysisOutput({ results, conditions, isLoading }: AnalysisOutpu
               </div>
               
               {result.totalRuleScore !== undefined && result.maxPossibleScore !== undefined && (
-                <div className="space-y-4 p-4 rounded-lg bg-primary/5 border border-primary/20">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-bold">종합 평가 점수</span>
-                    <span className="text-xl font-black text-primary">
-                      {result.totalRuleScore} / {result.maxPossibleScore}점
-                    </span>
-                  </div>
+                <Collapsible className="space-y-4 p-4 rounded-lg bg-primary/5 border border-primary/20">
+                  <CollapsibleTrigger className="w-full">
+                    <div className="flex items-center justify-between cursor-pointer hover:opacity-80 transition-opacity">
+                      <span className="text-sm font-bold flex items-center gap-2">
+                        종합 평가 점수
+                        <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                      </span>
+                      <span className="text-xl font-black text-primary">
+                        {result.totalRuleScore} / {result.maxPossibleScore}점
+                      </span>
+                    </div>
+                  </CollapsibleTrigger>
                   <Progress value={(result.totalRuleScore / result.maxPossibleScore) * 100} className="h-2" />
                   
-                  <div className="space-y-2 mt-4">
-                    <h5 className="text-xs font-bold text-muted-foreground uppercase">투자 규칙별 상세 평가 내역</h5>
-                    <div className="grid grid-cols-1 gap-2">
-                      {result.ruleScores?.map((rule, rIdx) => (
-                        <div key={rIdx} className="flex items-center justify-between gap-3 p-2 rounded bg-background/50 border text-xs">
-                          <div className="flex-1 min-w-0">
-                            <p className="font-medium truncate text-foreground/80">{rule.rule.split(':')[0]}</p>
-                            <p className="text-[10px] text-muted-foreground truncate">{rule.reason}</p>
+                  <CollapsibleContent>
+                    <div className="space-y-2 mt-4 pt-4 border-t border-primary/10">
+                      <h5 className="text-xs font-bold text-muted-foreground uppercase">투자 규칙별 상세 평가 내역</h5>
+                      <div className="grid grid-cols-1 gap-2">
+                        {result.ruleScores?.map((rule, rIdx) => (
+                          <div key={rIdx} className="flex items-center justify-between gap-3 p-2 rounded bg-background/50 border text-xs">
+                            <div className="flex-1 min-w-0">
+                              <p className="font-medium truncate text-foreground/80">{rule.rule.split(':')[0]}</p>
+                              <p className="text-[10px] text-muted-foreground truncate">{rule.reason}</p>
+                            </div>
+                            <Badge 
+                              variant="outline" 
+                              className={cn(
+                                "font-mono font-bold",
+                                rule.score >= 8 ? "border-green-500 text-green-600 bg-green-50" :
+                                rule.score >= 5 ? "border-yellow-500 text-yellow-600 bg-yellow-50" :
+                                "border-red-500 text-red-600 bg-red-50"
+                              )}
+                            >
+                              {rule.score}점
+                            </Badge>
                           </div>
-                          <Badge 
-                            variant="outline" 
-                            className={cn(
-                              "font-mono font-bold",
-                              rule.score >= 8 ? "border-green-500 text-green-600 bg-green-50" :
-                              rule.score >= 5 ? "border-yellow-500 text-yellow-600 bg-yellow-50" :
-                              "border-red-500 text-red-600 bg-red-50"
-                            )}
-                          >
-                            {rule.score}점
-                          </Badge>
-                        </div>
-                      ))}
+                        ))}
+                      </div>
                     </div>
-                  </div>
-                </div>
+                  </CollapsibleContent>
+                </Collapsible>
               )}
             </div>
 
@@ -227,6 +257,40 @@ export function AnalysisOutput({ results, conditions, isLoading }: AnalysisOutpu
           </CardContent>
         </Card>
       ))}
+
+      <Card className="w-full border-dashed border-2 border-primary/30">
+        <CardHeader>
+          <CardTitle className="text-lg font-semibold flex items-center gap-2">
+            <Mail className="h-5 w-5 text-primary" />
+            분석 결과 이메일로 받기
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex gap-3">
+            <Input
+              type="email"
+              placeholder="이메일 주소를 입력하세요"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="flex-1"
+            />
+            <Button 
+              onClick={handleSendEmail}
+              disabled={!email || isSendingEmail || !onSendEmail}
+            >
+              {isSendingEmail ? '전송 중...' : emailSent ? '전송 완료!' : '이메일 발송'}
+            </Button>
+          </div>
+          <p className="text-xs text-muted-foreground mt-2">
+            * 분석 결과를 이메일로 받아보실 수 있습니다. API 사용으로 비용이 발생할 수 있습니다.
+          </p>
+        </CardContent>
+      </Card>
     </div>
   );
+}
+
+function calculateExpectedReturn(baseReturn: number, periodMonths: number): number {
+  const monthlyRate = baseReturn / 12;
+  return monthlyRate * periodMonths;
 }

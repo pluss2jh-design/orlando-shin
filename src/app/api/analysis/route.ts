@@ -7,27 +7,13 @@ import type {
 } from '@/types/stock-analysis';
 
 interface AnalysisRequestBody {
-  conditions: { periodMonths: number };
+  conditions?: { periodMonths?: number };
   style?: InvestmentStyle;
 }
 
 export async function POST(request: NextRequest) {
   try {
     const body = (await request.json()) as AnalysisRequestBody;
-
-    if (!body.conditions?.periodMonths) {
-      return NextResponse.json(
-        { error: '투자기간(periodMonths)이 필요합니다.' },
-        { status: 400 }
-      );
-    }
-
-    if (body.conditions.periodMonths < 1 || body.conditions.periodMonths > 60) {
-      return NextResponse.json(
-        { error: '투자기간은 1~60개월 사이여야 합니다.' },
-        { status: 400 }
-      );
-    }
 
     const knowledge = await getLearnedKnowledge();
     if (!knowledge) {
@@ -38,7 +24,7 @@ export async function POST(request: NextRequest) {
     }
 
     const result = await runAnalysisEngine(
-      { amount: 0, periodMonths: body.conditions.periodMonths },
+      { amount: 0, periodMonths: body.conditions?.periodMonths || 12 },
       knowledge,
       body.style ?? 'moderate'
     );

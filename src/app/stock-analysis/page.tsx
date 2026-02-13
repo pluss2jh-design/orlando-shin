@@ -5,11 +5,13 @@ import { Brain, Sparkles } from 'lucide-react';
 import { DataControl } from '@/components/stock-analysis/data-control';
 import { InvestmentInput } from '@/components/stock-analysis/investment-input';
 import { AnalysisOutput } from '@/components/stock-analysis/analysis-output';
+import { NewsSection } from '@/components/stock-analysis/news-section';
 import { 
   UploadedFile, 
   CloudSyncStatus, 
   InvestmentConditions, 
-  AnalysisResult 
+  AnalysisResult,
+  NewsSummary
 } from '@/types/stock-analysis';
 
 export default function StockAnalysisPage() {
@@ -25,6 +27,13 @@ export default function StockAnalysisPage() {
     results: [],
     isAnalyzing: false,
     error: null,
+  });
+  const [newsState, setNewsState] = useState<{
+    summaries: NewsSummary[];
+    isLoading: boolean;
+  }>({
+    summaries: [],
+    isLoading: false,
   });
   const [isLearned, setIsLearned] = useState(false);
 
@@ -55,7 +64,64 @@ export default function StockAnalysisPage() {
     setIsLearned(true);
   };
 
+  const handleSendEmail = async (email: string) => {
+    const confirmed = window.confirm('이메일 발송 시 API 비용이 발생할 수 있습니다. 계속하시겠습니까?');
+    if (!confirmed) return;
+
+    const response = await fetch('/api/email/send-analysis', {
+      method: 'POST',
+      headers: { 
+        'Content-Type': 'application/json',
+        'X-Confirmed': 'true'
+      },
+      body: JSON.stringify({
+        email,
+        results: analysisState.results,
+        conditions: analysisState.conditions,
+      }),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || '이메일 발송 실패');
+    }
+  };
+
+  const fetchNewsForTickers = async (tickers: string[]) => {
+    const confirmed = window.confirm('뉴스 조회 시 API 비용이 발생할 수 있습니다. 계속하시겠습니까?');
+    if (!confirmed) return;
+
+    setNewsState(prev => ({ ...prev, isLoading: true }));
+
+    try {
+      const response = await fetch('/api/stock/news', {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'X-Confirmed': 'true'
+        },
+        body: JSON.stringify({ tickers }),
+      });
+
+      if (!response.ok) {
+        throw new Error('뉴스 조회 실패');
+      }
+
+      const data = await response.json();
+      setNewsState({
+        summaries: data.results || [],
+        isLoading: false,
+      });
+    } catch (error) {
+      console.error('News fetch error:', error);
+      setNewsState(prev => ({ ...prev, isLoading: false }));
+    }
+  };
+
   const handleAnalyze = async (newConditions: InvestmentConditions) => {
+    const confirmed = window.confirm('기업 분석을 위해 실시간 데이터를 조회하며 API 비용이 발생할 수 있습니다. 계속하시겠습니까?');
+    if (!confirmed) return;
+
     console.log('Starting analysis with:', newConditions);
     setAnalysisState(prev => ({
       ...prev,
@@ -69,7 +135,6 @@ export default function StockAnalysisPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          conditions: { periodMonths: newConditions.periodMonths },
           style: 'moderate',
         }),
       });
@@ -81,7 +146,7 @@ export default function StockAnalysisPage() {
         throw new Error(data.error || '분석 실패');
       }
 
-      if (data.topPicks && Array.isArray(data.topPicks)) {
+      if (data.topPicks && Array.isArray(data.topPicks) && data.topPicks.length > 0) {
         const results: AnalysisResult[] = data.topPicks.map((pick: any) => ({
           companyName: pick.company.companyName,
           ticker: pick.yahooData?.ticker,
@@ -105,12 +170,17 @@ export default function StockAnalysisPage() {
           results,
           isAnalyzing: false,
         }));
+
+        const tickers = results.map(r => r.ticker).filter(Boolean) as string[];
+        if (tickers.length > 0) {
+          fetchNewsForTickers(tickers);
+        }
       } else {
         setAnalysisState(prev => ({
           ...prev,
           results: [],
           isAnalyzing: false,
-          error: data.summary || '조건에 맞는 기업을 찾지 못했습니다.',
+          error: data.summary || '추천 대상 기업을 찾지 못했습니다. 잠시 후 다시 시도하거나 학습 데이터를 확인해주세요.',
         }));
       }
     } catch (error) {
@@ -188,7 +258,15 @@ export default function StockAnalysisPage() {
               results={analysisState.results}
               conditions={analysisState.conditions}
               isLoading={analysisState.isAnalyzing}
+              onSendEmail={handleSendEmail}
             />
+
+            {analysisState.results.length > 0 && (
+              <NewsSection 
+                summaries={newsState.summaries}
+                isLoading={newsState.isLoading}
+              />
+            )}
           </div>
         </div>
       </div>
