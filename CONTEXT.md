@@ -5,6 +5,31 @@
 
 ## 2026-02-13
 
+### AI 분석 신뢰도 제거 및 이메일 오류 개선
+
+#### 변경사항
+1. **AI 분석 신뢰도(신뢰도) UI 제거**
+   - `analysis-output.tsx`에서 "AI 분석 신뢰도" 섹션 완전 제거.
+   - 이메일 템플릿(`email-service.ts`)에서도 AI 신뢰도 정보 제거.
+
+2. **환경 변수 설정 가이드 작성**
+   - `ENV_SETUP_GUIDE.md` 파일 신규 생성.
+   - SMTP, OAuth(Google/Kakao/Naver), OpenAI, Database 등 모든 환경 변수 설정 방법 상세 기술.
+   - 각 서비스별 획득 방법 및 설정 단계별 가이드 제공.
+
+3. **이메일 발송 오류 개선**
+   - SMTP 설정 미완료 시 명확한 에러 메시지 반환.
+   - `createTransporter()` 함수를 통해 런타임에 설정 검증.
+   - `.env` 파일 설정 여부 확인 로직 추가.
+
+#### 수정된 파일
+- `src/components/stock-analysis/analysis-output.tsx`: AI 분석 신뢰도 섹션 제거
+- `src/lib/email-service.ts`: AI 신뢰도 제거, SMTP 설정 검증 강화
+- `src/app/api/email/send-analysis/route.ts`: 상세 에러 메시지 반환
+- `ENV_SETUP_GUIDE.md` (신규): 환경 변수 설정 가이드
+
+## 2026-02-13
+
 ### 주요 기능 구현 완료: 접이식 점수 UI, 이메일 발송, 소셜 로그인, 1:1 문의 게시판
 
 #### 변경사항

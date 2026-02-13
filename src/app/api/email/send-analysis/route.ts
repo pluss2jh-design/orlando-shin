@@ -41,8 +41,9 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     console.error('Email send error:', error);
+    const errorMessage = error instanceof Error ? error.message : '이메일 발송 중 오류가 발생했습니다';
     return NextResponse.json(
-      { error: '이메일 발송 중 오류가 발생했습니다' },
+      { error: errorMessage },
       { status: 500 }
     );
   }

@@ -7,23 +7,33 @@ const SMTP_USER = process.env.SMTP_USER || '';
 const SMTP_PASS = process.env.SMTP_PASS || '';
 const FROM_EMAIL = process.env.FROM_EMAIL || 'noreply@stockteacher.com';
 
-const transporter = nodemailer.createTransport({
-  host: SMTP_HOST,
-  port: SMTP_PORT,
-  secure: SMTP_PORT === 465,
-  auth: {
-    user: SMTP_USER,
-    pass: SMTP_PASS,
-  },
-});
+function createTransporter() {
+  if (!SMTP_USER || !SMTP_PASS) {
+    throw new Error(
+      'SMTP 설정이 완료되지 않았습니다. .env 파일에 SMTP_USER와 SMTP_PASS를 설정해주세요.\n' +
+      '설정 방법: ENV_SETUP_GUIDE.md 파일을 참조하세요.'
+    );
+  }
+
+  return nodemailer.createTransport({
+    host: SMTP_HOST,
+    port: SMTP_PORT,
+    secure: SMTP_PORT === 465,
+    auth: {
+      user: SMTP_USER,
+      pass: SMTP_PASS,
+    },
+  });
+}
 
 export async function sendAnalysisEmail(
   to: string,
   results: AnalysisResult[],
   conditions: { periodMonths: number }
 ): Promise<void> {
+  const transporter = createTransporter();
   const html = generateEmailTemplate(results, conditions);
-  
+
   await transporter.sendMail({
     from: `"주식 선생님" <${FROM_EMAIL}>`,
     to,
@@ -78,11 +88,6 @@ function generateEmailTemplate(
         <span style="font-size: 18px; font-weight: bold; color: #3b82f6;">
           ${result.totalRuleScore} / ${result.maxPossibleScore}점
         </span>
-      </div>
-      
-      <div style="margin-bottom: 12px;">
-        <span style="font-weight: bold; color: #1e293b;">AI 신뢰도:</span>
-        <span style="color: #3b82f6;">${result.confidenceScore}%</span>
       </div>
       
       <div style="margin-bottom: 12px;">

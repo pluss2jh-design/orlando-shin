@@ -152,21 +152,6 @@ export function AnalysisOutput({ results, conditions, isLoading, onSendEmail }: 
           <CardContent className="space-y-6 pt-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-4">
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="font-medium">AI 분석 신뢰도</span>
-                    <span className="font-bold">{result.confidenceScore}%</span>
-                  </div>
-                  <Progress value={result.confidenceScore} className="h-2" />
-                  {result.confidenceDetails && result.confidenceDetails.length > 0 && (
-                    <ul className="text-[10px] text-muted-foreground list-disc list-inside mt-1 space-y-0.5">
-                      {result.confidenceDetails.map((detail, dIdx) => (
-                        <li key={dIdx}>{detail}</li>
-                      ))}
-                    </ul>
-                  )}
-                </div>
-                
                 <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50 border">
                   <span className="text-sm font-medium">리스크 평가</span>
                   {getRiskBadge(result.riskLevel)}
