@@ -20,14 +20,6 @@ export default function LoginPage() {
       setError('');
       console.log(`Attempting to sign in with ${provider}...`);
 
-      const envVarName = `${provider.toUpperCase()}_CLIENT_ID`;
-      if (!process.env[envVarName] && provider !== 'credentials') {
-        console.error(`Environment variable ${envVarName} is not set`);
-        setError(`${provider} 로그인 설정이 완료되지 않았습니다. ENV_SETUP_GUIDE.md를 참조하세요.`);
-        setIsLoading(null);
-        return;
-      }
-
       const result = await signIn(provider, {
         callbackUrl: '/stock-analysis',
         redirect: false,
