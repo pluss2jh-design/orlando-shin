@@ -22,11 +22,16 @@ export const authOptions: NextAuthConfig = {
     }),
   ],
   callbacks: {
+    async signIn({ user, account, profile }) {
+      console.log('SignIn callback:', { user, account, profile });
+      return true;
+    },
     async session({ session, user }: { session: any; user: any }) {
       if (session.user) {
         session.user.id = user.id;
         session.user.membershipTier = user.membershipTier;
       }
+      console.log('Session callback:', session);
       return session;
     },
   },

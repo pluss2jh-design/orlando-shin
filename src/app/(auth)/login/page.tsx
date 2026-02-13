@@ -18,20 +18,36 @@ export default function LoginPage() {
     try {
       setIsLoading(provider);
       setError('');
+      console.log(`Attempting to sign in with ${provider}...`);
+
+      const envVarName = `${provider.toUpperCase()}_CLIENT_ID`;
+      if (!process.env[envVarName] && provider !== 'credentials') {
+        console.error(`Environment variable ${envVarName} is not set`);
+        setError(`${provider} 로그인 설정이 완료되지 않았습니다. ENV_SETUP_GUIDE.md를 참조하세요.`);
+        setIsLoading(null);
+        return;
+      }
 
       const result = await signIn(provider, {
         callbackUrl: '/stock-analysis',
         redirect: false,
       });
 
+      console.log('SignIn result:', result);
+
       if (result?.error) {
-        setError('로그인 중 오류가 발생했습니다. 다시 시도해주세요.');
+        console.error('SignIn error:', result.error);
+        setError(`로그인 중 오류가 발생했습니다: ${result.error}`);
       } else if (result?.ok) {
+        console.log('SignIn successful, redirecting...');
         router.push('/stock-analysis');
         router.refresh();
+      } else {
+        console.log('SignIn returned unexpected result:', result);
       }
     } catch (error) {
-      setError('로그인 중 오류가 발생했습니다.');
+      console.error('Exception during signIn:', error);
+      setError(`로그인 중 오류가 발생했습니다: ${error instanceof Error ? error.message : '알 수 없는 오류'}`);
     } finally {
       setIsLoading(null);
     }
