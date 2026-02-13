@@ -1,11 +1,13 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Brain, Sparkles } from 'lucide-react';
+import { Brain, Sparkles, User, MessageSquare } from 'lucide-react';
+import { useSession, signOut } from 'next-auth/react';
 import { DataControl } from '@/components/stock-analysis/data-control';
 import { InvestmentInput } from '@/components/stock-analysis/investment-input';
 import { AnalysisOutput } from '@/components/stock-analysis/analysis-output';
 import { NewsSection } from '@/components/stock-analysis/news-section';
+import { Button } from '@/components/ui/button';
 import { 
   UploadedFile, 
   CloudSyncStatus, 
@@ -197,10 +199,55 @@ export default function StockAnalysisPage() {
 
   const hasCompletedFiles = files.filter(f => f.status === 'completed').length > 0;
   const canAnalyze = hasCompletedFiles || isLearned;
+  const { data: session } = useSession();
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-background to-muted/20">
       <div className="container mx-auto px-4 py-8 max-w-6xl">
+        <div className="flex justify-end gap-2 mb-4">
+          {session ? (
+            <>
+              <span className="text-sm text-muted-foreground flex items-center px-3">
+                {session.user?.name || session.user?.email}님
+              </span>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => window.location.href = '/inquiry'}
+              >
+                <MessageSquare className="mr-2 h-4 w-4" />
+                1:1 문의
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => signOut({ callbackUrl: '/stock-analysis' })}
+              >
+                로그아웃
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => window.location.href = '/login'}
+              >
+                <User className="mr-2 h-4 w-4" />
+                로그인 / 회원가입
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => window.location.href = '/inquiry'}
+              >
+                <MessageSquare className="mr-2 h-4 w-4" />
+                1:1 문의
+              </Button>
+            </>
+          )}
+        </div>
+
         <div className="text-center mb-10">
           <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 text-primary text-sm font-medium mb-4">
             <Sparkles className="h-4 w-4" />

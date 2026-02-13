@@ -5,6 +5,56 @@
 
 ## 2026-02-13
 
+### 간편회원가입(소셜 로그인) 및 1:1 문의 게시판 화면 구현
+
+#### 변경사항
+1. **로그인 페이지 완성 (`src/app/(auth)/login/page.tsx`)**
+   - Google, Kakao, Naver 소셜 로그인 버튼 구현
+   - 각 플랫폼별 브랜드 컬러 적용 (Google-빨강, Kakao-노랑, Naver-초록)
+   - 로그인 시 주식 분석 페이지로 리다이렉트
+   - 미로그인 상태에서도 "주식 분석 화면으로 돌아가기" 링크 제공
+   - 세션 프로바이더 설정 (`src/app/providers.tsx`)
+
+2. **1:1 문의 게시판 화면 구현**
+   - **문의 목록 페이지** (`src/app/inquiry/page.tsx`): 로그인 필요, 본인 문의 목록 조회
+   - **새 문의 작성 페이지** (`src/app/inquiry/new/page.tsx`): 제목/내용 입력 폼
+   - **문의 상세 페이지** (`src/app/inquiry/[id]/page.tsx`): 문의 내용 및 답변 조회/작성
+   - 상태 표시: 접수(파랑), 처리중(노랑), 완료(초록)
+
+3. **네비게이션 추가**
+   - 주식 분석 페이지 상단에 로그인/로그아웃, 1:1 문의 버튼 추가
+   - 로그인 시 사용자 이름 표시
+   - 로그인하지 않아도 1:1 문의 페이지 접근 가능 (단, 로그인 필요)
+
+4. **shadcn UI 컴포넌트 추가**
+   - `separator.tsx`: 구분선 컴포넌트
+   - `alert.tsx`: 알림 컴포넌트
+   - `textarea.tsx`: 텍스트 영역 컴포넌트
+
+#### 페이지 접근 방법
+- **간편회원가입/로그인**: `http://localhost:3000/login`
+  - Google, Kakao, Naver 중 선택하여 로그인
+  - 첫 로그인 시 자동 회원가입
+
+- **1:1 문의 게시판**: `http://localhost:3000/inquiry`
+  - 로그인 필요 (미로그인 시 로그인 페이지로 리다이렉트)
+  - "새 문의하기" 버튼으로 문의 작성
+  - 문의 클릭 시 상세 페이지로 이동하여 답변 확인/작성
+
+#### 수정된 파일
+- `src/app/(auth)/login/page.tsx`: 소셜 로그인 UI 구현
+- `src/app/providers.tsx` (신규): NextAuth SessionProvider 설정
+- `src/app/layout.tsx`: Providers 적용
+- `src/app/inquiry/page.tsx` (신규): 문의 목록 페이지
+- `src/app/inquiry/new/page.tsx` (신규): 새 문의 작성 페이지
+- `src/app/inquiry/[id]/page.tsx` (신규): 문의 상세 페이지
+- `src/app/stock-analysis/page.tsx`: 네비게이션 버튼 추가
+- `src/components/ui/separator.tsx` (신규): shadcn separator
+- `src/components/ui/alert.tsx` (신규): shadcn alert
+- `src/components/ui/textarea.tsx` (신규): shadcn textarea
+
+## 2026-02-13
+
 ### AI 분석 신뢰도 제거 및 이메일 오류 개선
 
 #### 변경사항

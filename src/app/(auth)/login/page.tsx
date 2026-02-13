@@ -1,8 +1,111 @@
+'use client';
+
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { signIn } from 'next-auth/react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Separator } from '@/components/ui/separator';
+import { Chrome } from 'lucide-react';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+
 export default function LoginPage() {
+  const router = useRouter();
+  const [isLoading, setIsLoading] = useState<string | null>(null);
+  const [error, setError] = useState<string>('');
+
+  const handleSocialLogin = async (provider: string) => {
+    try {
+      setIsLoading(provider);
+      setError('');
+
+      const result = await signIn(provider, {
+        callbackUrl: '/stock-analysis',
+        redirect: false,
+      });
+
+      if (result?.error) {
+        setError('로그인 중 오류가 발생했습니다. 다시 시도해주세요.');
+      } else if (result?.ok) {
+        router.push('/stock-analysis');
+        router.refresh();
+      }
+    } catch (error) {
+      setError('로그인 중 오류가 발생했습니다.');
+    } finally {
+      setIsLoading(null);
+    }
+  };
+
   return (
-    <div className="rounded-lg border bg-card p-8 shadow-sm">
-      <h1 className="mb-6 text-2xl font-bold">Sign In</h1>
-      <p className="text-muted-foreground">Login page — implement auth form here.</p>
-    </div>
+    <Card className="w-full">
+      <CardHeader className="text-center">
+        <CardTitle className="text-2xl font-bold">주식 선생님</CardTitle>
+        <CardDescription>
+          소셜 계정으로 간편하게 로그인하세요
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {error && (
+          <Alert variant="destructive">
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
+
+        <div className="space-y-3">
+          <Button
+            variant="outline"
+            className="w-full h-12 relative"
+            onClick={() => handleSocialLogin('google')}
+            disabled={isLoading !== null}
+          >
+            <Chrome className="mr-2 h-5 w-5 text-red-500" />
+            {isLoading === 'google' ? '로그인 중...' : 'Google로 계속하기'}
+          </Button>
+
+          <Button
+            variant="outline"
+            className="w-full h-12 relative bg-[#FEE500] hover:bg-[#FDD800] text-black border-[#FEE500]"
+            onClick={() => handleSocialLogin('kakao')}
+            disabled={isLoading !== null}
+          >
+            <svg
+              className="mr-2 h-5 w-5"
+              viewBox="0 0 24 24"
+              fill="currentColor"
+            >
+              <path d="M12 2C6.48 2 2 5.58 2 10.14c0 2.58 1.68 4.87 4.22 6.23l-.92 3.4c-.08.28.24.5.48.34l4.12-2.74c.58.08 1.18.12 1.78.12 5.52 0 10-3.58 10-8.14S17.52 2 12 2z"/>
+            </svg>
+            {isLoading === 'kakao' ? '로그인 중...' : '카카오로 계속하기'}
+          </Button>
+
+          <Button
+            variant="outline"
+            className="w-full h-12 relative bg-[#03C75A] hover:bg-[#02b350] text-white border-[#03C75A] hover:text-white"
+            onClick={() => handleSocialLogin('naver')}
+            disabled={isLoading !== null}
+          >
+            <span className="mr-2 font-bold text-lg">N</span>
+            {isLoading === 'naver' ? '로그인 중...' : '네이버로 계속하기'}
+          </Button>
+        </div>
+
+        <Separator className="my-4" />
+
+        <div className="text-center text-sm text-muted-foreground">
+          <p>로그인하면 주식 선생님의 서비스를 이용할 수 있습니다.</p>
+          <p className="mt-1">처음 로그인 시 자동으로 회원가입됩니다.</p>
+        </div>
+
+        <div className="text-center">
+          <a
+            href="/stock-analysis"
+            className="text-sm text-primary hover:underline"
+          >
+            ← 주식 분석 화면으로 돌아가기
+          </a>
+        </div>
+      </CardContent>
+    </Card>
   );
 }
