@@ -1,33 +1,34 @@
-// S&P 500 시가총액 상위 100개 기업 (2024-2025 기준)
+// S&P 500 시가총액 상위 100개 기업
 export const SP500_TICKERS = [
-  // 상위 25
   'AAPL', 'MSFT', 'NVDA', 'GOOGL', 'GOOG', 'AMZN', 'META', 'BRK-B', 'TSLA', 'AVGO',
   'WMT', 'JPM', 'V', 'MA', 'UNH', 'HD', 'PG', 'LLY', 'MRK', 'COST',
-  'ABBV', 'KO', 'JNJ', 'ORCL', 'BAC',
-  // 26-50
-  'CRM', 'WFC', 'NFLX', 'ACN', 'TMO', 'LIN', 'DIS', 'ADBE', 'AMD', 'CAT',
-  'VZ', 'CVX', 'MS', 'TXN', 'INTU', 'PM', 'GS', 'IBM', 'RTX', 'UNP',
-  'AMGN', 'COP', 'GE', 'T', 'HON',
-  // 51-75
+  'ABBV', 'KO', 'JNJ', 'ORCL', 'BAC', 'CRM', 'WFC', 'NFLX', 'ACN', 'TMO',
+  'LIN', 'DIS', 'ADBE', 'AMD', 'CAT', 'VZ', 'CVX', 'MS', 'TXN', 'INTU',
+  'PM', 'GS', 'IBM', 'RTX', 'UNP', 'AMGN', 'COP', 'GE', 'T', 'HON',
   'QCOM', 'LOW', 'SPGI', 'UPS', 'AXP', 'PGR', 'BLK', 'NEE', 'SYK', 'SBUX',
   'AMAT', 'DHR', 'GILD', 'MMC', 'VRTX', 'MDT', 'LMT', 'CVS', 'TJX', 'REGN',
-  'SCHW', 'NOW', 'BKNG', 'BA', 'TMUS',
-  // 76-100
-  'PLD', 'ADP', 'ADI', 'PANW', 'PYPL', 'MO', 'C', 'ZTS', 'SO', 'HCA',
-  'SNOW', 'NKE', 'ETN', 'ABT', 'EQIX', 'PFE', 'ITW', 'SHW', 'AON', 'ISRG',
-  'MDLZ', 'UBER', 'INTC', 'APD', 'LRCX'
+  'SCHW', 'NOW', 'BKNG', 'BA', 'TMUS', 'PLD', 'ADP', 'ADI', 'PANW', 'PYPL',
+  'MO', 'C', 'ZTS', 'SO', 'HCA', 'SNOW', 'NKE', 'ETN', 'ABT', 'EQIX',
+  'PFE', 'ITW', 'SHW', 'AON', 'ISRG', 'MDLZ', 'UBER', 'INTC', 'APD', 'LRCX'
 ];
 
-// Dow Jones 30 기업
+// Dow Jones 기업 (약 30개) + 추가 대형주로 100개 채움
 export const DOW_JONES_TICKERS = [
   'AAPL', 'AMGN', 'AXP', 'BA', 'CAT', 'CRM', 'CSCO', 'CVX', 'DIS', 'GS',
   'HD', 'HON', 'IBM', 'INTC', 'JNJ', 'JPM', 'KO', 'MCD', 'MMM', 'MRK',
-  'MSFT', 'NKE', 'PG', 'TRV', 'UNH', 'V', 'VZ', 'WBA', 'WMT'
+  'MSFT', 'NKE', 'PG', 'TRV', 'UNH', 'V', 'VZ', 'WBA', 'WMT', 'DIS',
+  // 100개를 채우기 위한 추가 대형주
+  'ADBE', 'AMD', 'AMZN', 'AVGO', 'COST', 'GE', 'GOOG', 'GOOGL', 'INTU', 'LIN',
+  'LLY', 'MA', 'META', 'NVDA', 'ORCL', 'PEP', 'PM', 'QCOM', 'TMO', 'TXN',
+  'ABBV', 'ABT', 'ACN', 'ADSK', 'AIG', 'ALB', 'AMT', 'ANTM', 'APD', 'BK',
+  'BLK', 'BMY', 'BSX', 'C', 'CB', 'CI', 'CL', 'CMCSA', 'COF', 'COP',
+  'CVS', 'D', 'DHR', 'DUK', 'EMR', 'EXC', 'F', 'FDX', 'FIS', 'GD',
+  'GILD', 'GM', 'GPN', 'HUM', 'ICE', 'ILMN', 'ISRG', 'ITW', 'KMB', 'KMI',
+  'MET', 'MO', 'MPC', 'MS', 'NEE', 'NEM', 'NSC', 'PFE', 'PLD', 'PNC'
 ];
 
-// Russell 1000 대형주 시가총액 상위 100개 (S&P500 외 대형주 포함)
+// Russell 1000 대형주 시가총액 상위 100개
 export const RUSSELL1000_TICKERS = [
-  // S&P500 외 Russell 1000 대형주들
   'LULU', 'ROP', 'MU', 'FDX', 'EL', 'ADSK', 'MMM', 'MAR', 'CTVA', 'NSC',
   'APH', 'GM', 'EMR', 'FIS', 'BDX', 'F', 'SLB', 'TGT', 'EW', 'CMCSA',
   'FCX', 'CEG', 'ECL', 'FTNT', 'JCI', 'CSX', 'STZ', 'CME', 'NOC', 'PXD',

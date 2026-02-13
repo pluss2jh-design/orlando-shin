@@ -1,5 +1,131 @@
 # Project Context History
 
+## Current Session Tracking
+- **질의 횟수**: 2 (3회 완료 시 Git 커밋 예정)
+
+## 2026-02-12
+
+### 기업 분석 점수 산출 내역 표시 및 질의 횟수 관리 강화
+
+#### 변경사항
+1. **질의 횟수 추적 시스템 도입**
+   - `CONTEXT.md` 상단에 세션별 질의 횟수를 기록하여 3회마다 자동 커밋 로직을 준수하도록 개선.
+   - 현재 질의 횟수: 2회
+
+2. **기업 평가 점수 상세 내역 UI 구현 (`analysis-output.tsx`)**
+   - 각 기업 분석 결과 카드에 "투자 규칙별 평가 내역" 섹션 추가.
+   - 상위 3개만 보여주던 방식에서 탈피하여, 모든 규칙에 대한 산출 점수(0~10점)와 부합 여부를 한눈에 확인할 수 있도록 개선.
+   - 점수에 따른 색상 구분 (8점 이상 녹색, 5점 이상 노란색, 5점 미만 빨간색) 적용.
+
+3. **분석 엔진 로직 안정화**
+   - 이전 질의에서 수정된 가중치 기반 정규화 점수(0-10점) 산정 로직이 UI에 정확히 반영되도록 연동.
+
+#### 수정된 파일
+- `CONTEXT.md`: 질의 횟수 추적 섹션 추가
+- `src/components/stock-analysis/analysis-output.tsx`: 규칙별 개별 점수 표시 UI 구현
+
+## 2026-02-12
+
+### 기업 분석 스코어링 로직 고도화 및 정규화 (0-10점)
+
+#### 변경사항
+1. **스코어링 방식 전면 개편 (`analysis-engine.ts`)**
+   - **가중치 기반 합산**: 모든 투자 규칙(재무, 기술, 시장, 성장 등)에 대해 개별 가중치(Weight)를 적용하여 점수를 산출하도록 수정.
+   - **0-10점 정규화 (Rule 5 준수)**: 기존의 단순 합계 방식에서 벗어나, 총 가중치 대비 획득 점수를 0~10점 사이의 실수(예: 8.45점)로 정규화하여 부합도를 정밀하게 측정.
+   - **세밀한 평가 기준**: ROE, PER, PBR 등 핵심 지표에 대해 구간별로 촘촘한 점수(0-10점)를 부여하여 기업 간 변별력을 확보 (모든 기업이 동일한 점수가 나오던 문제 해결).
+   - **기술적 분석 강화**: 최근 14일 주가 데이터를 활용한 간이 스토캐스틱/RSI 분석 로직을 스코어링에 통합.
+
+2. **데이터 처리 안정성 개선 (`yahoo-finance.ts`)**
+   - **상세 데이터 조회 복구**: 상세 지표(`quoteSummary`) 조회 실패 시 일반 시세 데이터(`quote`)에서 정보를 추출하는 폴백 로직 강화.
+   - **결측치 처리**: 특정 재무 데이터가 부족하더라도 분석이 중단되지 않고 중립 점수(5점) 또는 배치 데이터 기반 추정치를 사용하도록 개선.
+
+3. **기타 수정**
+   - **서버 포트 3000번 고정**: `package.json` 설정을 통해 포트 충돌 방지 및 일관된 접속 환경 제공.
+   - **Git 관리**: `AGENTS.md` 파일을 캐시에서 제거하여 보안 및 규칙 준수 강화.
+
+#### 수정된 파일
+- `src/lib/stock-analysis/analysis-engine.ts`: 가중치 기반 정규화 스코어링 로직 구현 및 코드 정리
+- `src/lib/stock-analysis/yahoo-finance.ts`: 데이터 조회 안정성 및 폴백 로직 강화
+- `src/lib/stock-analysis/universe.ts`: 유니버스 기업 리스트 최적화
+
+#### 분석 대상 및 지표
+- 분석 대상: S&P 500, Russell 1000, Dow Jones 상위 300개 기업
+- 평가 지표: ROE, PER, PBR, Operating Margin, Revenue Growth, Market Cap, Stochastic/RSI 등
+
+## 2026-02-12
+
+### 투자 규칙 학습 고도화 및 분석 엔진 안정성 강화
+
+#### 변경사항
+1. **학습 시스템 개선 (`ai-learning.ts`, `learn/route.ts`)**
+   - AI 프롬프트를 상세화하여 재무, 기술(스토캐스틱 등), 시장 규모(TAM/SAM/SOM), 단위 경제성, 생애주기, 매수 타이밍 등 6개 분야의 포괄적 규칙 추출 유도.
+   - 학습 완료 및 조회 시 7개 기본 규칙뿐만 아니라 6개 카테고리 전체 규칙 수를 합산하여 반환하도록 수정 (사용자가 28개 이상의 학습된 규칙을 확인 가능).
+   - 학습 및 분석 시작 전 비용 발생 가능성 알림(Confirm) 추가 (Rule 4 준수).
+
+2. **분석 엔진 로직 강화 (`analysis-engine.ts`, `yahoo-finance.ts`)**
+   - **시장 유니버스 확장**: S&P 500, Dow Jones, Russell 1000 각 100개씩 총 300개 기업 리스트 구축 (Rule 5 준수).
+   - **배치 처리 안정화**: Yahoo Finance API 호출 시 배치 사이즈를 25로 줄이고, 실패 시 개별 호출로 전환하는 폴백 로직 추가.
+   - **상세 데이터 조회 복구**: `quoteSummary` 실패 시 `basic quote`를 시도하고, 히스토리 데이터가 없어도 당일 변동률을 사용하여 분석이 중단되지 않도록 개선.
+   - **스코어링 로직 고도화**: 스토캐스틱(최근 14일 기준 과매도 판단), 시장 규모(시가총액 기반), 단위 경제성(영업이익률 기반), 생애주기(매출 성장률 기반) 등 신규 규칙 카테고리에 대한 점수 산정 로직 구현.
+
+3. **UI 및 서버 환경 설정**
+   - `package.json`: 포트 3000번 고정 (`next dev -p 3000`).
+   - `DataControl.tsx`, `page.tsx`: 학습 및 분석 버튼 클릭 시 `window.confirm` 알림 추가.
+   - `AGENTS.md` 규칙 재검토 및 미준수 사항 수정.
+
+#### 수정된 파일
+- `src/lib/stock-analysis/ai-learning.ts`: 프롬프트 고도화 및 추출 로직 개선
+- `src/lib/stock-analysis/analysis-engine.ts`: 300개 기업 분석 및 신규 지표 스코어링
+- `src/lib/stock-analysis/yahoo-finance.ts`: 데이터 조회 안정성 강화
+- `src/lib/stock-analysis/universe.ts`: 300개 기업 티커 리스트 업데이트
+- `src/app/api/gdrive/learn/route.ts`: 규칙 합산 카운트 적용
+- `src/app/stock-analysis/page.tsx`: 분석 시 확인창 추가 및 결과 처리 개선
+- `src/components/stock-analysis/data-control.tsx`: 학습 시 확인창 추가
+
+#### 분석 대상 현황
+- S&P 500: 100개
+- Dow Jones (대형주 포함): 100개
+- Russell 1000: 100개
+- 총 300개 종목에 대해 28개+ 투자 규칙으로 정밀 분석 수행
+
+## 2026-02-12
+
+### 분석 불가 조건 필터링 + 학습 규칙 UI 표시 + GitHub 배포
+
+#### 변경사항
+1. **분석 불가능한 keyConditions 자동 필터링**
+   - `ai-learning.ts`: 불가능/추출 불가/파악 어려움 등의 문구 포함 조건 자동 제거
+   - 패턴: '추출할 수 없습니다', '파악이 어렵습니다', '제공된 자료', '비디오 파일' 등 50+ 패턴
+   - 기존 learned-knowledge.json 파일에서도 20개 불가 조건 정리 완료
+
+2. **학습된 투자 규칙 UI 표시**
+   - `data-control.tsx`: 학습 완료 후 '학습된 투자 규칙' 섹션 추가
+   - BookOpen, ListChecks 아이콘으로 규칙 목록 표시
+   - 펼치기/접기 토글 기능
+   - 규칙별 가중치(%) 표시
+   - `/api/gdrive/knowledge` 신규 API 엔드포인트 추가
+
+3. **GitHub 저장소 배포**
+   - Repository: https://github.com/pluss2jh-design/orlando-shin
+   - Commit: 318c5e6 - "feat: implement rule-based stock scoring system with PDF analysis"
+   - 총 23개 파일 변경사항 푸시 완료
+
+4. **서버 실행 상태 확인**
+   - Port 3000, 3001 모두 정상 실행 중
+   - API 엔드포인트 정상 응답 확인
+   - 총 118개 파일 분석, 7개 투자 규칙 학습 완료
+
+#### 수정된 파일
+- `src/lib/stock-analysis/ai-learning.ts`: 불가 조건 필터링 로직 추가
+- `src/components/stock-analysis/data-control.tsx`: 학습 규칙 UI 추가
+- `src/app/api/gdrive/knowledge/route.ts`: 신규 API 엔드포인트
+- `src/app/api/gdrive/learn/route.ts`: 학습 완료 후 knowledge 조회 추가
+
+#### 정리된 데이터
+- learned-knowledge.json에서 20개 불가능한 keyConditions 제거
+- 11개 파일에서 유효한 분석 조건 유지
+- 7개 투자 규칙 (goodCompanyRules) UI 표시 준비 완료
+
 ## 2026-02-10
 
 ### 파일 기반 학습 시스템으로 전환 + 기간별 수익률 분석 구현

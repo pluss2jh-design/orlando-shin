@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { AnalysisResult, InvestmentConditions } from '@/types/stock-analysis';
+import { cn } from '@/lib/utils';
 
 interface AnalysisOutputProps {
   results: AnalysisResult[];
@@ -160,31 +161,39 @@ export function AnalysisOutput({ results, conditions, isLoading }: AnalysisOutpu
               </div>
               
               {result.totalRuleScore !== undefined && result.maxPossibleScore !== undefined && (
-                <div className="space-y-2 p-3 rounded-lg bg-primary/5 border border-primary/20">
+                <div className="space-y-4 p-4 rounded-lg bg-primary/5 border border-primary/20">
                   <div className="flex items-center justify-between">
-                    <span className="text-sm font-bold">규칙 기반 평가 점수</span>
-                    <span className="text-lg font-black text-primary">
+                    <span className="text-sm font-bold">종합 평가 점수</span>
+                    <span className="text-xl font-black text-primary">
                       {result.totalRuleScore} / {result.maxPossibleScore}점
                     </span>
                   </div>
                   <Progress value={(result.totalRuleScore / result.maxPossibleScore) * 100} className="h-2" />
-                  <p className="text-xs text-muted-foreground">
-                    총 {result.maxPossibleScore / 10}개 투자 규칙 중 {result.totalRuleScore / 10}개 규칙에 부합
-                  </p>
-                  {result.ruleScores && result.ruleScores.length > 0 && (
-                    <div className="mt-2 space-y-1">
-                      <p className="text-xs font-semibold text-muted-foreground">상위 부합 규칙:</p>
-                      {result.ruleScores
-                        .filter(r => r.score === 10)
-                        .slice(0, 3)
-                        .map((rule, idx) => (
-                          <div key={idx} className="flex items-center gap-2 text-xs">
-                            <span className="text-green-600 font-bold">✓</span>
-                            <span className="truncate">{rule.rule}</span>
+                  
+                  <div className="space-y-2 mt-4">
+                    <h5 className="text-xs font-bold text-muted-foreground uppercase">투자 규칙별 상세 평가 내역</h5>
+                    <div className="grid grid-cols-1 gap-2">
+                      {result.ruleScores?.map((rule, rIdx) => (
+                        <div key={rIdx} className="flex items-center justify-between gap-3 p-2 rounded bg-background/50 border text-xs">
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium truncate text-foreground/80">{rule.rule.split(':')[0]}</p>
+                            <p className="text-[10px] text-muted-foreground truncate">{rule.reason}</p>
                           </div>
-                        ))}
+                          <Badge 
+                            variant="outline" 
+                            className={cn(
+                              "font-mono font-bold",
+                              rule.score >= 8 ? "border-green-500 text-green-600 bg-green-50" :
+                              rule.score >= 5 ? "border-yellow-500 text-yellow-600 bg-yellow-50" :
+                              "border-red-500 text-red-600 bg-red-50"
+                            )}
+                          >
+                            {rule.score}점
+                          </Badge>
+                        </div>
+                      ))}
                     </div>
-                  )}
+                  </div>
                 </div>
               )}
             </div>

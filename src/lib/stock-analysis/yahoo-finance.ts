@@ -115,14 +115,41 @@ export async function fetchYahooFinanceData(
   const period1 = new Date();
   period1.setMonth(period1.getMonth() - Math.max(periodMonths, 6));
 
-  const [summaryResult, historicalResult] = await Promise.all([
-    yahooFinance.quoteSummary(ticker, {
+  let summaryResult: any = {};
+  let historicalResult: any[] = [];
+
+  try {
+    summaryResult = await yahooFinance.quoteSummary(ticker, {
       modules: ['financialData', 'price', 'defaultKeyStatistics', 'summaryDetail'],
-    }),
-    yahooFinance.historical(ticker, {
+    });
+  } catch (error) {
+    console.warn(`Quote summary failed for ${ticker}, attempting basic quote:`, error);
+    try {
+      const basicQuote = await yahooFinance.quote(ticker);
+      summaryResult = {
+        price: {
+          regularMarketPrice: basicQuote.regularMarketPrice,
+          regularMarketPreviousClose: basicQuote.regularMarketPreviousClose,
+          marketCap: basicQuote.marketCap,
+          currency: basicQuote.currency,
+        },
+        summaryDetail: {
+          trailingPE: basicQuote.trailingPE,
+          dividendYield: basicQuote.dividendYield,
+        }
+      };
+    } catch (e) {
+      console.error(`Basic quote also failed for ${ticker}`);
+    }
+  }
+
+  try {
+    historicalResult = await yahooFinance.historical(ticker, {
       period1: period1.toISOString().split('T')[0],
-    }),
-  ]);
+    });
+  } catch (error) {
+    console.warn(`Historical data failed for ${ticker}:`, error);
+  }
 
   const financial = summaryResult.financialData;
   const price = summaryResult.price;
@@ -131,7 +158,7 @@ export async function fetchYahooFinanceData(
 
   const currency = detectTickerCurrency(ticker, price?.currency);
 
-  const priceHistory: PriceHistoryEntry[] = historicalResult.map((entry) => ({
+  const priceHistory: PriceHistoryEntry[] = (historicalResult || []).map((entry) => ({
     date: entry.date instanceof Date ? entry.date : new Date(entry.date),
     close: entry.adjClose ?? entry.close ?? 0,
     volume: entry.volume ?? 0,
