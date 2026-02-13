@@ -1,7 +1,7 @@
 # Project Context History
 
 ## Current Session Tracking
-- **질의 횟수**: 0 (커밋 완료 후 초기화됨)
+- **질의 횟수**: 2
 
 ## 2026-02-13
 
