@@ -20,23 +20,10 @@ export default function LoginPage() {
       setError('');
       console.log(`Attempting to sign in with ${provider}...`);
 
-      const result = await signIn(provider, {
+      await signIn(provider, {
         callbackUrl: '/stock-analysis',
-        redirect: false,
+        redirect: true,
       });
-
-      console.log('SignIn result:', result);
-
-      if (result?.error) {
-        console.error('SignIn error:', result.error);
-        setError(`로그인 중 오류가 발생했습니다: ${result.error}`);
-      } else if (result?.ok) {
-        console.log('SignIn successful, redirecting...');
-        router.push('/stock-analysis');
-        router.refresh();
-      } else {
-        console.log('SignIn returned unexpected result:', result);
-      }
     } catch (error) {
       console.error('Exception during signIn:', error);
       setError(`로그인 중 오류가 발생했습니다: ${error instanceof Error ? error.message : '알 수 없는 오류'}`);

@@ -8,6 +8,7 @@ import { InvestmentInput } from '@/components/stock-analysis/investment-input';
 import { AnalysisOutput } from '@/components/stock-analysis/analysis-output';
 import { NewsSection } from '@/components/stock-analysis/news-section';
 import { Button } from '@/components/ui/button';
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { 
   UploadedFile, 
   CloudSyncStatus, 
@@ -206,10 +207,25 @@ export default function StockAnalysisPage() {
       <div className="container mx-auto px-4 py-8 max-w-6xl">
         <div className="flex justify-end gap-2 mb-4">
           {session ? (
-            <>
-              <span className="text-sm text-muted-foreground flex items-center px-3">
-                {session.user?.name || session.user?.email}님
-              </span>
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-muted/50 border">
+                <Avatar className="h-6 w-6">
+                  <AvatarImage src={session.user?.image || ""} />
+                  <AvatarFallback className="text-[10px]">
+                    {session.user?.name?.[0] || session.user?.email?.[0] || "U"}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="flex flex-col">
+                  <span className="text-xs font-medium">
+                    {session.user?.name || session.user?.email}
+                  </span>
+                  {session.user?.email && (
+                    <span className="text-[10px] text-muted-foreground leading-none">
+                      {session.user.email}
+                    </span>
+                  )}
+                </div>
+              </div>
               <Button
                 variant="outline"
                 size="sm"
@@ -225,7 +241,7 @@ export default function StockAnalysisPage() {
               >
                 로그아웃
               </Button>
-            </>
+            </div>
           ) : (
             <>
               <Button
