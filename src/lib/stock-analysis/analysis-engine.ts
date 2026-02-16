@@ -25,7 +25,10 @@ import { getStockUniverse } from './universe';
 export async function runAnalysisEngine(
   conditions: InvestmentConditions,
   knowledge: { criteria: LearnedInvestmentCriteria; strategy: InvestmentStrategy; fileAnalyses: { fileName: string; keyConditions: string[] }[] },
-  style: InvestmentStyle = 'moderate'
+  style: InvestmentStyle = 'moderate',
+  companyCount: number = 5,
+  aiModel?: string,
+  apiKey?: string
 ): Promise<RecommendationResult> {
   console.log(`Starting analysis engine with universe screening...`);
   
@@ -156,10 +159,9 @@ export async function runAnalysisEngine(
     await new Promise(resolve => setTimeout(resolve, 500));
   }
 
-  // 점수 기준 상위 5개 기업 선정
   const topPicks: FilteredCandidate[] = stocksWithScores
     .sort((a, b) => b.totalScore - a.totalScore)
-    .slice(0, 5)
+    .slice(0, Math.min(companyCount, 20))
     .map((stock) => {
       const riskLevel = stock.periodReturn > 50 ? 'high' : stock.periodReturn > 20 ? 'medium' : 'low';
       const sortedRules = [...stock.ruleScores].sort((a, b) => b.score - a.score);
@@ -199,7 +201,7 @@ export async function runAnalysisEngine(
     investmentStyle: style,
     exchangeRate,
     processedAt: new Date(),
-    summary: `시장 유니버스 ${stocksWithScores.length}개 종목을 분석하여 투자 규칙 부합도가 가장 높은 TOP 5 기업을 선정했습니다.`,
+    summary: `시장 유니버스 ${stocksWithScores.length}개 종목을 분석하여 투자 규칙 부합도가 가장 높은 TOP ${companyCount} 기업을 선정했습니다.`,
     allSourcesUsed: deduplicateSources(allRules.map(r => r.source).filter(Boolean)),
   };
 }

@@ -7,7 +7,7 @@ import type {
 } from '@/types/stock-analysis';
 
 interface AnalysisRequestBody {
-  conditions?: { periodMonths?: number };
+  conditions?: { periodMonths?: number; companyCount?: number; aiModel?: string; apiKey?: string };
   style?: InvestmentStyle;
 }
 
@@ -26,7 +26,10 @@ export async function POST(request: NextRequest) {
     const result = await runAnalysisEngine(
       { amount: 0, periodMonths: body.conditions?.periodMonths || 12 },
       knowledge,
-      body.style ?? 'moderate'
+      body.style ?? 'moderate',
+      body.conditions?.companyCount || 5,
+      body.conditions?.aiModel,
+      body.conditions?.apiKey
     );
 
     return NextResponse.json(result);

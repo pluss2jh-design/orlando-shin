@@ -35,6 +35,10 @@ export default function InquiryDetailPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editTitle, setEditTitle] = useState('');
+  const [editContent, setEditContent] = useState('');
+  const [isSavingEdit, setIsSavingEdit] = useState(false);
   const [error, setError] = useState('');
 
   const isAdmin = session?.user?.email?.endsWith('@admin.com');
@@ -117,6 +121,44 @@ export default function InquiryDetailPage() {
     }
   };
 
+  const handleStartEdit = () => {
+    setEditTitle(inquiry?.title || '');
+    setEditContent(inquiry?.content || '');
+    setIsEditing(true);
+  };
+
+  const handleCancelEdit = () => {
+    setIsEditing(false);
+    setEditTitle('');
+    setEditContent('');
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editTitle.trim() || !editContent.trim()) return;
+
+    setIsSavingEdit(true);
+    setError('');
+
+    try {
+      const response = await fetch(`/api/inquiry/${params.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title: editTitle, content: editContent }),
+      });
+
+      if (!response.ok) {
+        throw new Error('수정에 실패했습니다');
+      }
+
+      setIsEditing(false);
+      fetchInquiry();
+    } catch (error) {
+      setError('수정 중 오류가 발생했습니다');
+    } finally {
+      setIsSavingEdit(false);
+    }
+  };
+
   const getStatusBadge = (status: string) => {
     const configs = {
       OPEN: { label: '접수', className: 'bg-blue-100 text-blue-700' },
@@ -166,40 +208,77 @@ export default function InquiryDetailPage() {
         </Alert>
       )}
 
-      <Card className="mb-6">
-        <CardHeader>
-          <div className="flex items-start justify-between">
+      {isEditing ? (
+        <Card className="mb-6">
+          <CardHeader>
+            <CardTitle className="text-xl">문의 수정</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
             <div>
-              <div className="flex items-center gap-2 mb-2">
-                {getStatusBadge(inquiry.status)}
-                <span className="text-sm text-muted-foreground">
-                  {new Date(inquiry.createdAt).toLocaleDateString('ko-KR')}
-                </span>
-              </div>
-              <CardTitle className="text-xl">{inquiry.title}</CardTitle>
+              <label className="text-sm font-medium mb-2 block">제목</label>
+              <input
+                type="text"
+                value={editTitle}
+                onChange={(e) => setEditTitle(e.target.value)}
+                className="w-full p-3 border rounded-lg"
+                placeholder="문의 제목"
+              />
             </div>
-            {canDelete && (
-              <div className="flex gap-2">
-                {canEdit && (
-                  <Button variant="outline" size="sm" onClick={() => alert('수정 기능은 아직 구현 중입니다.')}>
-                    <Edit2 className="h-4 w-4 mr-2" />
-                    수정
-                  </Button>
-                )}
-                <Button variant="destructive" size="sm" onClick={handleDelete} disabled={isDeleting}>
-                  <Trash2 className="h-4 w-4 mr-2" />
-                  {isDeleting ? '삭제 중...' : '삭제'}
-                </Button>
+            <div>
+              <label className="text-sm font-medium mb-2 block">내용</label>
+              <Textarea
+                value={editContent}
+                onChange={(e) => setEditContent(e.target.value)}
+                rows={6}
+                placeholder="문의 내용"
+              />
+            </div>
+            <div className="flex gap-2 justify-end">
+              <Button variant="outline" onClick={handleCancelEdit}>
+                취소
+              </Button>
+              <Button onClick={handleSaveEdit} disabled={isSavingEdit || !editTitle.trim() || !editContent.trim()}>
+                {isSavingEdit ? '저장 중...' : '저장'}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      ) : (
+        <Card className="mb-6">
+          <CardHeader>
+            <div className="flex items-start justify-between">
+              <div>
+                <div className="flex items-center gap-2 mb-2">
+                  {getStatusBadge(inquiry.status)}
+                  <span className="text-sm text-muted-foreground">
+                    {new Date(inquiry.createdAt).toLocaleDateString('ko-KR')}
+                  </span>
+                </div>
+                <CardTitle className="text-xl">{inquiry.title}</CardTitle>
               </div>
-            )}
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div className="bg-muted/50 p-4 rounded-lg">
-            <p className="whitespace-pre-wrap">{inquiry.content}</p>
-          </div>
-        </CardContent>
-      </Card>
+              {canDelete && (
+                <div className="flex gap-2">
+                  {canEdit && !isEditing && (
+                    <Button variant="outline" size="sm" onClick={handleStartEdit}>
+                      <Edit2 className="h-4 w-4 mr-2" />
+                      수정
+                    </Button>
+                  )}
+                  <Button variant="destructive" size="sm" onClick={handleDelete} disabled={isDeleting}>
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    {isDeleting ? '삭제 중...' : '삭제'}
+                  </Button>
+                </div>
+              )}
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="bg-muted/50 p-4 rounded-lg">
+              <p className="whitespace-pre-wrap">{inquiry.content}</p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {inquiry.responses.length > 0 && (
         <div className="space-y-4 mb-6">

@@ -91,6 +91,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         token.email = profile.email;
         token.picture = profile.picture || profile.image_url || profile.avatar_url;
       }
+      const adminEmails = ['pluss2.jh@gmail.com', 'pluss2@kakao.com'];
+      if (token.email && adminEmails.includes(token.email as string)) {
+        token.role = 'ADMIN';
+      }
       return token;
     }
   },
