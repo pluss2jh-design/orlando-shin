@@ -8,12 +8,13 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { ArrowLeft, Send, User, Shield } from 'lucide-react';
+import { ArrowLeft, Send, User, Shield, Trash2, Edit2 } from 'lucide-react';
 
 interface Inquiry {
   id: string;
   title: string;
   content: string;
+  userId: string;
   status: 'OPEN' | 'IN_PROGRESS' | 'CLOSED';
   createdAt: string;
   updatedAt: string;
@@ -33,7 +34,13 @@ export default function InquiryDetailPage() {
   const [newResponse, setNewResponse] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [error, setError] = useState('');
+
+  const isAdmin = session?.user?.email?.endsWith('@admin.com');
+  const isOwner = session?.user?.id === inquiry?.userId;
+  const canEdit = isOwner;
+  const canDelete = isAdmin || isOwner;
 
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -84,6 +91,29 @@ export default function InquiryDetailPage() {
       setError('답변 등록 중 오류가 발생했습니다');
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!confirm('정말 삭제하시겠습니까?')) return;
+
+    setIsDeleting(true);
+    setError('');
+
+    try {
+      const response = await fetch(`/api/inquiry/${params.id}`, {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) {
+        throw new Error('삭제에 실패했습니다');
+      }
+
+      router.push('/inquiry');
+      router.refresh();
+    } catch (error) {
+      setError('삭제 중 오류가 발생했습니다');
+      setIsDeleting(false);
     }
   };
 
@@ -148,6 +178,20 @@ export default function InquiryDetailPage() {
               </div>
               <CardTitle className="text-xl">{inquiry.title}</CardTitle>
             </div>
+            {canDelete && (
+              <div className="flex gap-2">
+                {canEdit && (
+                  <Button variant="outline" size="sm" onClick={() => alert('수정 기능은 아직 구현 중입니다.')}>
+                    <Edit2 className="h-4 w-4 mr-2" />
+                    수정
+                  </Button>
+                )}
+                <Button variant="destructive" size="sm" onClick={handleDelete} disabled={isDeleting}>
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  {isDeleting ? '삭제 중...' : '삭제'}
+                </Button>
+              </div>
+            )}
           </div>
         </CardHeader>
         <CardContent>
