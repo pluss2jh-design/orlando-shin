@@ -85,14 +85,6 @@ export default function Home() {
                   <ArrowRight className="h-5 w-5 ml-2" />
                 </Link>
               </Button>
-              {!session && (
-                <Button size="lg" variant="outline" asChild>
-                  <Link href="/login">
-                    <User className="h-5 w-5 mr-2" />
-                    로그인 / 회원가입
-                  </Link>
-                </Button>
-              )}
             </div>
           </div>
 
@@ -182,12 +174,6 @@ export default function Home() {
                 <p className="text-muted-foreground">
                   Google, Kakao, Naver 계정으로 간편하게 로그인하세요
                 </p>
-                <Button size="lg" asChild>
-                  <Link href="/login">
-                    <User className="h-5 w-5 mr-2" />
-                    로그인 / 회원가입
-                  </Link>
-                </Button>
               </div>
             )}
           </div>

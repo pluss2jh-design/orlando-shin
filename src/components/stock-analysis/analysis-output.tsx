@@ -139,14 +139,7 @@ export function AnalysisOutput({ results, conditions, isLoading, onSendEmail }: 
                   <p className="text-sm text-muted-foreground">{result.ticker} • {result.market}</p>
                 </div>
               </div>
-              <div className="text-right">
-                <p className="text-xs text-muted-foreground mb-1">
-                  {conditions?.periodMonths}개월 예상 수익률
-                </p>
-                <p className="text-2xl font-black text-green-600">
-                  +{calculateExpectedReturn(result.expectedReturnRate, conditions?.periodMonths || 12).toFixed(1)}%
-                </p>
-              </div>
+
             </div>
           </CardHeader>
           <CardContent className="space-y-6 pt-6">
@@ -275,7 +268,4 @@ export function AnalysisOutput({ results, conditions, isLoading, onSendEmail }: 
   );
 }
 
-function calculateExpectedReturn(baseReturn: number, periodMonths: number): number {
-  const monthlyRate = baseReturn / 12;
-  return monthlyRate * periodMonths;
-}
+

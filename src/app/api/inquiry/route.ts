@@ -18,6 +18,13 @@ export async function GET(request: NextRequest) {
         responses: {
           orderBy: { createdAt: 'asc' },
         },
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
       },
       orderBy: { createdAt: 'desc' },
     });

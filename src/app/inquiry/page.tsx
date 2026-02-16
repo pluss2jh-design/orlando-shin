@@ -17,6 +17,11 @@ interface Inquiry {
   createdAt: string;
   updatedAt: string;
   responses: { id: string; content: string; isAdmin: boolean; createdAt: string }[];
+  user: {
+    id: string;
+    name: string | null;
+    email: string;
+  };
 }
 
 export default function InquiryListPage() {
@@ -135,6 +140,9 @@ export default function InquiryListPage() {
                         {getStatusBadge(inquiry.status)}
                         <span className="text-xs text-muted-foreground">
                           {new Date(inquiry.createdAt).toLocaleDateString('ko-KR')}
+                        </span>
+                        <span className="text-xs text-muted-foreground">
+                          작성자: {inquiry.user.name || inquiry.user.email}
                         </span>
                         {inquiry.responses.length > 0 && (
                           <Badge variant="outline" className="text-xs">

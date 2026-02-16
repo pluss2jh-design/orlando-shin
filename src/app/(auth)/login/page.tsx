@@ -13,6 +13,9 @@ export default function LoginPage() {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState<string | null>(null);
   const [error, setError] = useState<string>('');
+  const [adminEmail, setAdminEmail] = useState('');
+  const [adminPassword, setAdminPassword] = useState('');
+  const [showAdminForm, setShowAdminForm] = useState(false);
 
   const handleSocialLogin = async (provider: string) => {
     try {
@@ -27,6 +30,33 @@ export default function LoginPage() {
     } catch (error) {
       console.error('Exception during signIn:', error);
       setError(`로그인 중 오류가 발생했습니다: ${error instanceof Error ? error.message : '알 수 없는 오류'}`);
+    } finally {
+      setIsLoading(null);
+    }
+  };
+
+  const handleAdminLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      setIsLoading('credentials');
+      setError('');
+      
+      const result = await signIn('credentials', {
+        email: adminEmail,
+        password: adminPassword,
+        redirect: false,
+        callbackUrl: '/admin/dashboard',
+      });
+
+      if (result?.error) {
+        setError('이메일 또는 비밀번호가 일치하지 않습니다.');
+      } else {
+        router.push('/admin/dashboard');
+        router.refresh();
+      }
+    } catch (error) {
+      console.error('Admin login error:', error);
+      setError('로그인 중 오류가 발생했습니다.');
     } finally {
       setIsLoading(null);
     }
@@ -92,14 +122,51 @@ export default function LoginPage() {
           <p className="mt-1">처음 로그인 시 자동으로 회원가입됩니다.</p>
         </div>
 
-        <div className="text-center">
+        <div className="text-center space-y-2">
           <a
             href="/stock-analysis"
-            className="text-sm text-primary hover:underline"
+            className="text-sm text-primary hover:underline block"
           >
             ← 주식 분석 화면으로 돌아가기
           </a>
+          <button
+            onClick={() => setShowAdminForm(!showAdminForm)}
+            className="text-xs text-muted-foreground hover:text-primary"
+          >
+            {showAdminForm ? '소셜 로그인으로 돌아가기' : '관리자 로그인'}
+          </button>
         </div>
+
+        {showAdminForm && (
+          <>
+            <Separator className="my-4" />
+            <form onSubmit={handleAdminLogin} className="space-y-3">
+              <input
+                type="email"
+                placeholder="관리자 이메일"
+                value={adminEmail}
+                onChange={(e) => setAdminEmail(e.target.value)}
+                className="w-full h-12 px-4 border rounded-md"
+                required
+              />
+              <input
+                type="password"
+                placeholder="비밀번호"
+                value={adminPassword}
+                onChange={(e) => setAdminPassword(e.target.value)}
+                className="w-full h-12 px-4 border rounded-md"
+                required
+              />
+              <Button
+                type="submit"
+                className="w-full h-12"
+                disabled={isLoading === 'credentials'}
+              >
+                {isLoading === 'credentials' ? '로그인 중...' : '관리자 로그인'}
+              </Button>
+            </form>
+          </>
+        )}
       </CardContent>
     </Card>
   );
