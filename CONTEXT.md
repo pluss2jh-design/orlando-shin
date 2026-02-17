@@ -1,11 +1,33 @@
 # Project Context History
 
 ## Current Session Tracking
-- **질의 횟수**: 2
+- **질의 횟수**: 3
 
 ## 2026-02-17
 
-### 관리자 대시보드 구축 및 로그인 리다이렉트 개선
+### 관리자 요금제 관리 및 사용자 멤버십 시스템 구축
+
+#### 변경사항
+1. **요금제 관리 기능 (Admin)**
+   - `src/app/admin/membership-plan/page.tsx`: Free, Standard, Premium 요금제 관리 화면 추가
+   - 요금제별 가격 설정 및 기능 권한(Feature Flag) 토글 기능 구현
+   - `uploads/config/plans.json`: 요금제 설정 데이터 영구 저장
+   - `src/app/api/admin/plans/route.ts`: 요금제 설정 CRUD API
+
+2. **사용자 유도 및 회원가입 프로세스**
+   - `src/app/pricing/page.tsx`: 시각적인 요금제 선택 카드 화면 추가
+   - `src/app/(auth)/signup/page.tsx`: 선택된 요금제가 반영된 회원가입 폼 구현
+   - `src/app/api/auth/signup/route.ts`: 사용자 플랜 정보와 함께 계정 생성 API
+
+3. **권한 기반 기능 제약 (SaaS Logic)**
+   - `src/lib/auth.ts`: 세션에 사용자 `plan` 및 `features` 플랜 정보 주입
+   - `src/components/stock-analysis/analysis-output.tsx`: 플랜에 따라 '상세 근거 자료' 접근 제한 및 업그레이드 유도 UI 적용
+   - `src/middleware.ts`: 관리자 및 회원 전용 페이지 접근 제어 로직 강화
+
+4. **UI/UX 개선**
+   - 기업 분석 화면에서 '데이터 관리' 섹션 삭제 (요청 사항 반영)
+   - 헤더에 사용자 현재 요금제 등급 표시 및 '멤버십 업그레이드' 버튼 추가
+   - 카카오 로그인 시 이메일 표시 문제 해결 (세션 데이터 기반 실시간 반영)
 
 #### 변경사항
 1. **카카오 QR 로그인 리다이렉트 문제 해결**

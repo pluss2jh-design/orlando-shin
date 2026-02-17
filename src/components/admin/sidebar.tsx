@@ -17,6 +17,7 @@ const menuItems = [
     { href: '/stock-analysis', label: '기업 조회(분석)', icon: Brain },
     { href: '/admin/data-library', label: '데이터 라이브러리', icon: Database },
     { href: '/admin/investment-logic', label: '투자 로직 관리', icon: Brain },
+    { href: '/admin/membership-plan', label: '요금제 관리', icon: Settings },
     { href: '/admin/settings', label: '시스템 설정', icon: Settings },
 ];
 

@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useState } from 'react';
-import { TrendingUp, AlertCircle, FileText, Video, CheckCircle, ChevronDown, ChevronUp, Mail, Newspaper } from 'lucide-react';
+import { TrendingUp, AlertCircle, FileText, Video, CheckCircle, ChevronDown, ChevronUp, Mail, Newspaper, Lock } from 'lucide-react';
+import { useSession } from 'next-auth/react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
@@ -19,6 +20,7 @@ interface AnalysisOutputProps {
 }
 
 export function AnalysisOutput({ results, conditions, isLoading, onSendEmail }: AnalysisOutputProps) {
+  const { data: session } = useSession();
   const [email, setEmail] = useState('');
   const [isSendingEmail, setIsSendingEmail] = useState(false);
   const [emailSent, setEmailSent] = useState(false);
@@ -94,7 +96,7 @@ export function AnalysisOutput({ results, conditions, isLoading, onSendEmail }: 
             <AlertCircle className="mx-auto h-12 w-12 mb-4 opacity-30" />
             <p className="font-medium text-foreground">조건에 부합하는 기업을 찾지 못했습니다</p>
             <p className="text-sm mt-2 max-w-xs mx-auto">
-              학습된 전략이나 시장 상황에 따라 추천 대상이 없을 수 있습니다. 
+              학습된 전략이나 시장 상황에 따라 추천 대상이 없을 수 있습니다.
               학습 데이터가 충분한지 확인하거나 투자 기간을 조정해보세요.
             </p>
           </div>
@@ -127,7 +129,7 @@ export function AnalysisOutput({ results, conditions, isLoading, onSendEmail }: 
         <TrendingUp className="h-6 w-6 text-primary" />
         AI 추천 TOP 5 기업
       </h3>
-      
+
       {results.map((result, idx) => (
         <Card key={result.ticker || idx} className="w-full overflow-hidden border-l-4 border-l-primary">
           <CardHeader className="pb-3 bg-muted/30">
@@ -160,7 +162,7 @@ export function AnalysisOutput({ results, conditions, isLoading, onSendEmail }: 
                   {result.reasoning}
                 </p>
               </div>
-              
+
               {result.totalRuleScore !== undefined && result.maxPossibleScore !== undefined && (
                 <Collapsible className="space-y-4 p-4 rounded-lg bg-primary/5 border border-primary/20">
                   <CollapsibleTrigger className="w-full">
@@ -175,7 +177,7 @@ export function AnalysisOutput({ results, conditions, isLoading, onSendEmail }: 
                     </div>
                   </CollapsibleTrigger>
                   <Progress value={(result.totalRuleScore / result.maxPossibleScore) * 100} className="h-2" />
-                  
+
                   <CollapsibleContent>
                     <div className="space-y-2 mt-4 pt-4 border-t border-primary/10">
                       <h5 className="text-xs font-bold text-muted-foreground uppercase">투자 규칙별 상세 평가 내역</h5>
@@ -186,13 +188,13 @@ export function AnalysisOutput({ results, conditions, isLoading, onSendEmail }: 
                               <p className="font-medium truncate text-foreground/80">{rule.rule.split(':')[0]}</p>
                               <p className="text-[10px] text-muted-foreground truncate">{rule.reason}</p>
                             </div>
-                            <Badge 
-                              variant="outline" 
+                            <Badge
+                              variant="outline"
                               className={cn(
                                 "font-mono font-bold",
                                 rule.score >= 8 ? "border-green-500 text-green-600 bg-green-50" :
-                                rule.score >= 5 ? "border-yellow-500 text-yellow-600 bg-yellow-50" :
-                                "border-red-500 text-red-600 bg-red-50"
+                                  rule.score >= 5 ? "border-yellow-500 text-yellow-600 bg-yellow-50" :
+                                    "border-red-500 text-red-600 bg-red-50"
                               )}
                             >
                               {rule.score}점
@@ -208,27 +210,48 @@ export function AnalysisOutput({ results, conditions, isLoading, onSendEmail }: 
 
             {result.sources.length > 0 && (
               <div className="pt-4 border-t">
-                <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
-                  학습 근거 및 위치 (Source & Location)
-                </h4>
+                <div className="flex items-center justify-between mb-3">
+                  <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                    학습 근거 및 위치 (Source & Location)
+                  </h4>
+                  {!(session?.user as any)?.features?.evidence_links && (
+                    <Badge variant="secondary" className="text-[10px] bg-yellow-100 text-yellow-700 border-yellow-200">
+                      Standard 이상 제공
+                    </Badge>
+                  )}
+                </div>
                 <div className="grid grid-cols-1 gap-3">
-                  {result.sources.slice(0, 3).map((source, sIdx) => (
-                    <div
-                      key={sIdx}
-                      className="flex items-start gap-3 p-3 rounded border bg-muted/20 text-xs"
-                    >
-                      {getSourceIcon(source.type)}
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between mb-1">
-                          <p className="font-bold truncate">{source.fileName}</p>
-                          <Badge variant="outline" className="text-[10px] h-5">
-                            {source.pageOrTimestamp !== '-' ? `P/T.${source.pageOrTimestamp}` : '전략 분석'}
-                          </Badge>
+                  {result.sources.slice(0, 3).map((source, sIdx) => {
+                    const hasAccess = (session?.user as any)?.features?.evidence_links || source.type === 'pdf';
+
+                    return (
+                      <div
+                        key={sIdx}
+                        className={cn(
+                          "flex items-start gap-3 p-3 rounded border text-xs relative overflow-hidden",
+                          hasAccess ? "bg-muted/20" : "bg-gray-100 opacity-60"
+                        )}
+                      >
+                        {getSourceIcon(source.type)}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between mb-1">
+                            <p className="font-bold truncate">{source.fileName}</p>
+                            <Badge variant="outline" className="text-[10px] h-5">
+                              {source.pageOrTimestamp !== '-' ? `P/T.${source.pageOrTimestamp}` : '전략 분석'}
+                            </Badge>
+                          </div>
+                          {hasAccess ? (
+                            <p className="text-muted-foreground line-clamp-2 italic">"{source.content}"</p>
+                          ) : (
+                            <div className="flex items-center gap-2 text-gray-400">
+                              <Lock className="h-3 w-3" />
+                              <p className="italic">멤버십 업그레이드 시 상세 근거가 공개됩니다</p>
+                            </div>
+                          )}
                         </div>
-                        <p className="text-muted-foreground line-clamp-2 italic">"{source.content}"</p>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             )}
@@ -252,7 +275,7 @@ export function AnalysisOutput({ results, conditions, isLoading, onSendEmail }: 
               onChange={(e) => setEmail(e.target.value)}
               className="flex-1"
             />
-            <Button 
+            <Button
               onClick={handleSendEmail}
               disabled={!email || isSendingEmail || !onSendEmail}
             >

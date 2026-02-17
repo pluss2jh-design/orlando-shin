@@ -4,16 +4,14 @@ import React, { useState, useEffect } from 'react';
 import { Brain, Sparkles, User, MessageSquare, Lock } from 'lucide-react';
 import { useSession, signOut } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
-import { DataControl } from '@/components/stock-analysis/data-control';
 import { InvestmentInput } from '@/components/stock-analysis/investment-input';
 import { AnalysisOutput } from '@/components/stock-analysis/analysis-output';
 import { NewsSection } from '@/components/stock-analysis/news-section';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
-  UploadedFile,
-  CloudSyncStatus,
   InvestmentConditions,
   AnalysisResult,
   NewsSummary
@@ -22,8 +20,6 @@ import {
 export default function StockAnalysisPage() {
   const router = useRouter();
   const { data: session, status } = useSession();
-  const [files, setFiles] = useState<UploadedFile[]>([]);
-  const [, setSyncStatus] = useState<CloudSyncStatus>({ status: 'idle' });
   const [analysisState, setAnalysisState] = useState<{
     conditions: InvestmentConditions | null;
     results: AnalysisResult[];
@@ -65,18 +61,6 @@ export default function StockAnalysisPage() {
     };
     checkKnowledge();
   }, []);
-
-  const handleFilesChange = (newFiles: UploadedFile[]) => {
-    setFiles(newFiles);
-  };
-
-  const handleSyncStatusChange = (status: CloudSyncStatus) => {
-    setSyncStatus(status);
-  };
-
-  const handleLearningComplete = () => {
-    setIsLearned(true);
-  };
 
   const handleSendEmail = async (email: string) => {
     const confirmed = window.confirm('이메일 발송 시 API 비용이 발생할 수 있습니다. 계속하시겠습니까?');
@@ -218,8 +202,6 @@ export default function StockAnalysisPage() {
     }
   };
 
-  const hasCompletedFiles = files.filter(f => f.status === 'completed').length > 0;
-  const canAnalyze = hasCompletedFiles || isLearned;
 
   if (status === 'loading') {
     return (
@@ -288,13 +270,26 @@ export default function StockAnalysisPage() {
                   <span className="text-xs font-medium">
                     {session.user?.name || session.user?.email}
                   </span>
-                  {session.user?.email && (
-                    <span className="text-[10px] text-muted-foreground leading-none">
-                      {session.user.email}
-                    </span>
-                  )}
+                  <div className="flex items-center gap-1.5">
+                    <Badge variant="outline" className="text-[9px] px-1 py-0 h-4 bg-primary/10 text-primary border-primary/20">
+                      {(session.user as any)?.plan?.toUpperCase() || 'FREE'}
+                    </Badge>
+                    {session.user?.email && (
+                      <span className="text-[10px] text-muted-foreground leading-none">
+                        {session.user.email}
+                      </span>
+                    )}
+                  </div>
                 </div>
               </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => router.push('/pricing')}
+                className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+              >
+                멤버십 업그레이드
+              </Button>
               <Button
                 variant="outline"
                 size="sm"
@@ -348,34 +343,27 @@ export default function StockAnalysisPage() {
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
           <div className="lg:col-span-4 space-y-6">
-            <DataControl
-              onFilesChange={handleFilesChange}
-              onSyncStatusChange={handleSyncStatusChange}
-              onLearningComplete={handleLearningComplete}
-            />
-
             <InvestmentInput
               onAnalyze={handleAnalyze}
-              disabled={!canAnalyze || analysisState.isAnalyzing}
+              disabled={analysisState.isAnalyzing}
             />
+          </div>
 
-            {(hasCompletedFiles || isLearned) && (
-              <div className={`p-4 rounded-lg border ${isLearned ? 'bg-green-50 border-green-200' : 'bg-primary/5 border-primary/20'}`}>
-                <div className="flex items-center gap-3">
-                  <Brain className={`h-5 w-5 ${isLearned ? 'text-green-600' : 'text-primary'}`} />
-                  <div>
-                    <p className="text-sm font-medium">
-                      {isLearned ? 'AI 전략 학습 완료' : '학습된 자료'}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
+          <div className="lg:col-span-8 space-y-6">
+            {analysisState.isAnalyzing && (
+              <Card className="bg-card/50 border-dashed">
+                <CardContent className="py-20">
+                  <div className="text-center">
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+                    <h3 className="text-xl font-semibold mb-2">시장 유니버스 분석 중...</h3>
+                    <p className="text-muted-foreground whitespace-pre-line">
                       {isLearned
-                        ? '시장 유니버스에서 유망 기업을 선별하기 위한 전략 학습이 완료되었습니다.'
-                        : `${files.filter(f => f.status === 'completed').length}개의 파일이 동기화되었습니다. 학습 시작 버튼을 클릭하세요.`
-                      }
+                        ? '학습된 투자 규칙을 바탕으로 S&P 500, Russell 1000, Dow Jones 기업들을 비교 분석하고 있습니다.\n각 기업의 재무 상태와 시장 지표를 추출하는 중입니다.'
+                        : 'Google Drive 자료에서 투자 인사이트를 도출하고 시장 데이터를 수집하고 있습니다.\n잠시만 기다려 주세요.'}
                     </p>
                   </div>
-                </div>
-              </div>
+                </CardContent>
+              </Card>
             )}
 
             {queriedTickers.length > 0 && (
