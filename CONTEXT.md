@@ -38,6 +38,13 @@
    - `src/app/admin/layout.tsx`: 관리자 권한 확인 및 리다이렉트
    - 관리자 이메일 화이트리스트 기반 접근 제어
 
+4. **Google Drive 동기화 경로 수정**
+   - `src/lib/google-drive/index.ts`에서 동기화 정보(`sync-info.json`)를 `uploads/gdrive/` 하위에 저장하도록 변경됨에 따라, 이를 읽어오는 API 경로(`src/app/api/admin/files/route.ts`, `src/app/api/admin/dashboard-stats/route.ts`)를 수정하여 파일 목록이 표시되지 않던 문제 해결.
+
+5. **관리자-분석 페이지 간 이동 편의성 개선**
+   - **관리자 사이드바**: '기업 조회(분석)' 메뉴 추가 (`/stock-analysis`로 연결)
+   - **분석 페이지 헤더**: 관리자 계정으로 로그인 시 '관리자 대시보드' 버튼 표시 (`/admin/dashboard`로 연결)
+
 #### 생성된 파일
 - `src/app/admin/layout.tsx`: 관리자 레이아웃
 - `src/components/admin/sidebar.tsx`: 사이드바 컴포넌트
@@ -51,7 +58,12 @@
 - `src/app/api/admin/settings/route.ts`: 설정 API
 
 #### 수정된 파일
-- `src/app/(auth)/login/page.tsx`: 리다이렉트 타이밍 개선
+- `src/app/(auth)/login/page.tsx`: 리다이렉트 타이밍 개선 및 디버깅 로그 추가
+- `src/lib/auth.ts`: 카카오 프로필 이메일 추출 로직 개선 및 JWT 로그 강화
+- `src/app/api/admin/files/route.ts`: GDrive 동기화 파일 경로 수정
+- `src/app/api/admin/dashboard-stats/route.ts`: GDrive 동기화 데이터 경로 수정
+- `src/components/admin/sidebar.tsx`: '기업 조회(분석)' 네비게이션 추가
+- `src/app/stock-analysis/page.tsx`: 관리자용 '관리자 대시보드' 버튼 추가 및 헤더 레이아웃 수정
 
 
 
