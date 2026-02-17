@@ -40,12 +40,32 @@ export default function StockAnalysisPage() {
   });
   const [isLearned, setIsLearned] = useState(false);
   const [queriedTickers, setQueriedTickers] = useState<string[]>([]);
+  const [userPlan, setUserPlan] = useState<string>('FREE');
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
 
   useEffect(() => {
     if (status === 'unauthenticated') {
       router.push('/login?callbackUrl=/stock-analysis');
     }
   }, [status, router]);
+
+  useEffect(() => {
+    const fetchUserPlan = async () => {
+      try {
+        const res = await fetch('/api/user/features');
+        if (res.ok) {
+          const data = await res.json();
+          setUserPlan(data.membershipTier);
+        }
+      } catch (error) {
+        console.error('Failed to fetch user plan:', error);
+      }
+    };
+
+    if (session?.user) {
+      fetchUserPlan();
+    }
+  }, [session]);
 
   useEffect(() => {
     const checkKnowledge = async () => {
@@ -114,6 +134,11 @@ export default function StockAnalysisPage() {
   };
 
   const handleAnalyze = async (newConditions: InvestmentConditions & { companyAiModel?: string; companyApiKey?: string; newsAiModel?: string; newsApiKey?: string; companyCount?: number }) => {
+    if (userPlan === 'FREE') {
+      setShowUpgradeModal(true);
+      return;
+    }
+
     const confirmed = window.confirm('기업 분석을 위해 실시간 데이터를 조회하며 API 비용이 발생할 수 있습니다. 계속하시겠습니까?');
     if (!confirmed) return;
 
@@ -415,6 +440,29 @@ export default function StockAnalysisPage() {
             )}
           </div>
         </div>
+
+        {showUpgradeModal && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+            <Card className="w-full max-w-md mx-4">
+              <CardHeader>
+                <CardTitle className="text-xl text-center">플랜 업그레이드 필요</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <p className="text-center text-gray-600">
+                  기업 분석 기능을 사용하려면 Standard 이상의 플랜이 필요합니다.
+                </p>
+                <div className="flex gap-3 justify-center">
+                  <Button variant="outline" onClick={() => setShowUpgradeModal(false)}>
+                    닫기
+                  </Button>
+                  <Button onClick={() => router.push('/pricing')}>
+                    플랜 보기
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
       </div>
     </div>
   );

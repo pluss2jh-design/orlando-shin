@@ -26,7 +26,7 @@ export async function POST(request: NextRequest) {
                 email,
                 password: hashedPassword,
                 plan: plan || 'free',
-                membershipTier: plan === 'premium' ? 'PRO' : 'FREE', // For legacy compatibility
+                membershipTier: (plan === 'premium' ? 'PREMIUM' : 'FREE') as any,
             }
         });
 

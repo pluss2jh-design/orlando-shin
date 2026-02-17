@@ -1,14 +1,15 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import {
     LayoutDashboard,
     Database,
     Brain,
     Settings,
     LogOut,
-    FileText
+    FileText,
+    Users
 } from 'lucide-react';
 import { signOut } from 'next-auth/react';
 
@@ -18,11 +19,18 @@ const menuItems = [
     { href: '/admin/data-library', label: '데이터 라이브러리', icon: Database },
     { href: '/admin/investment-logic', label: '투자 로직 관리', icon: Brain },
     { href: '/admin/membership-plan', label: '요금제 관리', icon: Settings },
+    { href: '/admin/users', label: '사용자 관리', icon: Users },
     { href: '/admin/settings', label: '시스템 설정', icon: Settings },
 ];
 
 export function AdminSidebar() {
     const pathname = usePathname();
+    const router = useRouter();
+
+    const handleLogout = async () => {
+        await signOut({ redirect: false });
+        router.push('/login');
+    };
 
     return (
         <aside className="w-64 bg-gray-900 border-r border-gray-800 flex flex-col">
@@ -56,7 +64,7 @@ export function AdminSidebar() {
 
             <div className="p-4 border-t border-gray-800">
                 <button
-                    onClick={() => signOut({ callbackUrl: '/login' })}
+                    onClick={handleLogout}
                     className="flex items-center gap-3 px-4 py-3 rounded-lg text-gray-400 hover:bg-gray-800 hover:text-white transition-colors w-full"
                 >
                     <LogOut className="h-5 w-5" />

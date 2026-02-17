@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { TrendingUp, AlertCircle, FileText, Video, CheckCircle, ChevronDown, ChevronUp, Mail, Newspaper, Lock } from 'lucide-react';
 import { useSession } from 'next-auth/react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -24,9 +24,30 @@ export function AnalysisOutput({ results, conditions, isLoading, onSendEmail }: 
   const [email, setEmail] = useState('');
   const [isSendingEmail, setIsSendingEmail] = useState(false);
   const [emailSent, setEmailSent] = useState(false);
+  const [canSendEmail, setCanSendEmail] = useState(false);
+  const [membershipTier, setMembershipTier] = useState<string>('FREE');
+
+  useEffect(() => {
+    const checkFeatures = async () => {
+      try {
+        const res = await fetch('/api/user/features');
+        if (res.ok) {
+          const data = await res.json();
+          setCanSendEmail(data.canSendEmail);
+          setMembershipTier(data.membershipTier);
+        }
+      } catch (error) {
+        console.error('Failed to check features:', error);
+      }
+    };
+
+    if (session?.user) {
+      checkFeatures();
+    }
+  }, [session]);
 
   const handleSendEmail = async () => {
-    if (!email || !onSendEmail) return;
+    if (!email || !onSendEmail || !canSendEmail) return;
     setIsSendingEmail(true);
     try {
       await onSendEmail(email);
@@ -259,32 +280,43 @@ export function AnalysisOutput({ results, conditions, isLoading, onSendEmail }: 
         </Card>
       ))}
 
-      <Card className="w-full border-dashed border-2 border-primary/30">
+      <Card className={`w-full border-dashed border-2 ${canSendEmail ? 'border-primary/30' : 'border-gray-300'}`}>
         <CardHeader>
           <CardTitle className="text-lg font-semibold flex items-center gap-2">
-            <Mail className="h-5 w-5 text-primary" />
-            분석 결과 이메일로 받기
+            <Mail className={`h-5 w-5 ${canSendEmail ? 'text-primary' : 'text-gray-400'}`} />
+            분석 자료 이메일 전송 기능
+            {!canSendEmail && <Badge variant="secondary" className="text-xs">Premium+</Badge>}
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="flex gap-3">
-            <Input
-              type="email"
-              placeholder="이메일 주소를 입력하세요"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="flex-1"
-            />
-            <Button
-              onClick={handleSendEmail}
-              disabled={!email || isSendingEmail || !onSendEmail}
-            >
-              {isSendingEmail ? '전송 중...' : emailSent ? '전송 완료!' : '이메일 발송'}
-            </Button>
-          </div>
-          <p className="text-xs text-muted-foreground mt-2">
-            * 분석 결과를 이메일로 받아보실 수 있습니다. API 사용으로 비용이 발생할 수 있습니다.
-          </p>
+          {canSendEmail ? (
+            <>
+              <div className="flex gap-3">
+                <Input
+                  type="email"
+                  placeholder="이메일 주소를 입력하세요"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="flex-1"
+                />
+                <Button
+                  onClick={handleSendEmail}
+                  disabled={!email || isSendingEmail || !onSendEmail}
+                >
+                  {isSendingEmail ? '전송 중...' : emailSent ? '전송 완료!' : '이메일 발송'}
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground mt-2">
+                * 분석 결과를 이메일로 받아보실 수 있습니다. API 사용으로 비용이 발생할 수 있습니다.
+              </p>
+            </>
+          ) : (
+            <div className="text-center py-4">
+              <Lock className="h-8 w-8 text-gray-400 mx-auto mb-2" />
+              <p className="text-sm text-gray-500 mb-2">현재 플랜({membershipTier})에서는 사용할 수 없는 기능입니다</p>
+              <p className="text-xs text-muted-foreground">Premium 이상 플랜에서 이용 가능합니다</p>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

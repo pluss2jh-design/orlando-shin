@@ -1,8 +1,57 @@
-import NextAuth from "next-auth";
-import { authConfig } from "./lib/auth.config";
+import { NextResponse } from 'next/server';
+import type { NextRequest } from 'next/server';
+import { auth } from './lib/auth';
 
-export default NextAuth(authConfig).auth;
+const ADMIN_EMAILS = ['pluss2.jh@gmail.com'];
+
+export default async function proxy(request: NextRequest) {
+  const { pathname } = request.nextUrl;
+  
+  const session = await auth();
+  const user = session?.user;
+  const isAdmin = user?.email && ADMIN_EMAILS.includes(user.email);
+  const isAuthenticated = !!user;
+  
+  if (pathname.startsWith('/admin')) {
+    if (!isAuthenticated) {
+      return NextResponse.redirect(new URL('/login?callbackUrl=' + pathname, request.url));
+    }
+    
+    if (!isAdmin) {
+      return NextResponse.redirect(new URL('/?error=unauthorized', request.url));
+    }
+    
+    return NextResponse.next();
+  }
+  
+  if (pathname === '/stock-analysis') {
+    if (!isAuthenticated) {
+      return NextResponse.redirect(new URL('/login?callbackUrl=/stock-analysis', request.url));
+    }
+    
+    return NextResponse.next();
+  }
+  
+  if (pathname === '/login' && isAuthenticated) {
+    if (isAdmin) {
+      return NextResponse.redirect(new URL('/admin/dashboard', request.url));
+    }
+    return NextResponse.redirect(new URL('/stock-analysis', request.url));
+  }
+  
+  if (pathname === '/register' && isAuthenticated) {
+    return NextResponse.redirect(new URL('/stock-analysis', request.url));
+  }
+  
+  return NextResponse.next();
+}
 
 export const config = {
-    matcher: ["/admin/:path*", "/stock-analysis/:path*", "/inquiry/:path*"],
+  matcher: [
+    '/admin/:path*',
+    '/stock-analysis',
+    '/login',
+    '/register',
+    '/api/admin/:path*',
+  ],
 };
