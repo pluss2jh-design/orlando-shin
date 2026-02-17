@@ -129,11 +129,11 @@ export function InvestmentInput({ onAnalyze, disabled }: InvestmentInputProps) {
                   <Building2 className="h-4 w-4" />
                   기업 분석용 AI 설정
                 </div>
-                
+
                 <div>
                   <label className="text-sm font-medium mb-2 block flex items-center gap-1">
                     <Settings className="h-3 w-3" />
-                    AI 모델 (기업 분석)
+                    AI 모델 (올랜도킴 자료 분석용)
                   </label>
                   <select
                     value={companyAiModel}
@@ -142,6 +142,9 @@ export function InvestmentInput({ onAnalyze, disabled }: InvestmentInputProps) {
                   >
                     {renderModelOptions()}
                   </select>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    업로드한 자료를 분석하여 투자 규칙을 학습하는 데 사용됩니다
+                  </p>
                 </div>
 
                 <div>
@@ -167,7 +170,7 @@ export function InvestmentInput({ onAnalyze, disabled }: InvestmentInputProps) {
                   <Newspaper className="h-4 w-4" />
                   뉴스 분석용 AI 설정
                 </div>
-                
+
                 <div>
                   <label className="text-sm font-medium mb-2 block flex items-center gap-1">
                     <Settings className="h-3 w-3" />

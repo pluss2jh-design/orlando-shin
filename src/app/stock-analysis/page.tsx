@@ -11,10 +11,10 @@ import { NewsSection } from '@/components/stock-analysis/news-section';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { 
-  UploadedFile, 
-  CloudSyncStatus, 
-  InvestmentConditions, 
+import {
+  UploadedFile,
+  CloudSyncStatus,
+  InvestmentConditions,
   AnalysisResult,
   NewsSummary
 } from '@/types/stock-analysis';
@@ -84,7 +84,7 @@ export default function StockAnalysisPage() {
 
     const response = await fetch('/api/email/send-analysis', {
       method: 'POST',
-      headers: { 
+      headers: {
         'Content-Type': 'application/json',
         'X-Confirmed': 'true'
       },
@@ -102,15 +102,12 @@ export default function StockAnalysisPage() {
   };
 
   const fetchNewsForTickers = async (tickers: string[]) => {
-    const confirmed = window.confirm('뉴스 조회 시 API 비용이 발생할 수 있습니다. 계속하시겠습니까?');
-    if (!confirmed) return;
-
     setNewsState(prev => ({ ...prev, isLoading: true }));
 
     try {
       const response = await fetch('/api/stock/news', {
         method: 'POST',
-        headers: { 
+        headers: {
           'Content-Type': 'application/json',
           'X-Confirmed': 'true'
         },
@@ -186,7 +183,7 @@ export default function StockAnalysisPage() {
           totalRuleScore: pick.totalRuleScore,
           maxPossibleScore: pick.maxPossibleScore,
         }));
-        
+
         setAnalysisState(prev => ({
           ...prev,
           results,
@@ -251,8 +248,8 @@ export default function StockAnalysisPage() {
             <p className="text-center text-muted-foreground">
               주식 분석 기능을 이용하려면 로그인이 필요합니다.
             </p>
-            <Button 
-              className="w-full" 
+            <Button
+              className="w-full"
               onClick={() => router.push('/login?callbackUrl=/stock-analysis')}
             >
               로그인하기
@@ -340,13 +337,13 @@ export default function StockAnalysisPage() {
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
           <div className="lg:col-span-4 space-y-6">
-            <DataControl 
+            <DataControl
               onFilesChange={handleFilesChange}
               onSyncStatusChange={handleSyncStatusChange}
               onLearningComplete={handleLearningComplete}
             />
-            
-            <InvestmentInput 
+
+            <InvestmentInput
               onAnalyze={handleAnalyze}
               disabled={!canAnalyze || analysisState.isAnalyzing}
             />
@@ -360,7 +357,7 @@ export default function StockAnalysisPage() {
                       {isLearned ? 'AI 전략 학습 완료' : '학습된 자료'}
                     </p>
                     <p className="text-xs text-muted-foreground">
-                      {isLearned 
+                      {isLearned
                         ? '시장 유니버스에서 유망 기업을 선별하기 위한 전략 학습이 완료되었습니다.'
                         : `${files.filter(f => f.status === 'completed').length}개의 파일이 동기화되었습니다. 학습 시작 버튼을 클릭하세요.`
                       }
@@ -375,7 +372,7 @@ export default function StockAnalysisPage() {
                 <label className="text-sm font-medium mb-2 block">
                   조회된 기업 목록 ({queriedTickers.length}개)
                 </label>
-                <select 
+                <select
                   className="w-full p-2 text-sm border rounded-md bg-background"
                   onChange={(e) => {
                     if (e.target.value) {
@@ -403,8 +400,8 @@ export default function StockAnalysisPage() {
                 {analysisState.error}
               </div>
             )}
-            
-            <AnalysisOutput 
+
+            <AnalysisOutput
               results={analysisState.results}
               conditions={analysisState.conditions}
               isLoading={analysisState.isAnalyzing}
@@ -412,7 +409,7 @@ export default function StockAnalysisPage() {
             />
 
             {analysisState.results.length > 0 && (
-              <NewsSection 
+              <NewsSection
                 summaries={newsState.summaries}
                 isLoading={newsState.isLoading}
               />

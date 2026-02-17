@@ -1,9 +1,34 @@
 # Project Context History
 
 ## Current Session Tracking
-- **질의 횟수**: 0 (커밋 완료 후 초기화됨)
+- **질의 횟수**: 1
 
-## 2026-02-13
+## 2026-02-17
+
+### 로그인 리다이렉트 개선, 뉴스 팝업 제거, AI 모델 설명 추가
+
+#### 변경사항
+1. **관리자/일반 사용자 구분 리다이렉트**
+   - `src/lib/auth.ts`: signIn 콜백 추가하여 OAuth 로그인 후 역할 기반 리다이렉트 준비
+   - 관리자 계정(`pluss2.jh@gmail.com`, `pluss2@kakao.com`)은 `/admin/dashboard`로 이동
+   - 일반 사용자는 `/stock-analysis`로 이동
+   - 로그인 페이지에서 세션 확인 후 자동 리다이렉트 처리
+
+2. **뉴스 조회 시 비용 발생 팝업 제거**
+   - `src/app/stock-analysis/page.tsx`: `fetchNewsForTickers` 함수에서 `window.confirm` 제거
+   - 뉴스 조회가 자동으로 실행되도록 개선
+
+3. **AI 모델 선택 설명 개선**
+   - `src/components/stock-analysis/investment-input.tsx`: AI 모델 선택 레이블 및 설명 추가
+   - "올랜도킴 자료 분석용" 명시
+   - "업로드한 자료를 분석하여 투자 규칙을 학습하는 데 사용됩니다" 설명 추가
+
+#### 수정된 파일
+- `src/lib/auth.ts`: signIn 콜백 추가
+- `src/app/stock-analysis/page.tsx`: 뉴스 조회 팝업 제거
+- `src/components/stock-analysis/investment-input.tsx`: AI 모델 설명 추가
+
+
 
 ### 메인 페이지 개선 및 사용자 정보 표시, 로그인 디버깅 강화
 

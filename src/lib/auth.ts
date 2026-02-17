@@ -16,7 +16,7 @@ const providers: any[] = [
     },
     async authorize(credentials) {
       if (!credentials?.email || !credentials?.password) return null;
-      
+
       const admin = await prisma.adminUser.findUnique({
         where: { email: credentials.email as string }
       });
@@ -67,6 +67,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   adapter: PrismaAdapter(prisma),
   providers,
   callbacks: {
+    async signIn({ user, account, profile }) {
+      // Allow sign in
+      return true;
+    },
     async session({ session, token }: { session: any; token: any }) {
       if (session.user) {
         session.user.id = token.sub;
