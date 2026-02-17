@@ -30,33 +30,35 @@ function getGeminiClient() {
 }
 
 function isPDFFile(file: DriveFileInfo): boolean {
-  return file.mimeType?.includes('pdf') || 
-         file.name?.toLowerCase().endsWith('.pdf') || false;
+  return file.mimeType?.includes('pdf') ||
+    file.name?.toLowerCase().endsWith('.pdf') || false;
 }
 
 function isVideoFile(file: DriveFileInfo): boolean {
-  return file.mimeType?.includes('video') || 
-         file.name?.toLowerCase().endsWith('.mp4') || false;
+  return file.mimeType?.includes('video') ||
+    file.name?.toLowerCase().endsWith('.mp4') || false;
 }
 
 function isTextOrDocumentFile(file: DriveFileInfo): boolean {
-  return file.mimeType?.includes('document') || 
-         file.mimeType?.includes('text') ||
-         file.mimeType?.includes('spreadsheet') || false;
+  return file.mimeType?.includes('document') ||
+    file.mimeType?.includes('text') ||
+    file.mimeType?.includes('spreadsheet') || false;
 }
 
 function hasActualAnalysis(keyConditions: string[]): boolean {
   if (!keyConditions || keyConditions.length === 0) return false;
-  
+
   const placeholderPatterns = [
     '제공된 비디오 파일의 내용을 분석할 수 없어',
     '비디오 파일의 내용을 직접 분석할 수 없',
     '영상의 내용을 분석할 수 없',
     '파일의 내용을 분석할 수 없',
     '내용을 분석할 수 없어',
+    '요약본을 제공해 주셔야',
+    '파악할 수 없습',
   ];
-  
-  return !keyConditions.some(condition => 
+
+  return !keyConditions.some(condition =>
     placeholderPatterns.some(pattern => condition.includes(pattern))
   );
 }
@@ -103,7 +105,7 @@ export async function runLearningPipeline(): Promise<LearnedKnowledge> {
         const existingAnalysis = existingKnowledge?.fileAnalyses?.find(
           fa => fa.fileName === file.name && fa.fileId === file.id
         );
-        
+
         if (existingAnalysis && hasActualAnalysis(existingAnalysis.keyConditions)) {
           console.log(`Keeping existing analysis for video: ${file.name}`);
           fileAnalyses.push(existingAnalysis);
@@ -125,7 +127,7 @@ export async function runLearningPipeline(): Promise<LearnedKnowledge> {
       }
 
       let content = '';
-      
+
       if (isPDFFile(file)) {
         content = await extractFileContent(file);
         console.log(`Extracted PDF content length: ${content.length} chars`);
@@ -137,7 +139,7 @@ export async function runLearningPipeline(): Promise<LearnedKnowledge> {
         console.log(`Skipping file ${file.name}: empty content`);
         continue;
       }
-      
+
       if (content.length < 100) {
         console.log(`Warning: Short content for ${file.name}: "${content.substring(0, 200)}"`);
       }
@@ -145,7 +147,7 @@ export async function runLearningPipeline(): Promise<LearnedKnowledge> {
       console.log(`Processing PDF file: ${file.name}`);
 
       const model = genAI.getGenerativeModel({ model: 'gemini-2.5-pro' });
-      
+
       const prompt = `당신은 전문 주식 투자 분석가입니다. 제공된 자료(PDF 또는 텍스트)에서 주가 상승 및 기업 분석에 핵심적인 "모든" 규칙과 지표를 최대한 많이 추출하세요.
 
 특히 다음 요소들을 반드시 포함하여 상세하게 추출해 주세요:
@@ -174,9 +176,9 @@ ${content.substring(0, 12000)}`;
 
       const result = await model.generateContent(prompt);
       const responseText = result.response.text();
-      
+
       let analysisResult: { keyConditions?: string[] } = { keyConditions: [] };
-      
+
       try {
         const jsonMatch = responseText.match(/\{[\s\S]*\}/);
         if (jsonMatch) {
@@ -188,7 +190,7 @@ ${content.substring(0, 12000)}`;
           keyConditions: responseText.split('\n').filter(line => line.trim().startsWith('-') || line.trim().match(/^\d+\./)).map(line => line.replace(/^[-\d.\s]+/, '').trim()).slice(0, 7)
         };
       }
-      
+
       const unanalyzablePatterns = [
         '추출하는 것이 불가능합니다',
         '추출할 수 없습니다',
@@ -206,9 +208,9 @@ ${content.substring(0, 12000)}`;
         '찾을 수 없습니다',
         '포함되지 않았습니다'
       ];
-      
+
       const filteredConditions = (analysisResult.keyConditions || []).filter(condition => {
-        const hasUnanalyzable = unanalyzablePatterns.some(pattern => 
+        const hasUnanalyzable = unanalyzablePatterns.some(pattern =>
           condition.includes(pattern)
         );
         if (hasUnanalyzable) {
@@ -217,7 +219,7 @@ ${content.substring(0, 12000)}`;
         }
         return true;
       });
-      
+
       fileAnalyses.push({
         fileName: file.name,
         fileId: file.id,
@@ -238,20 +240,20 @@ ${content.substring(0, 12000)}`;
     throw new Error('처리할 수 있는 파일이 없습니다. Google Drive에 PDF 파일이 있는지 확인해주세요.');
   }
 
-  const pdfAnalyses = fileAnalyses.filter(fa => 
+  const pdfAnalyses = fileAnalyses.filter(fa =>
     fa.fileName.toLowerCase().endsWith('.pdf')
   );
   console.log(`PDF analyses count: ${pdfAnalyses.length}`);
-  
+
   const pdfConditions = pdfAnalyses
     .flatMap(fa => fa.keyConditions)
     .join('\n');
-  
+
   console.log(`Total PDF conditions length: ${pdfConditions.length} chars`);
   console.log(`PDF conditions preview: ${pdfConditions.substring(0, 500)}...`);
-  
+
   const strategyModel = genAI.getGenerativeModel({ model: 'gemini-2.5-pro' });
-  
+
   const strategyPrompt = `전설적인 투자 전략가로서 PDF 자료에서 추출된 핵심 조건들을 종합하여 포괄적인 투자 전략과 기업 선정 규칙을 도출하세요.
 
 다음 카테고리별로 규칙을 최대한 많이 추출하세요 (각 카테고리당 5~15개 이상):
@@ -287,12 +289,12 @@ PDF 자료에서 추출한 주가 상승 핵심 조건들입니다:
 ${pdfConditions.substring(0, 15000)}`;
 
   let strategyData: any = {};
-  
+
   if (pdfConditions.trim().length > 0) {
     try {
       const strategyResult = await strategyModel.generateContent(strategyPrompt);
       const strategyText = strategyResult.response.text();
-      
+
       try {
         const jsonMatch = strategyText.match(/\{[\s\S]*\}/);
         if (jsonMatch) {
@@ -305,7 +307,7 @@ ${pdfConditions.substring(0, 15000)}`;
       console.error('Strategy generation error:', error);
     }
   }
-  
+
   const defaultSource: SourceReference = {
     fileName: '종합 전략 분석',
     type: 'pdf',
@@ -337,12 +339,12 @@ ${pdfConditions.substring(0, 15000)}`;
   ];
 
   const hasValidStrategy = strategyData.strategy?.shortTermConditions?.length > 0 ||
-                          strategyData.strategy?.longTermConditions?.length > 0;
-  
+    strategyData.strategy?.longTermConditions?.length > 0;
+
   const hasValidCriteria = strategyData.criteria?.goodCompanyRules?.length > 0;
 
   let usingFallbackRules = false;
-  
+
   if (!hasValidCriteria) {
     console.log('⚠️ 규칙 생성 실패: 기본 규칙 7개를 적용합니다.');
     usingFallbackRules = true;
@@ -359,7 +361,7 @@ ${pdfConditions.substring(0, 15000)}`;
     fileName: '기본 투자 규칙 (AI 분석 실패 시 적용)',
     type: 'pdf',
     pageOrTimestamp: '-',
-    content: usingFallbackRules 
+    content: usingFallbackRules
       ? 'AI 분석에서 규칙 생성에 실패하여 기본 규칙 7개가 적용되었습니다.'
       : 'PDF 자료를 종합하여 도출된 투자 전략입니다.',
   };
@@ -401,75 +403,75 @@ ${pdfConditions.substring(0, 15000)}`;
   ];
 
   const criteria: LearnedInvestmentCriteria = {
-    goodCompanyRules: hasValidCriteria 
+    goodCompanyRules: hasValidCriteria
       ? strategyData.criteria.goodCompanyRules.map((r: any) => ({
-          rule: r.rule,
-          weight: r.weight || 0.5,
-          source: fallbackSource,
-          category: r.category || 'fundamental',
-        }))
+        rule: r.rule,
+        weight: r.weight || 0.5,
+        source: fallbackSource,
+        category: r.category || 'fundamental',
+      }))
       : defaultRules.map(r => ({ ...r, category: 'fundamental' as const, source: fallbackSource })),
     idealMetricRanges: hasValidCriteria
       ? (strategyData.criteria.idealMetricRanges || []).map((r: any) => ({
-          metric: r.metric,
-          min: r.min,
-          max: r.max,
-          description: r.description || '',
-          source: fallbackSource,
-        }))
+        metric: r.metric,
+        min: r.min,
+        max: r.max,
+        description: r.description || '',
+        source: fallbackSource,
+      }))
       : defaultMetricRanges.map(r => ({ ...r, source: fallbackSource })),
     principles: hasValidCriteria
       ? (strategyData.criteria.principles || []).map((p: any) => ({
-          principle: p.principle,
-          category: p.category || 'general',
-          source: fallbackSource,
-        }))
+        principle: p.principle,
+        category: p.category || 'general',
+        source: fallbackSource,
+      }))
       : defaultPrinciples.map(p => ({ ...p, source: fallbackSource })),
     technicalRules: hasValidCriteria && strategyData.criteria?.technicalRules?.length > 0
       ? strategyData.criteria.technicalRules.map((r: any) => ({
-          indicator: r.indicator,
-          rule: r.rule,
-          weight: r.weight || 0.5,
-          source: fallbackSource,
-        }))
+        indicator: r.indicator,
+        rule: r.rule,
+        weight: r.weight || 0.5,
+        source: fallbackSource,
+      }))
       : defaultTechnicalRules.map(r => ({ ...r, source: fallbackSource })),
     marketSizeRules: hasValidCriteria && strategyData.criteria?.marketSizeRules?.length > 0
       ? strategyData.criteria.marketSizeRules.map((r: any) => ({
-          rule: r.rule,
-          weight: r.weight || 0.5,
-          source: fallbackSource,
-        }))
+        rule: r.rule,
+        weight: r.weight || 0.5,
+        source: fallbackSource,
+      }))
       : defaultMarketSizeRules.map(r => ({ ...r, source: fallbackSource })),
     unitEconomicsRules: hasValidCriteria && strategyData.criteria?.unitEconomicsRules?.length > 0
       ? strategyData.criteria.unitEconomicsRules.map((r: any) => ({
-          metric: r.metric,
-          rule: r.rule,
-          weight: r.weight || 0.5,
-          source: fallbackSource,
-        }))
+        metric: r.metric,
+        rule: r.rule,
+        weight: r.weight || 0.5,
+        source: fallbackSource,
+      }))
       : defaultUnitEconomicsRules.map(r => ({ ...r, source: fallbackSource })),
     lifecycleRules: hasValidCriteria && strategyData.criteria?.lifecycleRules?.length > 0
       ? strategyData.criteria.lifecycleRules.map((r: any) => ({
-          stage: r.stage || 'growth',
-          rule: r.rule,
-          weight: r.weight || 0.5,
-          source: fallbackSource,
-        }))
+        stage: r.stage || 'growth',
+        rule: r.rule,
+        weight: r.weight || 0.5,
+        source: fallbackSource,
+      }))
       : defaultLifecycleRules.map(r => ({ ...r, source: fallbackSource })),
     buyTimingRules: hasValidCriteria && strategyData.criteria?.buyTimingRules?.length > 0
       ? strategyData.criteria.buyTimingRules.map((r: any) => ({
-          rule: r.rule,
-          weight: r.weight || 0.5,
-          conditions: r.conditions || [],
-          source: fallbackSource,
-        }))
+        rule: r.rule,
+        weight: r.weight || 0.5,
+        conditions: r.conditions || [],
+        source: fallbackSource,
+      }))
       : defaultBuyTimingRules.map(r => ({ ...r, source: fallbackSource })),
   };
-  
-   console.log(`Final criteria: ${criteria.goodCompanyRules.length} fundamental rules, ${criteria.technicalRules.length} technical rules, ${criteria.marketSizeRules.length} market rules, ${criteria.unitEconomicsRules.length} unit economics rules, ${criteria.lifecycleRules.length} lifecycle rules, ${criteria.buyTimingRules.length} buy timing rules`);
-   if (usingFallbackRules) {
-     console.log('✅ 기본 규칙 30+개가 성공적으로 적용되었습니다.');
-   }
+
+  console.log(`Final criteria: ${criteria.goodCompanyRules.length} fundamental rules, ${criteria.technicalRules.length} technical rules, ${criteria.marketSizeRules.length} market rules, ${criteria.unitEconomicsRules.length} unit economics rules, ${criteria.lifecycleRules.length} lifecycle rules, ${criteria.buyTimingRules.length} buy timing rules`);
+  if (usingFallbackRules) {
+    console.log('✅ 기본 규칙 30+개가 성공적으로 적용되었습니다.');
+  }
 
   const knowledge: LearnedKnowledge = {
     fileAnalyses,

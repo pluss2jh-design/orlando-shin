@@ -41,9 +41,15 @@ function LoginForm() {
       setError('');
       console.log(`Attempting to sign in with ${provider}...`);
 
-      await signIn(provider, {
+      const result = await signIn(provider, {
         redirect: false,
+        callbackUrl: '/stock-analysis',
       });
+
+      if (result?.error) {
+        setError(`로그인 중 오류가 발생했습니다: ${result.error}`);
+        setIsLoading(null);
+      }
     } catch (error) {
       console.error('Exception during signIn:', error);
       setError(`로그인 중 오류가 발생했습니다: ${error instanceof Error ? error.message : '알 수 없는 오류'}`);

@@ -324,6 +324,7 @@ export interface RecommendationResult {
   processedAt: Date;
   summary: string;
   allSourcesUsed: SourceReference[];
+  queriedTickers: string[];
 }
 
 // ===========================

@@ -1,14 +1,16 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Brain, Sparkles, User, MessageSquare } from 'lucide-react';
+import { Brain, Sparkles, User, MessageSquare, Lock } from 'lucide-react';
 import { useSession, signOut } from 'next-auth/react';
+import { useRouter } from 'next/navigation';
 import { DataControl } from '@/components/stock-analysis/data-control';
 import { InvestmentInput } from '@/components/stock-analysis/investment-input';
 import { AnalysisOutput } from '@/components/stock-analysis/analysis-output';
 import { NewsSection } from '@/components/stock-analysis/news-section';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { 
   UploadedFile, 
   CloudSyncStatus, 
@@ -18,6 +20,8 @@ import {
 } from '@/types/stock-analysis';
 
 export default function StockAnalysisPage() {
+  const router = useRouter();
+  const { data: session, status } = useSession();
   const [files, setFiles] = useState<UploadedFile[]>([]);
   const [, setSyncStatus] = useState<CloudSyncStatus>({ status: 'idle' });
   const [analysisState, setAnalysisState] = useState<{
@@ -39,6 +43,13 @@ export default function StockAnalysisPage() {
     isLoading: false,
   });
   const [isLearned, setIsLearned] = useState(false);
+  const [queriedTickers, setQueriedTickers] = useState<string[]>([]);
+
+  useEffect(() => {
+    if (status === 'unauthenticated') {
+      router.push('/login?callbackUrl=/stock-analysis');
+    }
+  }, [status, router]);
 
   useEffect(() => {
     const checkKnowledge = async () => {
@@ -186,6 +197,10 @@ export default function StockAnalysisPage() {
         if (tickers.length > 0) {
           fetchNewsForTickers(tickers);
         }
+
+        if (data.queriedTickers && Array.isArray(data.queriedTickers)) {
+          setQueriedTickers(data.queriedTickers);
+        }
       } else {
         setAnalysisState(prev => ({
           ...prev,
@@ -208,7 +223,45 @@ export default function StockAnalysisPage() {
 
   const hasCompletedFiles = files.filter(f => f.status === 'completed').length > 0;
   const canAnalyze = hasCompletedFiles || isLearned;
-  const { data: session } = useSession();
+
+  if (status === 'loading') {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-muted-foreground">로딩 중...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (status === 'unauthenticated') {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-background to-muted/20">
+        <Card className="w-full max-w-md mx-4">
+          <CardHeader className="text-center">
+            <div className="flex justify-center mb-4">
+              <div className="p-3 bg-primary/10 rounded-full">
+                <Lock className="w-8 h-8 text-primary" />
+              </div>
+            </div>
+            <CardTitle className="text-2xl font-bold">로그인이 필요합니다</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <p className="text-center text-muted-foreground">
+              주식 분석 기능을 이용하려면 로그인이 필요합니다.
+            </p>
+            <Button 
+              className="w-full" 
+              onClick={() => router.push('/login?callbackUrl=/stock-analysis')}
+            >
+              로그인하기
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-background to-muted/20">
@@ -314,6 +367,32 @@ export default function StockAnalysisPage() {
                     </p>
                   </div>
                 </div>
+              </div>
+            )}
+
+            {queriedTickers.length > 0 && (
+              <div className="p-4 rounded-lg border bg-muted/30">
+                <label className="text-sm font-medium mb-2 block">
+                  조회된 기업 목록 ({queriedTickers.length}개)
+                </label>
+                <select 
+                  className="w-full p-2 text-sm border rounded-md bg-background"
+                  onChange={(e) => {
+                    if (e.target.value) {
+                      window.open(`https://finance.yahoo.com/quote/${e.target.value}`, '_blank');
+                    }
+                  }}
+                >
+                  <option value="">티커 선택...</option>
+                  {queriedTickers.map((ticker) => (
+                    <option key={ticker} value={ticker}>
+                      {ticker}
+                    </option>
+                  ))}
+                </select>
+                <p className="text-xs text-muted-foreground mt-2">
+                  분석 대상이 된 전체 기업 티커 목록입니다.
+                </p>
               </div>
             )}
           </div>

@@ -205,6 +205,7 @@ export async function runAnalysisEngine(
     processedAt: new Date(),
     summary: `시장 유니버스 ${stocksWithScores.length}개 종목을 분석하여 투자 규칙 부합도가 가장 높은 TOP ${companyCount} 기업을 선정했습니다.`,
     allSourcesUsed: deduplicateSources(allRules.map(r => r.source).filter(Boolean)),
+    queriedTickers: universe,
   };
 }
 
