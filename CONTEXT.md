@@ -1,7 +1,7 @@
 # Project Context History
 
 ## Current Session Tracking
-- **질의 횟수**: 1
+- **질의 횟수**: 2
 
 ## 2026-02-17
 

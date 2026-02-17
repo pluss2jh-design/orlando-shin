@@ -25,15 +25,19 @@ function LoginForm() {
     if (status === 'authenticated' && session?.user?.email) {
       const userEmail = session.user.email;
       const isAdmin = ADMIN_EMAILS.includes(userEmail) || (session.user as any).role === 'ADMIN';
-      
+
+      console.log('Session authenticated:', { userEmail, isAdmin, role: (session.user as any).role });
+
       if (isAdmin) {
-        router.push('/admin/dashboard');
+        console.log('Redirecting to admin dashboard...');
+        window.location.href = '/admin/dashboard';
       } else {
         const callbackUrl = searchParams.get('callbackUrl') || '/stock-analysis';
-        router.push(callbackUrl);
+        console.log('Redirecting to:', callbackUrl);
+        window.location.href = callbackUrl;
       }
     }
-  }, [status, session, router, searchParams]);
+  }, [status, session, searchParams]);
 
   const handleSocialLogin = async (provider: string) => {
     try {
@@ -41,15 +45,10 @@ function LoginForm() {
       setError('');
       console.log(`Attempting to sign in with ${provider}...`);
 
-      const result = await signIn(provider, {
-        redirect: false,
-        callbackUrl: '/stock-analysis',
+      // Let NextAuth handle the OAuth redirect naturally
+      await signIn(provider, {
+        callbackUrl: window.location.origin + '/login',
       });
-
-      if (result?.error) {
-        setError(`로그인 중 오류가 발생했습니다: ${result.error}`);
-        setIsLoading(null);
-      }
     } catch (error) {
       console.error('Exception during signIn:', error);
       setError(`로그인 중 오류가 발생했습니다: ${error instanceof Error ? error.message : '알 수 없는 오류'}`);
@@ -62,7 +61,7 @@ function LoginForm() {
     try {
       setIsLoading('credentials');
       setError('');
-      
+
       const result = await signIn('credentials', {
         email: adminEmail,
         password: adminPassword,
@@ -121,7 +120,7 @@ function LoginForm() {
               viewBox="0 0 24 24"
               fill="currentColor"
             >
-              <path d="M12 2C6.48 2 2 5.58 2 10.14c0 2.58 1.68 4.87 4.22 6.23l-.92 3.4c-.08.28.24.5.48.34l4.12-2.74c.58.08 1.18.12 1.78.12 5.52 0 10-3.58 10-8.14S17.52 2 12 2z"/>
+              <path d="M12 2C6.48 2 2 5.58 2 10.14c0 2.58 1.68 4.87 4.22 6.23l-.92 3.4c-.08.28.24.5.48.34l4.12-2.74c.58.08 1.18.12 1.78.12 5.52 0 10-3.58 10-8.14S17.52 2 12 2z" />
             </svg>
             {isLoading === 'kakao' ? '로그인 중...' : '카카오 계정으로 계속하기'}
           </Button>
