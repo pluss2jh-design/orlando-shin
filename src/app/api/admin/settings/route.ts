@@ -52,12 +52,13 @@ export async function POST(request: NextRequest) {
         const updatedKeys = new Set<string>();
 
         for (const [key, value] of Object.entries(keys)) {
-            if (!value || value.startsWith('••••')) continue; // Skip masked values
+            const valueStr = value as string;
+            if (!valueStr || valueStr.startsWith('••••')) continue; // Skip masked values
 
             let found = false;
             for (let i = 0; i < lines.length; i++) {
                 if (lines[i].startsWith(`${key}=`)) {
-                    lines[i] = `${key}=${value}`;
+                    lines[i] = `${key}=${valueStr}`;
                     found = true;
                     updatedKeys.add(key);
                     break;
@@ -65,7 +66,7 @@ export async function POST(request: NextRequest) {
             }
 
             if (!found) {
-                lines.push(`${key}=${value}`);
+                lines.push(`${key}=${valueStr}`);
                 updatedKeys.add(key);
             }
         }
