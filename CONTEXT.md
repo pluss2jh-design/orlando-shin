@@ -1,32 +1,59 @@
 # Project Context History
 
 ## Current Session Tracking
-- **질의 횟수**: 2
+- **질의 횟수**: 3
 
 ## 2026-02-17
 
-### 로그인 리다이렉트 개선, 뉴스 팝업 제거, AI 모델 설명 추가
+### 관리자 대시보드 구축 및 로그인 리다이렉트 개선
 
 #### 변경사항
-1. **관리자/일반 사용자 구분 리다이렉트**
-   - `src/lib/auth.ts`: signIn 콜백 추가하여 OAuth 로그인 후 역할 기반 리다이렉트 준비
-   - 관리자 계정(`pluss2.jh@gmail.com`, `pluss2@kakao.com`)은 `/admin/dashboard`로 이동
-   - 일반 사용자는 `/stock-analysis`로 이동
-   - 로그인 페이지에서 세션 확인 후 자동 리다이렉트 처리
+1. **카카오 QR 로그인 리다이렉트 문제 해결**
+   - `src/app/(auth)/login/page.tsx`: setTimeout 추가하여 세션 로드 후 리다이렉트 보장
+   - OAuth 콜백 후 100ms 지연을 두어 세션이 완전히 로드된 후 리다이렉트 실행
 
-2. **뉴스 조회 시 비용 발생 팝업 제거**
-   - `src/app/stock-analysis/page.tsx`: `fetchNewsForTickers` 함수에서 `window.confirm` 제거
-   - 뉴스 조회가 자동으로 실행되도록 개선
+2. **관리자 전용 대시보드 구축**
+   - **레이아웃**: 사이드바 메뉴가 포함된 다크 모드 레이아웃
+   - **통합 대시보드** (`/admin/dashboard`):
+     - Google Drive 연결 상태 카드
+     - 전체 파일 개수 카드
+     - 학습 완료 파일 개수 카드
+     - AI 모델 가동 현황 카드
+   - **데이터 라이브러리** (`/admin/data-library`):
+     - Google Drive 파일 목록 테이블
+     - 각 파일별 학습 상태 표시 (완료/대기/처리중)
+     - 개별 파일 학습 버튼
+     - Google Drive 동기화 버튼
+   - **투자 로직 관리** (`/admin/investment-logic`):
+     - learned-knowledge.json 내용 확인 및 편집
+     - JSON 형식 검증
+     - 전체 다시 학습하기 기능
+     - 실시간 저장 기능
+   - **시스템 설정** (`/admin/settings`):
+     - API 키 관리 (Google API, OpenAI, Yahoo Finance)
+     - 보안을 위한 마스킹 처리
+     - .env 파일 자동 업데이트
 
-3. **AI 모델 선택 설명 개선**
-   - `src/components/stock-analysis/investment-input.tsx`: AI 모델 선택 레이블 및 설명 추가
-   - "올랜도킴 자료 분석용" 명시
-   - "업로드한 자료를 분석하여 투자 규칙을 학습하는 데 사용됩니다" 설명 추가
+3. **관리자 인증 시스템**
+   - `src/app/admin/layout.tsx`: 관리자 권한 확인 및 리다이렉트
+   - 관리자 이메일 화이트리스트 기반 접근 제어
+
+#### 생성된 파일
+- `src/app/admin/layout.tsx`: 관리자 레이아웃
+- `src/components/admin/sidebar.tsx`: 사이드바 컴포넌트
+- `src/app/admin/dashboard/page.tsx`: 통합 대시보드
+- `src/app/admin/data-library/page.tsx`: 데이터 라이브러리
+- `src/app/admin/investment-logic/page.tsx`: 투자 로직 관리
+- `src/app/admin/settings/page.tsx`: 시스템 설정
+- `src/app/api/admin/dashboard-stats/route.ts`: 대시보드 통계 API
+- `src/app/api/admin/files/route.ts`: 파일 목록 API
+- `src/app/api/admin/investment-logic/route.ts`: 투자 로직 API
+- `src/app/api/admin/settings/route.ts`: 설정 API
 
 #### 수정된 파일
-- `src/lib/auth.ts`: signIn 콜백 추가
-- `src/app/stock-analysis/page.tsx`: 뉴스 조회 팝업 제거
-- `src/components/stock-analysis/investment-input.tsx`: AI 모델 설명 추가
+- `src/app/(auth)/login/page.tsx`: 리다이렉트 타이밍 개선
+
+
 
 
 

@@ -28,14 +28,17 @@ function LoginForm() {
 
       console.log('Session authenticated:', { userEmail, isAdmin, role: (session.user as any).role });
 
-      if (isAdmin) {
-        console.log('Redirecting to admin dashboard...');
-        window.location.href = '/admin/dashboard';
-      } else {
-        const callbackUrl = searchParams.get('callbackUrl') || '/stock-analysis';
-        console.log('Redirecting to:', callbackUrl);
-        window.location.href = callbackUrl;
-      }
+      // Force a small delay to ensure session is fully loaded
+      setTimeout(() => {
+        if (isAdmin) {
+          console.log('Redirecting to admin dashboard...');
+          window.location.href = '/admin/dashboard';
+        } else {
+          const callbackUrl = searchParams.get('callbackUrl') || '/stock-analysis';
+          console.log('Redirecting to:', callbackUrl);
+          window.location.href = callbackUrl;
+        }
+      }, 100);
     }
   }, [status, session, searchParams]);
 

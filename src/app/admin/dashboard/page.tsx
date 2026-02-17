@@ -1,127 +1,156 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { useSession, signOut } from 'next-auth/react';
+import { Database, FileText, Brain, CheckCircle, XCircle, Clock } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { LogOut, User, Settings } from 'lucide-react';
 
-interface Inquiry {
-  id: string;
-  title: string;
-  content: string;
-  status: 'OPEN' | 'IN_PROGRESS' | 'CLOSED';
-  createdAt: string;
-  user: {
-    email: string;
-    name: string | null;
-  };
+interface DashboardStats {
+  gdriveConnected: boolean;
+  totalFiles: number;
+  learnedFiles: number;
+  aiModelStatus: 'active' | 'idle' | 'error';
+  lastSyncTime: string | null;
 }
 
 export default function AdminDashboardPage() {
-  const router = useRouter();
-  const { data: session, status } = useSession();
-  const [inquiries, setInquiries] = useState<Inquiry[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [stats, setStats] = useState<DashboardStats>({
+    gdriveConnected: false,
+    totalFiles: 0,
+    learnedFiles: 0,
+    aiModelStatus: 'idle',
+    lastSyncTime: null,
+  });
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (status === 'unauthenticated') {
-      router.push('/admin/login');
-      return;
-    }
+    fetchDashboardStats();
+  }, []);
 
-    if (status === 'authenticated') {
-      if ((session?.user as any).role !== 'ADMIN') {
-        alert('관리자 권한이 없습니다.');
-        router.push('/');
-        return;
-      }
-      fetchInquiries();
-    }
-  }, [status, session, router]);
-
-  const fetchInquiries = async () => {
+  const fetchDashboardStats = async () => {
     try {
-      const response = await fetch('/api/inquiry');
-      const data = await response.json();
-      setInquiries(data.inquiries || []);
+      const response = await fetch('/api/admin/dashboard-stats');
+      if (response.ok) {
+        const data = await response.json();
+        setStats(data);
+      }
     } catch (error) {
-      console.error('Failed to fetch inquiries:', error);
+      console.error('Failed to fetch dashboard stats:', error);
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
   };
-
-  const getStatusBadge = (status: string) => {
-    const configs = {
-      OPEN: { label: '접수', className: 'bg-blue-100 text-blue-700' },
-      IN_PROGRESS: { label: '처리중', className: 'bg-yellow-100 text-yellow-700' },
-      CLOSED: { label: '완료', className: 'bg-green-100 text-green-700' },
-    };
-    const config = configs[status as keyof typeof configs];
-    return <Badge className={config?.className}>{config?.label}</Badge>;
-  };
-
-  if (status === 'loading' || isLoading) {
-    return <div className="text-center py-12">로딩 중...</div>;
-  }
 
   return (
-    <div className="min-h-screen bg-gray-100 p-8">
-      <div className="max-w-6xl mx-auto">
-        <div className="flex justify-between items-center mb-8">
-          <h1 className="text-3xl font-bold">관리자 대시보드</h1>
-          <div className="flex items-center gap-2">
-            <span className="text-sm font-medium mr-2">{session?.user?.email}</span>
-            <Button variant="outline" size="sm" onClick={() => router.push('/admin/profile')}>
-              <Settings className="w-4 h-4 mr-2" />
-              계정 설정
-            </Button>
-            <Button variant="outline" size="sm" onClick={() => signOut({ callbackUrl: '/' })}>
-              <LogOut className="w-4 h-4 mr-2" />
-              로그아웃
-            </Button>
-          </div>
-        </div>
-
-        <div className="grid gap-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>문의 관리 ({inquiries.length})</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {inquiries.map((inquiry) => (
-                  <div
-                    key={inquiry.id}
-                    className="p-4 border rounded-lg bg-white hover:bg-gray-50 cursor-pointer transition-colors"
-                    onClick={() => router.push(`/inquiry/${inquiry.id}`)}
-                  >
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <div className="flex items-center gap-2 mb-1">
-                          {getStatusBadge(inquiry.status)}
-                          <h3 className="font-medium">{inquiry.title}</h3>
-                        </div>
-                        <p className="text-sm text-muted-foreground line-clamp-1">{inquiry.content}</p>
-                      </div>
-                      <div className="text-right text-xs text-muted-foreground">
-                        <div className="flex items-center gap-1 justify-end mb-1">
-                          <User className="w-3 h-3" />
-                          {inquiry.user.name || inquiry.user.email}
-                        </div>
-                        {new Date(inquiry.createdAt).toLocaleDateString('ko-KR')}
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+    <div className="p-8 space-y-8">
+      <div>
+        <h1 className="text-3xl font-bold text-white mb-2">통합 대시보드</h1>
+        <p className="text-gray-400">시스템 전체 현황을 한눈에 확인하세요</p>
       </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        {/* Google Drive 연결 상태 */}
+        <Card className="bg-gray-900 border-gray-800">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm font-medium text-gray-400 flex items-center gap-2">
+              <Database className="h-4 w-4" />
+              Google Drive
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="text-2xl font-bold text-white">
+                  {stats.gdriveConnected ? '연결됨' : '미연결'}
+                </div>
+                {stats.lastSyncTime && (
+                  <p className="text-xs text-gray-500 mt-1">
+                    마지막 동기화: {new Date(stats.lastSyncTime).toLocaleString('ko-KR')}
+                  </p>
+                )}
+              </div>
+              {stats.gdriveConnected ? (
+                <CheckCircle className="h-8 w-8 text-green-500" />
+              ) : (
+                <XCircle className="h-8 w-8 text-red-500" />
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* 전체 파일 수 */}
+        <Card className="bg-gray-900 border-gray-800">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm font-medium text-gray-400 flex items-center gap-2">
+              <FileText className="h-4 w-4" />
+              전체 파일
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-white">{stats.totalFiles}개</div>
+            <p className="text-xs text-gray-500 mt-1">PDF 및 MP4 파일</p>
+          </CardContent>
+        </Card>
+
+        {/* 학습 완료 파일 */}
+        <Card className="bg-gray-900 border-gray-800">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm font-medium text-gray-400 flex items-center gap-2">
+              <Brain className="h-4 w-4" />
+              학습 완료
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-white">{stats.learnedFiles}개</div>
+            <p className="text-xs text-gray-500 mt-1">
+              {stats.totalFiles > 0
+                ? `${Math.round((stats.learnedFiles / stats.totalFiles) * 100)}% 완료`
+                : '파일 없음'}
+            </p>
+          </CardContent>
+        </Card>
+
+        {/* AI 모델 상태 */}
+        <Card className="bg-gray-900 border-gray-800">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm font-medium text-gray-400 flex items-center gap-2">
+              <Clock className="h-4 w-4" />
+              AI 모델
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="text-2xl font-bold text-white">
+                  {stats.aiModelStatus === 'active' && '가동 중'}
+                  {stats.aiModelStatus === 'idle' && '대기 중'}
+                  {stats.aiModelStatus === 'error' && '오류'}
+                </div>
+                <p className="text-xs text-gray-500 mt-1">Gemini 2.5 Pro</p>
+              </div>
+              <div className={`h-3 w-3 rounded-full ${stats.aiModelStatus === 'active' ? 'bg-green-500 animate-pulse' :
+                  stats.aiModelStatus === 'idle' ? 'bg-yellow-500' :
+                    'bg-red-500'
+                }`} />
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* 최근 활동 */}
+      <Card className="bg-gray-900 border-gray-800">
+        <CardHeader>
+          <CardTitle className="text-white">최근 활동</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            {loading ? (
+              <p className="text-gray-500 text-center py-8">로딩 중...</p>
+            ) : (
+              <p className="text-gray-500 text-center py-8">최근 활동 내역이 없습니다</p>
+            )}
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }
