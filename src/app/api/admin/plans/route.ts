@@ -6,12 +6,53 @@ import path from 'path';
 const ADMIN_EMAILS = ['pluss2.jh@gmail.com', 'pluss2@kakao.com'];
 const PLANS_FILE = path.join(process.cwd(), 'uploads', 'config', 'plans.json');
 
+const defaultPlans = [
+  {
+    id: 'free',
+    name: 'Free',
+    price: 0,
+    features: [
+      { id: 'analysis', name: '기업 분석', enabled: true },
+      { id: 'news', name: '뉴스 조회', enabled: false },
+      { id: 'email', name: '이메일 발송', enabled: false },
+      { id: 'support', name: '고객 지원', enabled: false },
+    ],
+  },
+  {
+    id: 'basic',
+    name: 'Basic',
+    price: 10000,
+    features: [
+      { id: 'analysis', name: '기업 분석', enabled: true },
+      { id: 'news', name: '뉴스 조회', enabled: true },
+      { id: 'email', name: '이메일 발송', enabled: false },
+      { id: 'support', name: '고객 지원', enabled: true },
+    ],
+  },
+  {
+    id: 'pro',
+    name: 'Pro',
+    price: 29000,
+    isPopular: true,
+    features: [
+      { id: 'analysis', name: '기업 분석', enabled: true },
+      { id: 'news', name: '뉴스 조회', enabled: true },
+      { id: 'email', name: '이메일 발송', enabled: true },
+      { id: 'support', name: '고객 지원', enabled: true },
+    ],
+  },
+];
+
 export async function GET() {
     try {
         const session = await auth();
         // Allow anyone to GET plans (for pricing page)
-        const data = await fs.readFile(PLANS_FILE, 'utf-8');
-        return NextResponse.json(JSON.parse(data));
+        try {
+            const data = await fs.readFile(PLANS_FILE, 'utf-8');
+            return NextResponse.json(JSON.parse(data));
+        } catch (fileError) {
+            return NextResponse.json(defaultPlans);
+        }
     } catch (error) {
         return NextResponse.json({ error: 'Failed to fetch plans' }, { status: 500 });
     }
