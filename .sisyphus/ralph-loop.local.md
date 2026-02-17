@@ -3,10 +3,11 @@ active: true
 iteration: 1
 max_iterations: 100
 completion_promise: "DONE"
-started_at: "2026-02-16T09:50:06.578Z"
+started_at: "2026-02-17T05:37:38.969Z"
 session_id: "ses_3b8ca4dfbffeU8E6mbkjzZyqsJ"
 ---
-pluss2.jh@gmail.com 이걸로 로그인 하니까 관리자 대쉬보드가 아니라 "http://localhost:3000/stock-analysis" 여기로 이동하는 문제가 있으니까 수정하고,
-권한 있는 사람의 경우 문의글 수정하는 기능 구현해.
-그리고 조건에 맞는 기업을 찾을 때 사용하는 AI 모델과 키를 직접 입력할 수 있도록 하고, 이 키를 이용해서 기업을 찾도록 구현해.
-그리고 찾는 기업을 5개로 고정하지말고 사용자가 기업 갯수를 입력할 수 있도록 수정해.
+앞으로 항상 한글로 답해.
+구글 로그인하니까 관리자 대시보드가 아니라 "http://localhost:3000/stock-analysis" 여기로 이동하는 문제가 아직있어, 해결해.
+"분석 결과 이메일로 받기"할 때 보내는 메일은 noreply@azic.com으로 해.
+그리고 조건에 맞는 기업 찾는 AI 모델과 뉴스 조회하는 AI 모델 입력을 따로 할 수 있도록 화면에 구성해. 각각 키 입력도 따로 할 수 있도록 해.
+그리고 사용자가 다양한 AI API를 사용할 수 있도록 AI 모델 종류를 최대한 많이, 구체적으로 분류해줘.

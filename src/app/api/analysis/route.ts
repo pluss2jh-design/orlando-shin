@@ -7,7 +7,7 @@ import type {
 } from '@/types/stock-analysis';
 
 interface AnalysisRequestBody {
-  conditions?: { periodMonths?: number; companyCount?: number; aiModel?: string; apiKey?: string };
+  conditions?: { periodMonths?: number; companyCount?: number; companyAiModel?: string; companyApiKey?: string; newsAiModel?: string; newsApiKey?: string };
   style?: InvestmentStyle;
 }
 
@@ -28,8 +28,10 @@ export async function POST(request: NextRequest) {
       knowledge,
       body.style ?? 'moderate',
       body.conditions?.companyCount || 5,
-      body.conditions?.aiModel,
-      body.conditions?.apiKey
+      body.conditions?.companyAiModel,
+      body.conditions?.companyApiKey,
+      body.conditions?.newsAiModel,
+      body.conditions?.newsApiKey
     );
 
     return NextResponse.json(result);

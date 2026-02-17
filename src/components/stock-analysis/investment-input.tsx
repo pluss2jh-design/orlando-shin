@@ -1,15 +1,49 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Search, Sparkles, Key, Settings } from 'lucide-react';
+import { Search, Sparkles, Key, Settings, Building2, Newspaper } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { InvestmentConditions } from '@/types/stock-analysis';
 
+interface AIModelConfig {
+  id: string;
+  name: string;
+  provider: string;
+}
+
+const AI_MODELS: AIModelConfig[] = [
+  { id: 'gpt-4o', name: 'GPT-4o', provider: 'OpenAI' },
+  { id: 'gpt-4o-mini', name: 'GPT-4o Mini', provider: 'OpenAI' },
+  { id: 'gpt-4-turbo', name: 'GPT-4 Turbo', provider: 'OpenAI' },
+  { id: 'gpt-4', name: 'GPT-4', provider: 'OpenAI' },
+  { id: 'gpt-3.5-turbo', name: 'GPT-3.5 Turbo', provider: 'OpenAI' },
+  { id: 'claude-3-5-sonnet-20241022', name: 'Claude 3.5 Sonnet', provider: 'Anthropic' },
+  { id: 'claude-3-opus-20240229', name: 'Claude 3 Opus', provider: 'Anthropic' },
+  { id: 'claude-3-sonnet-20240229', name: 'Claude 3 Sonnet', provider: 'Anthropic' },
+  { id: 'claude-3-haiku-20240307', name: 'Claude 3 Haiku', provider: 'Anthropic' },
+  { id: 'gemini-1.5-pro', name: 'Gemini 1.5 Pro', provider: 'Google' },
+  { id: 'gemini-1.5-flash', name: 'Gemini 1.5 Flash', provider: 'Google' },
+  { id: 'gemini-1.0-pro', name: 'Gemini 1.0 Pro', provider: 'Google' },
+  { id: 'mistral-large-latest', name: 'Mistral Large', provider: 'Mistral' },
+  { id: 'mistral-medium-latest', name: 'Mistral Medium', provider: 'Mistral' },
+  { id: 'mistral-small-latest', name: 'Mistral Small', provider: 'Mistral' },
+  { id: 'command-r-plus', name: 'Command R+', provider: 'Cohere' },
+  { id: 'command-r', name: 'Command R', provider: 'Cohere' },
+  { id: 'llama-3.1-70b-versatile', name: 'Llama 3.1 70B', provider: 'Groq' },
+  { id: 'llama-3.1-8b-instant', name: 'Llama 3.1 8B', provider: 'Groq' },
+  { id: 'mixtral-8x7b-32768', name: 'Mixtral 8x7B', provider: 'Groq' },
+  { id: 'gemma-7b-it', name: 'Gemma 7B', provider: 'Groq' },
+  { id: 'llama-3.1-sonar-large-128k-online', name: 'Llama 3.1 Sonar Large', provider: 'Perplexity' },
+  { id: 'llama-3.1-sonar-small-128k-online', name: 'Llama 3.1 Sonar Small', provider: 'Perplexity' },
+];
+
 interface ExtendedInvestmentConditions extends InvestmentConditions {
-  aiModel?: string;
-  apiKey?: string;
+  companyAiModel?: string;
+  companyApiKey?: string;
+  newsAiModel?: string;
+  newsApiKey?: string;
   companyCount?: number;
 }
 
@@ -20,18 +54,39 @@ interface InvestmentInputProps {
 
 export function InvestmentInput({ onAnalyze, disabled }: InvestmentInputProps) {
   const [companyCount, setCompanyCount] = useState(5);
-  const [aiModel, setAiModel] = useState('gpt-4o-mini');
-  const [apiKey, setApiKey] = useState('');
+  const [companyAiModel, setCompanyAiModel] = useState('gpt-4o-mini');
+  const [companyApiKey, setCompanyApiKey] = useState('');
+  const [newsAiModel, setNewsAiModel] = useState('gpt-4o-mini');
+  const [newsApiKey, setNewsApiKey] = useState('');
   const [showAdvanced, setShowAdvanced] = useState(false);
 
   const handleAnalyze = () => {
     onAnalyze?.({
       amount: 0,
       periodMonths: 0,
-      aiModel,
-      apiKey,
+      companyAiModel,
+      companyApiKey,
+      newsAiModel,
+      newsApiKey,
       companyCount,
     });
+  };
+
+  const renderModelOptions = () => {
+    const providers = [...new Set(AI_MODELS.map(m => m.provider))];
+    return (
+      <>
+        {providers.map(provider => (
+          <optgroup key={provider} label={provider}>
+            {AI_MODELS.filter(m => m.provider === provider).map(model => (
+              <option key={model.id} value={model.id}>
+                {model.name}
+              </option>
+            ))}
+          </optgroup>
+        ))}
+      </>
+    );
   };
 
   return (
@@ -68,41 +123,81 @@ export function InvestmentInput({ onAnalyze, disabled }: InvestmentInputProps) {
           </button>
 
           {showAdvanced && (
-            <div className="space-y-3 p-3 bg-muted/50 rounded-lg">
-              <div>
-                <label className="text-sm font-medium mb-2 block flex items-center gap-1">
-                  <Settings className="h-3 w-3" />
-                  AI 모델
-                </label>
-                <select
-                  value={aiModel}
-                  onChange={(e) => setAiModel(e.target.value)}
-                  className="w-full p-2 border rounded-md bg-background"
-                >
-                  <option value="gpt-4o-mini">GPT-4o Mini</option>
-                  <option value="gpt-4o">GPT-4o</option>
-                  <option value="gpt-4">GPT-4</option>
-                  <option value="claude-3-haiku">Claude 3 Haiku</option>
-                  <option value="claude-3-sonnet">Claude 3 Sonnet</option>
-                  <option value="gemini-pro">Gemini Pro</option>
-                </select>
+            <div className="space-y-4 p-3 bg-muted/50 rounded-lg">
+              <div className="space-y-3 border-b border-border pb-4">
+                <div className="flex items-center gap-2 text-sm font-semibold text-primary">
+                  <Building2 className="h-4 w-4" />
+                  기업 분석용 AI 설정
+                </div>
+                
+                <div>
+                  <label className="text-sm font-medium mb-2 block flex items-center gap-1">
+                    <Settings className="h-3 w-3" />
+                    AI 모델 (기업 분석)
+                  </label>
+                  <select
+                    value={companyAiModel}
+                    onChange={(e) => setCompanyAiModel(e.target.value)}
+                    className="w-full p-2 border rounded-md bg-background"
+                  >
+                    {renderModelOptions()}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="text-sm font-medium mb-2 block flex items-center gap-1">
+                    <Key className="h-3 w-3" />
+                    API 키 (기업 분석)
+                  </label>
+                  <Input
+                    type="password"
+                    value={companyApiKey}
+                    onChange={(e) => setCompanyApiKey(e.target.value)}
+                    placeholder="기업 분석용 API Key"
+                    className="w-full"
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    미입력 시 기본 설정 사용
+                  </p>
+                </div>
               </div>
 
-              <div>
-                <label className="text-sm font-medium mb-2 block flex items-center gap-1">
-                  <Key className="h-3 w-3" />
-                  API 키
-                </label>
-                <Input
-                  type="password"
-                  value={apiKey}
-                  onChange={(e) => setApiKey(e.target.value)}
-                  placeholder="OpenAI / Anthropic / Google API Key"
-                  className="w-full"
-                />
-                <p className="text-xs text-muted-foreground mt-1">
-                  API 키를 입력하지 않으면 기본 설정이 사용됩니다
-                </p>
+              <div className="space-y-3">
+                <div className="flex items-center gap-2 text-sm font-semibold text-primary">
+                  <Newspaper className="h-4 w-4" />
+                  뉴스 분석용 AI 설정
+                </div>
+                
+                <div>
+                  <label className="text-sm font-medium mb-2 block flex items-center gap-1">
+                    <Settings className="h-3 w-3" />
+                    AI 모델 (뉴스 분석)
+                  </label>
+                  <select
+                    value={newsAiModel}
+                    onChange={(e) => setNewsAiModel(e.target.value)}
+                    className="w-full p-2 border rounded-md bg-background"
+                  >
+                    {renderModelOptions()}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="text-sm font-medium mb-2 block flex items-center gap-1">
+                    <Key className="h-3 w-3" />
+                    API 키 (뉴스 분석)
+                  </label>
+                  <Input
+                    type="password"
+                    value={newsApiKey}
+                    onChange={(e) => setNewsApiKey(e.target.value)}
+                    placeholder="뉴스 분석용 API Key"
+                    className="w-full"
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    미입력 시 기본 설정 사용
+                  </p>
+                </div>
               </div>
             </div>
           )}

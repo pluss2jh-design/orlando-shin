@@ -27,8 +27,10 @@ export async function runAnalysisEngine(
   knowledge: { criteria: LearnedInvestmentCriteria; strategy: InvestmentStrategy; fileAnalyses: { fileName: string; keyConditions: string[] }[] },
   style: InvestmentStyle = 'moderate',
   companyCount: number = 5,
-  aiModel?: string,
-  apiKey?: string
+  companyAiModel?: string,
+  companyApiKey?: string,
+  newsAiModel?: string,
+  newsApiKey?: string
 ): Promise<RecommendationResult> {
   console.log(`Starting analysis engine with universe screening...`);
   

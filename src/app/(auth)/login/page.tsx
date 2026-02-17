@@ -1,21 +1,39 @@
 'use client';
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { signIn } from 'next-auth/react';
+import { useState, useEffect, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { signIn, useSession } from 'next-auth/react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { Chrome } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 
-export default function LoginPage() {
+const ADMIN_EMAILS = ['pluss2.jh@gmail.com', 'pluss2@kakao.com'];
+
+function LoginForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const { data: session, status } = useSession();
   const [isLoading, setIsLoading] = useState<string | null>(null);
   const [error, setError] = useState<string>('');
   const [adminEmail, setAdminEmail] = useState('');
   const [adminPassword, setAdminPassword] = useState('');
   const [showAdminForm, setShowAdminForm] = useState(false);
+
+  useEffect(() => {
+    if (status === 'authenticated' && session?.user?.email) {
+      const userEmail = session.user.email;
+      const isAdmin = ADMIN_EMAILS.includes(userEmail) || (session.user as any).role === 'ADMIN';
+      
+      if (isAdmin) {
+        router.push('/admin/dashboard');
+      } else {
+        const callbackUrl = searchParams.get('callbackUrl') || '/stock-analysis';
+        router.push(callbackUrl);
+      }
+    }
+  }, [status, session, router, searchParams]);
 
   const handleSocialLogin = async (provider: string) => {
     try {
@@ -24,13 +42,11 @@ export default function LoginPage() {
       console.log(`Attempting to sign in with ${provider}...`);
 
       await signIn(provider, {
-        callbackUrl: '/stock-analysis',
-        redirect: true,
+        redirect: false,
       });
     } catch (error) {
       console.error('Exception during signIn:', error);
       setError(`로그인 중 오류가 발생했습니다: ${error instanceof Error ? error.message : '알 수 없는 오류'}`);
-    } finally {
       setIsLoading(null);
     }
   };
@@ -169,5 +185,13 @@ export default function LoginPage() {
         )}
       </CardContent>
     </Card>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<div className="flex items-center justify-center min-h-screen">로딩 중...</div>}>
+      <LoginForm />
+    </Suspense>
   );
 }

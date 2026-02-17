@@ -121,7 +121,7 @@ export default function StockAnalysisPage() {
     }
   };
 
-  const handleAnalyze = async (newConditions: InvestmentConditions & { aiModel?: string; apiKey?: string; companyCount?: number }) => {
+  const handleAnalyze = async (newConditions: InvestmentConditions & { companyAiModel?: string; companyApiKey?: string; newsAiModel?: string; newsApiKey?: string; companyCount?: number }) => {
     const confirmed = window.confirm('기업 분석을 위해 실시간 데이터를 조회하며 API 비용이 발생할 수 있습니다. 계속하시겠습니까?');
     if (!confirmed) return;
 
@@ -142,8 +142,10 @@ export default function StockAnalysisPage() {
           conditions: {
             periodMonths: newConditions.periodMonths,
             companyCount: newConditions.companyCount || 5,
-            aiModel: newConditions.aiModel,
-            apiKey: newConditions.apiKey,
+            companyAiModel: newConditions.companyAiModel,
+            companyApiKey: newConditions.companyApiKey,
+            newsAiModel: newConditions.newsAiModel,
+            newsApiKey: newConditions.newsApiKey,
           },
         }),
       });
