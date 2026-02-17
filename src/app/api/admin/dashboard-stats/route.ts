@@ -14,7 +14,7 @@ export async function GET() {
         }
 
         // Check Google Drive sync info
-        const syncInfoPath = path.join(process.cwd(), 'uploads', 'sync-info.json');
+        const syncInfoPath = path.join(process.cwd(), 'uploads', 'gdrive', 'sync-info.json');
         let gdriveConnected = false;
         let totalFiles = 0;
         let lastSyncTime = null;

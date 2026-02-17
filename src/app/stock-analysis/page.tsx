@@ -266,6 +266,17 @@ export default function StockAnalysisPage() {
         <div className="flex justify-end gap-2 mb-4">
           {session ? (
             <div className="flex items-center gap-3">
+              {(session.user as any)?.role === 'ADMIN' && (
+                <Button
+                  variant="default"
+                  size="sm"
+                  onClick={() => router.push('/admin/dashboard')}
+                  className="bg-blue-600 hover:bg-blue-700"
+                >
+                  <Lock className="mr-2 h-4 w-4" />
+                  관리자 대시보드
+                </Button>
+              )}
               <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-muted/50 border">
                 <Avatar className="h-6 w-6">
                   <AvatarImage src={session.user?.image || ""} />

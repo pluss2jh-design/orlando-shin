@@ -14,6 +14,7 @@ import { signOut } from 'next-auth/react';
 
 const menuItems = [
     { href: '/admin/dashboard', label: '통합 대시보드', icon: LayoutDashboard },
+    { href: '/stock-analysis', label: '기업 조회(분석)', icon: Brain },
     { href: '/admin/data-library', label: '데이터 라이브러리', icon: Database },
     { href: '/admin/investment-logic', label: '투자 로직 관리', icon: Brain },
     { href: '/admin/settings', label: '시스템 설정', icon: Settings },
@@ -41,8 +42,8 @@ export function AdminSidebar() {
                             key={item.href}
                             href={item.href}
                             className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${isActive
-                                    ? 'bg-blue-600 text-white'
-                                    : 'text-gray-400 hover:bg-gray-800 hover:text-white'
+                                ? 'bg-blue-600 text-white'
+                                : 'text-gray-400 hover:bg-gray-800 hover:text-white'
                                 }`}
                         >
                             <Icon className="h-5 w-5" />

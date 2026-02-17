@@ -14,7 +14,7 @@ export async function GET() {
         }
 
         // Get sync info
-        const syncInfoPath = path.join(process.cwd(), 'uploads', 'sync-info.json');
+        const syncInfoPath = path.join(process.cwd(), 'uploads', 'gdrive', 'sync-info.json');
         const knowledgePath = path.join(process.cwd(), 'uploads', 'knowledge', 'learned-knowledge.json');
 
         let files: any[] = [];
