@@ -1,10 +1,11 @@
 'use client';
 
-import React, { useState } from 'react';
-import { Search, Sparkles, Key, Settings, Building2, Newspaper } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Search, Sparkles, Key, Settings, Building2, Newspaper, BarChart3 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
 import { InvestmentConditions } from '@/types/stock-analysis';
 
 interface AIModelConfig {
@@ -59,6 +60,28 @@ export function InvestmentInput({ onAnalyze, disabled }: InvestmentInputProps) {
   const [newsAiModel, setNewsAiModel] = useState('gpt-4o-mini');
   const [newsApiKey, setNewsApiKey] = useState('');
   const [showAdvanced, setShowAdvanced] = useState(false);
+  const [userFeatures, setUserFeatures] = useState<{
+    membershipTier: string;
+    weeklyAnalysisLimit: number;
+    usedAnalysisThisWeek: number;
+    remainingAnalysis: number;
+    canAnalyze: boolean;
+  } | null>(null);
+
+  useEffect(() => {
+    const fetchUserFeatures = async () => {
+      try {
+        const res = await fetch('/api/user/features');
+        if (res.ok) {
+          const data = await res.json();
+          setUserFeatures(data);
+        }
+      } catch (error) {
+        console.error('Failed to fetch user features:', error);
+      }
+    };
+    fetchUserFeatures();
+  }, []);
 
   const handleAnalyze = () => {
     onAnalyze?.({
@@ -96,6 +119,20 @@ export function InvestmentInput({ onAnalyze, disabled }: InvestmentInputProps) {
           <Sparkles className="h-5 w-5" />
           기업 찾기 (Find Companies)
         </CardTitle>
+        {userFeatures && (
+          <div className="flex items-center gap-2 mt-2">
+            <BarChart3 className="h-4 w-4 text-muted-foreground" />
+            <span className="text-sm text-muted-foreground">
+              이번 주 남은 분석 횟수: 
+            </span>
+            <Badge variant={userFeatures.remainingAnalysis === 0 ? "destructive" : "secondary"}>
+              {userFeatures.weeklyAnalysisLimit === -1 
+                ? '무제한' 
+                : `${userFeatures.remainingAnalysis}회 / ${userFeatures.weeklyAnalysisLimit}회`
+              }
+            </Badge>
+          </div>
+        )}
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="space-y-3">
@@ -208,12 +245,15 @@ export function InvestmentInput({ onAnalyze, disabled }: InvestmentInputProps) {
 
         <Button
           onClick={handleAnalyze}
-          disabled={disabled}
+          disabled={disabled || !!(userFeatures && !userFeatures.canAnalyze)}
           className="w-full"
           size="lg"
         >
           <Search className="h-4 w-4 mr-2" />
-          기업 {companyCount}개 찾기
+          {userFeatures && !userFeatures.canAnalyze 
+            ? '이번 주 분석 횟수 초과' 
+            : `기업 ${companyCount}개 찾기`
+          }
         </Button>
       </CardContent>
     </Card>

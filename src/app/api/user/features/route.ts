@@ -2,6 +2,22 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 
+function getWeekStart(date: Date): Date {
+  const d = new Date(date);
+  const day = d.getDay();
+  const diff = d.getDate() - day;
+  d.setDate(diff);
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
+
+const planLimits: Record<string, { weeklyAnalysisLimit: number; canSendEmail: boolean }> = {
+  FREE: { weeklyAnalysisLimit: 3, canSendEmail: false },
+  STANDARD: { weeklyAnalysisLimit: 7, canSendEmail: true },
+  PREMIUM: { weeklyAnalysisLimit: 10, canSendEmail: true },
+  MASTER: { weeklyAnalysisLimit: -1, canSendEmail: true },
+};
+
 export async function GET(request: NextRequest) {
   try {
     const session = await auth();
@@ -19,11 +35,29 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
-    const canSendEmail = ['PREMIUM', 'MASTER'].includes(user.membershipTier);
+    const planConfig = planLimits[user.membershipTier] || planLimits.FREE;
+    const weekStart = getWeekStart(new Date());
+    
+    const analysisUsage = await prisma.$queryRaw`
+      SELECT count FROM "AnalysisUsage" 
+      WHERE "userId" = ${session.user.id} 
+      AND "weekStart" = ${weekStart}
+      LIMIT 1
+    `;
+
+    const currentCount = (analysisUsage as any[])?.[0]?.count || 0;
+
+    const remainingAnalysis = planConfig.weeklyAnalysisLimit === -1 
+      ? -1 
+      : Math.max(0, planConfig.weeklyAnalysisLimit - currentCount);
 
     return NextResponse.json({
       membershipTier: user.membershipTier,
-      canSendEmail,
+      weeklyAnalysisLimit: planConfig.weeklyAnalysisLimit,
+      usedAnalysisThisWeek: currentCount,
+      remainingAnalysis,
+      canSendEmail: planConfig.canSendEmail,
+      canAnalyze: planConfig.weeklyAnalysisLimit === -1 || remainingAnalysis > 0,
     });
   } catch (error) {
     console.error('Error checking user features:', error);

@@ -8,14 +8,17 @@ export const authConfig = {
         GoogleProvider({
             clientId: process.env.GOOGLE_CLIENT_ID,
             clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+            allowDangerousEmailAccountLinking: true,
         }),
         KakaoProvider({
             clientId: process.env.KAKAO_CLIENT_ID,
             clientSecret: process.env.KAKAO_CLIENT_SECRET,
+            allowDangerousEmailAccountLinking: true,
         }),
         NaverProvider({
             clientId: process.env.NAVER_CLIENT_ID,
             clientSecret: process.env.NAVER_CLIENT_SECRET,
+            allowDangerousEmailAccountLinking: true,
         }),
     ],
     callbacks: {

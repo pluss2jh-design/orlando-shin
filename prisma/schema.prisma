@@ -19,12 +19,13 @@ model User {
   password        String?
   plan            String          @default("free")
   membershipTier  MembershipTier  @default(FREE)
-  createdAt       DateTime        @default(now())
-  updatedAt       DateTime        @updatedAt
+  createdAt       DateTime        @default(now()) @db.Timestamptz(3)
+  updatedAt       DateTime        @updatedAt @db.Timestamptz(3)
 
-  accounts  Account[]
-  sessions  Session[]
-  inquiries Inquiry[]
+  accounts        Account[]
+  sessions        Session[]
+  inquiries       Inquiry[]
+  analysisUsages  AnalysisUsage[]
 }
 
 enum MembershipTier {
@@ -74,8 +75,8 @@ model AdminUser {
   id        String   @id @default(cuid())
   email     String   @unique
   password  String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
 }
 
 model Inquiry {
@@ -84,8 +85,8 @@ model Inquiry {
   title     String
   content   String
   status    InquiryStatus @default(OPEN)
-  createdAt DateTime      @default(now())
-  updatedAt DateTime      @updatedAt
+  createdAt DateTime      @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime      @updatedAt @db.Timestamptz(3)
 
   user      User               @relation(fields: [userId], references: [id], onDelete: Cascade)
   responses InquiryResponse[]
@@ -102,7 +103,21 @@ model InquiryResponse {
   inquiryId String
   content   String
   isAdmin   Boolean  @default(false)
-  createdAt DateTime @default(now())
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
 
   inquiry Inquiry @relation(fields: [inquiryId], references: [id], onDelete: Cascade)
+}
+
+model AnalysisUsage {
+  id          String   @id @default(cuid())
+  userId      String
+  weekStart   DateTime @db.Timestamptz(3)
+  count       Int      @default(0)
+  createdAt   DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime @updatedAt @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, weekStart])
+  @@index([userId])
 }

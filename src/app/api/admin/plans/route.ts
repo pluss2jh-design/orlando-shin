@@ -6,52 +6,36 @@ import path from 'path';
 const ADMIN_EMAILS = ['pluss2.jh@gmail.com', 'pluss2@kakao.com'];
 const PLANS_FILE = path.join(process.cwd(), 'uploads', 'config', 'plans.json');
 
-const defaultPlans = [
+export const defaultPlans = [
   {
     id: 'free',
     name: 'Free',
     price: 0,
-    features: [
-      { id: 'analysis', name: '기업 분석', enabled: false },
-      { id: 'news', name: '뉴스 조회', enabled: false },
-      { id: 'email', name: '분석 자료 이메일 전송 기능', enabled: false },
-      { id: 'support', name: '고객 지원', enabled: false },
-    ],
+    weeklyAnalysisLimit: 3,
+    canSendEmail: false,
   },
   {
     id: 'standard',
     name: 'Standard',
     price: 10000,
-    features: [
-      { id: 'analysis', name: '기업 분석', enabled: true },
-      { id: 'news', name: '뉴스 조회', enabled: false },
-      { id: 'email', name: '분석 자료 이메일 전송 기능', enabled: false },
-      { id: 'support', name: '고객 지원', enabled: true },
-    ],
+    weeklyAnalysisLimit: 7,
+    canSendEmail: true,
   },
   {
     id: 'premium',
     name: 'Premium',
     price: 29000,
     isPopular: true,
-    features: [
-      { id: 'analysis', name: '기업 분석', enabled: true },
-      { id: 'news', name: '뉴스 조회', enabled: true },
-      { id: 'email', name: '분석 자료 이메일 전송 기능', enabled: true },
-      { id: 'support', name: '고객 지원', enabled: true },
-    ],
+    weeklyAnalysisLimit: 10,
+    canSendEmail: true,
   },
   {
     id: 'master',
     name: 'Master',
     price: 0,
     isAdmin: true,
-    features: [
-      { id: 'analysis', name: '기업 분석', enabled: true },
-      { id: 'news', name: '뉴스 조회', enabled: true },
-      { id: 'email', name: '분석 자료 이메일 전송 기능', enabled: true },
-      { id: 'support', name: '고객 지원', enabled: true },
-    ],
+    weeklyAnalysisLimit: -1,
+    canSendEmail: true,
   },
 ];
 
