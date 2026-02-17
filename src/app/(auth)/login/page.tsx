@@ -22,7 +22,21 @@ function LoginForm() {
   const [showAdminForm, setShowAdminForm] = useState(false);
 
   useEffect(() => {
-    if (status === 'authenticated' && session?.user?.email) {
+    console.log('Login page useEffect triggered:', { status, hasSession: !!session, hasEmail: !!session?.user?.email });
+
+    if (status === 'loading') {
+      console.log('Session is loading...');
+      return;
+    }
+
+    if (status === 'authenticated') {
+      console.log('Status is authenticated, session:', session);
+
+      if (!session?.user?.email) {
+        console.error('Session exists but no email found:', session);
+        return;
+      }
+
       const userEmail = session.user.email;
       const isAdmin = ADMIN_EMAILS.includes(userEmail) || (session.user as any).role === 'ADMIN';
 
@@ -39,6 +53,8 @@ function LoginForm() {
           window.location.href = callbackUrl;
         }
       }, 100);
+    } else {
+      console.log('Not authenticated, status:', status);
     }
   }, [status, session, searchParams]);
 

@@ -83,22 +83,64 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       return session;
     },
     async jwt({ token, user, account, profile }: any) {
+      console.log('JWT callback triggered:', {
+        hasUser: !!user,
+        hasAccount: !!account,
+        hasProfile: !!profile,
+        provider: account?.provider
+      });
+
       if (user) {
         token.sub = user.id;
         token.role = (user as any).role;
+        console.log('User in JWT:', { id: user.id, email: user.email, role: user.role });
       }
+
       if (account) {
         token.provider = account.provider;
+        console.log('Account provider:', account.provider);
       }
+
       if (profile) {
-        token.name = profile.name || profile.nickname || profile.preferred_username;
-        token.email = profile.email;
-        token.picture = profile.picture || profile.image_url || profile.avatar_url;
+        console.log('Profile data:', profile);
+
+        // Extract name from different providers
+        token.name = profile.name ||
+          profile.nickname ||
+          profile.preferred_username ||
+          profile.kakao_account?.profile?.nickname;
+
+        // Extract email from different providers
+        token.email = profile.email ||
+          profile.kakao_account?.email ||
+          token.email;
+
+        // Extract picture from different providers
+        token.picture = profile.picture ||
+          profile.image_url ||
+          profile.avatar_url ||
+          profile.kakao_account?.profile?.profile_image_url;
+
+        console.log('Extracted from profile:', {
+          name: token.name,
+          email: token.email,
+          picture: token.picture
+        });
       }
+
       const adminEmails = ['pluss2.jh@gmail.com', 'pluss2@kakao.com'];
       if (token.email && adminEmails.includes(token.email as string)) {
         token.role = 'ADMIN';
+        console.log('Admin role assigned to:', token.email);
       }
+
+      console.log('Final token:', {
+        email: token.email,
+        name: token.name,
+        role: token.role,
+        provider: token.provider
+      });
+
       return token;
     }
   },
