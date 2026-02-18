@@ -22,17 +22,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const confirmed = request.headers.get('X-Confirmed');
-    if (confirmed !== 'true') {
-      return NextResponse.json(
-        { 
-          error: 'API 비용 발생 알림 필요',
-          message: '이메일 발송 시 API 비용이 발생할 수 있습니다. 계속하시겠습니까?'
-        },
-        { status: 403 }
-      );
-    }
-
     await sendAnalysisEmail(email, results as AnalysisResult[], conditions || { periodMonths: 12 });
 
     return NextResponse.json({

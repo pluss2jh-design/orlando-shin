@@ -3,7 +3,7 @@ import { auth } from '@/lib/auth';
 import fs from 'fs/promises';
 import path from 'path';
 
-const ADMIN_EMAILS = ['pluss2.jh@gmail.com', 'pluss2@kakao.com'];
+const ADMIN_EMAILS = ['pluss2.jh@gmail.com'];
 
 export async function GET() {
     try {

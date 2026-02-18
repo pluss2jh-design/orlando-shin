@@ -15,7 +15,6 @@ import { signOut } from 'next-auth/react';
 
 const menuItems = [
     { href: '/admin/dashboard', label: '통합 대시보드', icon: LayoutDashboard },
-    { href: '/stock-analysis', label: '기업 조회(분석)', icon: Brain },
     { href: '/admin/data-library', label: '데이터 라이브러리', icon: Database },
     { href: '/admin/investment-logic', label: '투자 로직 관리', icon: Brain },
     { href: '/admin/membership-plan', label: '요금제 관리', icon: Settings },

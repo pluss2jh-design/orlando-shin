@@ -9,17 +9,12 @@ import { Label } from '@/components/ui/label';
 import { Check, Save, RefreshCw, AlertCircle } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 
-interface Feature {
-    id: string;
-    name: string;
-    enabled: boolean;
-}
-
 interface Plan {
     id: string;
     name: string;
     price: number;
-    features: Feature[];
+    weeklyAnalysisLimit: number;
+    canSendEmail: boolean;
     isPopular?: boolean;
 }
 
@@ -69,23 +64,9 @@ export default function MembershipPlanPage() {
         }
     };
 
-    const toggleFeature = (planId: string, featureId: string) => {
-        setPlans(prev => prev.map(plan => {
-            if (plan.id === planId) {
-                return {
-                    ...plan,
-                    features: plan.features.map(feat =>
-                        feat.id === featureId ? { ...feat, enabled: !feat.enabled } : feat
-                    )
-                };
-            }
-            return plan;
-        }));
-    };
-
-    const updatePrice = (planId: string, price: number) => {
+    const updatePlan = (planId: string, key: keyof Plan, value: any) => {
         setPlans(prev => prev.map(plan =>
-            plan.id === planId ? { ...plan, price } : plan
+            plan.id === planId ? { ...plan, [key]: value } : plan
         ));
     };
 
@@ -102,7 +83,7 @@ export default function MembershipPlanPage() {
             <div className="flex items-center justify-between">
                 <div>
                     <h1 className="text-3xl font-bold text-white mb-2">요금제 관리 (Membership & Plan)</h1>
-                    <p className="text-gray-400">각 요금제별 가격 및 이용 가능 기능을 설정하세요</p>
+                    <p className="text-gray-400">각 요금제별 가격 및 제한을 설정하세요</p>
                 </div>
                 <Button onClick={handleSave} disabled={saving} className="bg-blue-600 hover:bg-blue-700">
                     {saving ? <RefreshCw className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
@@ -118,7 +99,7 @@ export default function MembershipPlanPage() {
                 </Alert>
             )}
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 {plans.map((plan) => (
                     <Card key={plan.id} className="bg-gray-900 border-gray-800">
                         <CardHeader>
@@ -133,22 +114,27 @@ export default function MembershipPlanPage() {
                                 <Input
                                     type="number"
                                     value={plan.price}
-                                    onChange={(e) => updatePrice(plan.id, parseInt(e.target.value))}
+                                    onChange={(e) => updatePlan(plan.id, 'price', parseInt(e.target.value))}
                                     className="bg-gray-950 border-gray-800 text-white"
                                 />
                             </div>
 
-                            <div className="space-y-4">
-                                <Label className="text-gray-400">기능별 권한 설정</Label>
-                                {plan.features.map((feature) => (
-                                    <div key={feature.id} className="flex items-center justify-between p-3 rounded-lg bg-gray-950 border border-gray-800">
-                                        <span className="text-sm text-gray-300">{feature.name}</span>
-                                        <Switch
-                                            checked={feature.enabled}
-                                            onCheckedChange={() => toggleFeature(plan.id, feature.id)}
-                                        />
-                                    </div>
-                                ))}
+                            <div className="space-y-2">
+                                <Label className="text-gray-400">주당 분석 가능 횟수 (-1: 무제한)</Label>
+                                <Input
+                                    type="number"
+                                    value={plan.weeklyAnalysisLimit}
+                                    onChange={(e) => updatePlan(plan.id, 'weeklyAnalysisLimit', parseInt(e.target.value))}
+                                    className="bg-gray-950 border-gray-800 text-white"
+                                />
+                            </div>
+
+                            <div className="flex items-center justify-between p-3 rounded-lg bg-gray-950 border border-gray-800">
+                                <span className="text-sm text-gray-300">분석 자료 이메일 전송</span>
+                                <Switch
+                                    checked={plan.canSendEmail}
+                                    onCheckedChange={(checked) => updatePlan(plan.id, 'canSendEmail', checked)}
+                                />
                             </div>
                         </CardContent>
                     </Card>

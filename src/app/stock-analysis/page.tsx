@@ -83,9 +83,6 @@ export default function StockAnalysisPage() {
   }, []);
 
   const handleSendEmail = async (email: string) => {
-    const confirmed = window.confirm('이메일 발송 시 API 비용이 발생할 수 있습니다. 계속하시겠습니까?');
-    if (!confirmed) return;
-
     const response = await fetch('/api/email/send-analysis', {
       method: 'POST',
       headers: {
