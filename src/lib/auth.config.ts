@@ -15,8 +15,22 @@ export const authConfig = {
         ...(process.env.KAKAO_CLIENT_ID ? [
             KakaoProvider({
                 clientId: process.env.KAKAO_CLIENT_ID,
-                clientSecret: process.env.KAKAO_CLIENT_SECRET || undefined, // Make it optional
+                clientSecret: process.env.KAKAO_CLIENT_SECRET || undefined,
                 allowDangerousEmailAccountLinking: true,
+                profile(profile) {
+                    const email = profile.kakao_account?.email || `kakao_${profile.id}@kakao.com`;
+                    return {
+                        id: profile.id.toString(),
+                        name: profile.properties?.nickname || profile.kakao_account?.profile?.nickname,
+                        email: email,
+                        image: profile.properties?.profile_image || profile.kakao_account?.profile?.profile_image_url,
+                    }
+                },
+                authorization: {
+                    params: {
+                        scope: "profile_nickname account_email",
+                    },
+                },
             })
         ] : []),
         ...(process.env.NAVER_CLIENT_ID ? [

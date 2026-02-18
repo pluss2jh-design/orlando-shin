@@ -1,7 +1,8 @@
 # Project Context History
 
 ## Current Session Tracking
-- **질의 횟수**: 0 (카카오 로그인 및 DB 동기화 수정 완료, Git Push 완료)
+- **질의 횟수**: 1
+- 카카오 로그인 시 'email' 필드 누락으로 인한 DB 생성 오류 해결 (profile fallback 추가)
 
 ## 2026-02-17
 
