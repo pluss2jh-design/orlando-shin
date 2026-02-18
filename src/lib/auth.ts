@@ -8,9 +8,12 @@ import CredentialsProvider from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
 import { authConfig } from "./auth.config";
 
+
 export const { handlers, auth, signIn, signOut } = NextAuth({
   adapter: PrismaAdapter(prisma),
   ...authConfig,
+  secret: process.env.AUTH_SECRET,
+  trustHost: true,
   providers: [
     ...authConfig.providers,
     CredentialsProvider({
@@ -98,5 +101,9 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       }
       return session;
     },
-  }
+  },
+  session: {
+    strategy: "jwt",
+  },
+  debug: true,
 });

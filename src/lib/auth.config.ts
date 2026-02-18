@@ -5,21 +5,27 @@ import NaverProvider from "next-auth/providers/naver";
 
 export const authConfig = {
     providers: [
-        GoogleProvider({
-            clientId: process.env.GOOGLE_CLIENT_ID,
-            clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-            allowDangerousEmailAccountLinking: true,
-        }),
-        KakaoProvider({
-            clientId: process.env.KAKAO_CLIENT_ID,
-            clientSecret: process.env.KAKAO_CLIENT_SECRET,
-            allowDangerousEmailAccountLinking: true,
-        }),
-        NaverProvider({
-            clientId: process.env.NAVER_CLIENT_ID,
-            clientSecret: process.env.NAVER_CLIENT_SECRET,
-            allowDangerousEmailAccountLinking: true,
-        }),
+        ...(process.env.GOOGLE_CLIENT_ID ? [
+            GoogleProvider({
+                clientId: process.env.GOOGLE_CLIENT_ID,
+                clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+                allowDangerousEmailAccountLinking: true,
+            })
+        ] : []),
+        ...(process.env.KAKAO_CLIENT_ID ? [
+            KakaoProvider({
+                clientId: process.env.KAKAO_CLIENT_ID,
+                clientSecret: process.env.KAKAO_CLIENT_SECRET || undefined, // Make it optional
+                allowDangerousEmailAccountLinking: true,
+            })
+        ] : []),
+        ...(process.env.NAVER_CLIENT_ID ? [
+            NaverProvider({
+                clientId: process.env.NAVER_CLIENT_ID,
+                clientSecret: process.env.NAVER_CLIENT_SECRET,
+                allowDangerousEmailAccountLinking: true,
+            })
+        ] : []),
     ],
     callbacks: {
         async jwt({ token, user }) {
@@ -47,6 +53,4 @@ export const authConfig = {
     session: {
         strategy: "jwt",
     },
-    secret: process.env.AUTH_SECRET,
-    trustHost: true,
 } satisfies NextAuthConfig;
