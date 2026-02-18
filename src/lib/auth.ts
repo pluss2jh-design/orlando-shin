@@ -62,7 +62,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         token.picture = (profile as any).picture || (profile as any).image_url || (profile as any).avatar_url || (profile as any).kakao_account?.profile?.profile_image_url;
       }
 
-      const adminEmails = ['pluss2.jh@gmail.com', 'pluss2@kakao.com'];
+      const adminEmails = ['pluss2.jh@gmail.com'];
       if (token.email && adminEmails.includes(token.email as string)) {
         token.role = 'ADMIN';
       }

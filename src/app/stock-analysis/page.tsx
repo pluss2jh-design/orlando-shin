@@ -9,13 +9,13 @@ import { AnalysisOutput } from '@/components/stock-analysis/analysis-output';
 import { NewsSection } from '@/components/stock-analysis/news-section';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   InvestmentConditions,
   AnalysisResult,
   NewsSummary
 } from '@/types/stock-analysis';
+import { UserMenu } from '@/components/shared/user-menu';
 
 export default function StockAnalysisPage() {
   const router = useRouter();
@@ -273,39 +273,10 @@ export default function StockAnalysisPage() {
         <div className="flex justify-end gap-2 mb-4">
           {session ? (
             <div className="flex items-center gap-3">
-              {(session.user as any)?.role === 'ADMIN' && (
-                <Button
-                  variant="default"
-                  size="sm"
-                  onClick={() => router.push('/admin/dashboard')}
-                  className="bg-blue-600 hover:bg-blue-700"
-                >
-                  <Lock className="mr-2 h-4 w-4" />
-                  관리자 대시보드
-                </Button>
-              )}
-              <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-muted/50 border">
-                <Avatar className="h-6 w-6">
-                  <AvatarImage src={session.user?.image || ""} />
-                  <AvatarFallback className="text-[10px]">
-                    {session.user?.name?.[0] || session.user?.email?.[0] || "U"}
-                  </AvatarFallback>
-                </Avatar>
-                <div className="flex flex-col">
-                  <span className="text-xs font-medium">
-                    {session.user?.name || session.user?.email}
-                  </span>
-                  <div className="flex items-center gap-1.5">
-                    <Badge variant="outline" className="text-[9px] px-1 py-0 h-4 bg-primary/10 text-primary border-primary/20">
-                      {(session.user as any)?.plan?.toUpperCase() || 'FREE'}
-                    </Badge>
-                    {session.user?.email && (
-                      <span className="text-[10px] text-muted-foreground leading-none">
-                        {session.user.email}
-                      </span>
-                    )}
-                  </div>
-                </div>
+              <div className="flex items-center gap-2">
+                <Badge variant="outline" className="text-xs bg-primary/10 text-primary border-primary/20">
+                  {(session.user as any)?.plan?.toUpperCase() || 'FREE'}
+                </Badge>
               </div>
               <Button
                 variant="ghost"
@@ -323,13 +294,7 @@ export default function StockAnalysisPage() {
                 <MessageSquare className="mr-2 h-4 w-4" />
                 1:1 문의
               </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => signOut({ callbackUrl: '/stock-analysis' })}
-              >
-                로그아웃
-              </Button>
+              <UserMenu />
             </div>
           ) : (
             <>

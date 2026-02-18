@@ -9,7 +9,7 @@ import { Separator } from '@/components/ui/separator';
 import { Chrome } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 
-const ADMIN_EMAILS = ['pluss2.jh@gmail.com', 'pluss2@kakao.com'];
+const ADMIN_EMAILS = ['pluss2.jh@gmail.com'];
 
 function LoginForm() {
   const router = useRouter();
@@ -22,51 +22,29 @@ function LoginForm() {
   const [showAdminForm, setShowAdminForm] = useState(false);
 
   useEffect(() => {
-    console.log('Login page useEffect triggered:', { status, hasSession: !!session, hasEmail: !!session?.user?.email });
+    if (status === 'loading') return;
 
-    if (status === 'loading') {
-      console.log('Session is loading...');
-      return;
-    }
-
-    if (status === 'authenticated') {
-      console.log('Status is authenticated, session:', session);
-
-      if (!session?.user?.email) {
-        console.error('Session exists but no email found:', session);
-        return;
-      }
-
+    if (status === 'authenticated' && session?.user) {
       const userEmail = session.user.email;
-      const isAdmin = ADMIN_EMAILS.includes(userEmail) || (session.user as any).role === 'ADMIN';
+      const isAdmin = ADMIN_EMAILS.includes(userEmail || '') || (session.user as any).role === 'ADMIN';
 
-      console.log('Session authenticated:', { userEmail, isAdmin, role: (session.user as any).role });
-
-      // Force a small delay to ensure session is fully loaded
-      setTimeout(() => {
-        if (isAdmin) {
-          console.log('Redirecting to admin dashboard...');
-          window.location.href = '/admin/dashboard';
-        } else {
-          const callbackUrl = searchParams.get('callbackUrl') || '/stock-analysis';
-          console.log('Redirecting to:', callbackUrl);
-          window.location.href = callbackUrl;
-        }
-      }, 100);
-    } else {
-      console.log('Not authenticated, status:', status);
+      if (isAdmin) {
+        router.push('/admin/dashboard');
+      } else {
+        const callbackUrl = searchParams.get('callbackUrl') || '/stock-analysis';
+        router.push(callbackUrl);
+      }
     }
-  }, [status, session, searchParams]);
+  }, [status, session, router, searchParams]);
 
   const handleSocialLogin = async (provider: string) => {
     try {
       setIsLoading(provider);
       setError('');
-      console.log(`Attempting to sign in with ${provider}...`);
-
-      // Let NextAuth handle the OAuth redirect naturally
+      
       await signIn(provider, {
-        callbackUrl: window.location.origin + '/login',
+        callbackUrl: '/stock-analysis',
+        redirect: true,
       });
     } catch (error) {
       console.error('Exception during signIn:', error);

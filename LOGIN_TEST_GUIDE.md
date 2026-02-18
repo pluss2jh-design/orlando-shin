@@ -28,7 +28,7 @@
 
 ### 2. 관리자 로그인 테스트
 1. 브라우저에서 `http://localhost:3000/login` 접속
-2. 관리자 계정(`pluss2.jh@gmail.com` 또는 `pluss2@kakao.com`)으로 로그인
+2. 관리자 계정(`pluss2.jh@gmail.com`)으로 로그인
 3. **예상 결과**: 로그인 후 `/admin/dashboard` 페이지로 자동 이동
 
 ### 3. 디버그 로그 확인
