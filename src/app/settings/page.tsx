@@ -34,9 +34,19 @@ export default function SettingsPage() {
 
       if (!res.ok) throw new Error('Failed to update profile');
 
-      await update({ name, image });
-      setMessage({ type: 'success', text: '프로필이 업데이트되었습니다.' });
-      router.refresh();
+      // 세션 토큰 갱신 요청
+      await update({
+        name,
+        image: image || session?.user?.image,
+        user: {
+          ...session?.user,
+          name,
+          image
+        }
+      });
+
+      setMessage({ type: 'success', text: '프로필이 안전하게 저장되었으며 세션에 반영되었습니다.' });
+      setTimeout(() => router.refresh(), 500);
     } catch (error) {
       setMessage({ type: 'error', text: '프로필 업데이트 중 오류가 발생했습니다.' });
     } finally {
@@ -77,8 +87,8 @@ export default function SettingsPage() {
               </Avatar>
               <div className="flex-1 space-y-2">
                 <Label>프로필 이미지 URL</Label>
-                <Input 
-                  value={image} 
+                <Input
+                  value={image}
                   onChange={(e) => setImage(e.target.value)}
                   placeholder="https://example.com/avatar.jpg"
                 />
@@ -89,8 +99,8 @@ export default function SettingsPage() {
               <Label>이름 (닉네임)</Label>
               <div className="relative">
                 <User className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                <Input 
-                  value={name} 
+                <Input
+                  value={name}
                   onChange={(e) => setName(e.target.value)}
                   className="pl-9"
                   placeholder="이름을 입력하세요"
@@ -102,9 +112,9 @@ export default function SettingsPage() {
               <Label>이메일</Label>
               <div className="relative">
                 <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                <Input 
-                  value={session?.user?.email || ''} 
-                  disabled 
+                <Input
+                  value={session?.user?.email || ''}
+                  disabled
                   className="pl-9 bg-muted"
                 />
               </div>

@@ -265,16 +265,15 @@ export default function StockAnalysisPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-background to-muted/20">
-      <div className="container mx-auto px-4 py-8 max-w-6xl">
-        <div className="flex justify-end gap-2 mb-4">
+    <div className="min-h-screen bg-[#05070a] text-gray-100 relative overflow-hidden">
+      {/* Background Digital Grid Effect */}
+      <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:40px_40px] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_100%)]" />
+      <div className="absolute inset-0 bg-gradient-to-tr from-blue-500/5 via-transparent to-emerald-500/5" />
+
+      <div className="container mx-auto px-4 py-8 max-w-7xl relative z-10">
+        <div className="flex justify-end gap-3 mb-12">
           {session ? (
             <div className="flex items-center gap-3">
-              <div className="flex items-center gap-2">
-                <Badge variant="outline" className="text-xs bg-primary/10 text-primary border-primary/20">
-                  {(session.user as any)?.plan?.toUpperCase() || 'FREE'}
-                </Badge>
-              </div>
               <Button
                 variant="ghost"
                 size="sm"
@@ -315,16 +314,17 @@ export default function StockAnalysisPage() {
           )}
         </div>
 
-        <div className="text-center mb-10">
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 text-primary text-sm font-medium mb-4">
+        <div className="text-center mb-16 relative">
+          <div className="inline-flex items-center gap-2 px-6 py-2 rounded-full bg-blue-500/10 text-blue-400 text-xs font-black uppercase tracking-[0.3em] border border-blue-500/20 mb-8 animate-pulse">
             <Sparkles className="h-4 w-4" />
-            AI 기반 시장 유니버스 분석 시스템
+            AI Market Intelligence System
           </div>
-          <h1 className="text-4xl font-bold tracking-tight mb-3">
-            주식 선생님
+          <h1 className="text-6xl font-black tracking-tighter mb-4 text-transparent bg-clip-text bg-gradient-to-b from-white to-gray-500">
+            ORLANDO <span className="text-blue-500">ANALYSIS</span>
           </h1>
-          <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-            Google Drive 자료를 학습하여 S&P 500, Russell 1000 기업 중 최적의 투자 대상을 찾아드립니다
+          <p className="text-gray-500 max-w-2xl mx-auto font-medium tracking-tight">
+            Google Drive 기반의 독자적인 AI 학습 모델을 통해 S&P 500, Russell 1000 기업 중<br />
+            실시간 재무 지표를 기반으로 최적의 투자 Alpha를 발굴합니다.
           </p>
         </div>
 

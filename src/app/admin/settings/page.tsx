@@ -110,91 +110,105 @@ export default function SettingsPage() {
                         </div>
                     ) : (
                         <>
-                            <div className="space-y-2">
-                                <label className="text-sm font-medium text-gray-300">
-                                    Google API Key (Gemini)
-                                </label>
-                                <div className="relative">
-                                    <Input
-                                        type={showKeys['GOOGLE_API_KEY'] ? 'text' : 'password'}
-                                        value={keys.GOOGLE_API_KEY}
-                                        onChange={(e) => handleChange('GOOGLE_API_KEY', e.target.value)}
-                                        placeholder="AIza..."
-                                        className="bg-gray-950 border-gray-800 text-white pr-10"
-                                    />
-                                    <button
-                                        type="button"
-                                        onClick={() => toggleShowKey('GOOGLE_API_KEY')}
-                                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white"
-                                    >
-                                        {showKeys['GOOGLE_API_KEY'] ? (
-                                            <EyeOff className="h-4 w-4" />
-                                        ) : (
-                                            <Eye className="h-4 w-4" />
-                                        )}
-                                    </button>
+                            <div className="space-y-4">
+                                <div className="space-y-2">
+                                    <label className="text-sm font-medium text-gray-300">
+                                        Google API Key (Gemini)
+                                    </label>
+                                    <div className="relative group">
+                                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                            <Key className="h-4 w-4 text-gray-500 group-focus-within:text-blue-500 transition-colors" />
+                                        </div>
+                                        <Input
+                                            type={showKeys['GOOGLE_API_KEY'] ? 'text' : 'password'}
+                                            value={keys.GOOGLE_API_KEY}
+                                            onChange={(e) => handleChange('GOOGLE_API_KEY', e.target.value)}
+                                            placeholder="AIza..."
+                                            className="bg-gray-950 border-gray-800 text-white pl-10 pr-12 focus:ring-blue-500/50 focus:border-blue-500 transition-all font-mono"
+                                        />
+                                        <button
+                                            type="button"
+                                            onClick={() => toggleShowKey('GOOGLE_API_KEY')}
+                                            className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded-md hover:bg-gray-800 text-gray-400 hover:text-white transition-colors"
+                                            title={showKeys['GOOGLE_API_KEY'] ? "숨기기" : "보기"}
+                                        >
+                                            {showKeys['GOOGLE_API_KEY'] ? (
+                                                <EyeOff className="h-4 w-4" />
+                                            ) : (
+                                                <Eye className="h-4 w-4" />
+                                            )}
+                                        </button>
+                                    </div>
+                                    <p className="text-xs text-gray-500">
+                                        Google Drive 및 Gemini AI 모델 사용에 필요합니다
+                                    </p>
                                 </div>
-                                <p className="text-xs text-gray-500">
-                                    Google Drive 및 Gemini AI 모델 사용에 필요합니다
-                                </p>
-                            </div>
 
-                            <div className="space-y-2">
-                                <label className="text-sm font-medium text-gray-300">
-                                    OpenAI API Key
-                                </label>
-                                <div className="relative">
-                                    <Input
-                                        type={showKeys['OPENAI_API_KEY'] ? 'text' : 'password'}
-                                        value={keys.OPENAI_API_KEY}
-                                        onChange={(e) => handleChange('OPENAI_API_KEY', e.target.value)}
-                                        placeholder="sk-..."
-                                        className="bg-gray-950 border-gray-800 text-white pr-10"
-                                    />
-                                    <button
-                                        type="button"
-                                        onClick={() => toggleShowKey('OPENAI_API_KEY')}
-                                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white"
-                                    >
-                                        {showKeys['OPENAI_API_KEY'] ? (
-                                            <EyeOff className="h-4 w-4" />
-                                        ) : (
-                                            <Eye className="h-4 w-4" />
-                                        )}
-                                    </button>
+                                <div className="space-y-2">
+                                    <label className="text-sm font-medium text-gray-300">
+                                        OpenAI API Key
+                                    </label>
+                                    <div className="relative group">
+                                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                            <Key className="h-4 w-4 text-gray-500 group-focus-within:text-green-500 transition-colors" />
+                                        </div>
+                                        <Input
+                                            type={showKeys['OPENAI_API_KEY'] ? 'text' : 'password'}
+                                            value={keys.OPENAI_API_KEY}
+                                            onChange={(e) => handleChange('OPENAI_API_KEY', e.target.value)}
+                                            placeholder="sk-..."
+                                            className="bg-gray-950 border-gray-800 text-white pl-10 pr-12 focus:ring-green-500/50 focus:border-green-500 transition-all font-mono"
+                                        />
+                                        <button
+                                            type="button"
+                                            onClick={() => toggleShowKey('OPENAI_API_KEY')}
+                                            className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded-md hover:bg-gray-800 text-gray-400 hover:text-white transition-colors"
+                                            title={showKeys['OPENAI_API_KEY'] ? "숨기기" : "보기"}
+                                        >
+                                            {showKeys['OPENAI_API_KEY'] ? (
+                                                <EyeOff className="h-4 w-4" />
+                                            ) : (
+                                                <Eye className="h-4 w-4" />
+                                            )}
+                                        </button>
+                                    </div>
+                                    <p className="text-xs text-gray-500">
+                                        GPT 모델 사용에 필요합니다 (선택사항)
+                                    </p>
                                 </div>
-                                <p className="text-xs text-gray-500">
-                                    GPT 모델 사용에 필요합니다 (선택사항)
-                                </p>
-                            </div>
 
-                            <div className="space-y-2">
-                                <label className="text-sm font-medium text-gray-300">
-                                    Yahoo Finance API Key
-                                </label>
-                                <div className="relative">
-                                    <Input
-                                        type={showKeys['YAHOO_FINANCE_API_KEY'] ? 'text' : 'password'}
-                                        value={keys.YAHOO_FINANCE_API_KEY}
-                                        onChange={(e) => handleChange('YAHOO_FINANCE_API_KEY', e.target.value)}
-                                        placeholder="API Key (선택사항)"
-                                        className="bg-gray-950 border-gray-800 text-white pr-10"
-                                    />
-                                    <button
-                                        type="button"
-                                        onClick={() => toggleShowKey('YAHOO_FINANCE_API_KEY')}
-                                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white"
-                                    >
-                                        {showKeys['YAHOO_FINANCE_API_KEY'] ? (
-                                            <EyeOff className="h-4 w-4" />
-                                        ) : (
-                                            <Eye className="h-4 w-4" />
-                                        )}
-                                    </button>
+                                <div className="space-y-2">
+                                    <label className="text-sm font-medium text-gray-300">
+                                        Yahoo Finance API Key
+                                    </label>
+                                    <div className="relative group">
+                                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                            <Key className="h-4 w-4 text-gray-500 group-focus-within:text-purple-500 transition-colors" />
+                                        </div>
+                                        <Input
+                                            type={showKeys['YAHOO_FINANCE_API_KEY'] ? 'text' : 'password'}
+                                            value={keys.YAHOO_FINANCE_API_KEY}
+                                            onChange={(e) => handleChange('YAHOO_FINANCE_API_KEY', e.target.value)}
+                                            placeholder="API Key (선택사항)"
+                                            className="bg-gray-950 border-gray-800 text-white pl-10 pr-12 focus:ring-purple-500/50 focus:border-purple-500 transition-all font-mono"
+                                        />
+                                        <button
+                                            type="button"
+                                            onClick={() => toggleShowKey('YAHOO_FINANCE_API_KEY')}
+                                            className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded-md hover:bg-gray-800 text-gray-400 hover:text-white transition-colors"
+                                            title={showKeys['YAHOO_FINANCE_API_KEY'] ? "숨기기" : "보기"}
+                                        >
+                                            {showKeys['YAHOO_FINANCE_API_KEY'] ? (
+                                                <EyeOff className="h-4 w-4" />
+                                            ) : (
+                                                <Eye className="h-4 w-4" />
+                                            )}
+                                        </button>
+                                    </div>
+                                    <p className="text-xs text-gray-500">
+                                        Yahoo Finance는 기본적으로 무료로 사용 가능합니다
+                                    </p>
                                 </div>
-                                <p className="text-xs text-gray-500">
-                                    Yahoo Finance는 기본적으로 무료로 사용 가능합니다
-                                </p>
                             </div>
 
                             <div className="pt-4">
