@@ -63,6 +63,9 @@ export function UserMenu() {
             <p className="text-xs leading-none text-muted-foreground">
               {session.user?.email}
             </p>
+            <p className="text-[10px] text-muted-foreground font-semibold uppercase mt-1">
+              {(session.user as any)?.plan || 'FREE'}
+            </p>
           </div>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />

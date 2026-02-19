@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Save, RefreshCw, Key, AlertCircle, CheckCircle } from 'lucide-react';
+import { Save, RefreshCw, Key, AlertCircle, CheckCircle, Eye, EyeOff } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -22,6 +22,7 @@ export default function SettingsPage() {
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+    const [showKeys, setShowKeys] = useState<{ [key: string]: boolean }>({});
 
     useEffect(() => {
         fetchSettings();
@@ -70,6 +71,10 @@ export default function SettingsPage() {
         setKeys(prev => ({ ...prev, [key]: value }));
     };
 
+    const toggleShowKey = (key: string) => {
+        setShowKeys(prev => ({ ...prev, [key]: !prev[key] }));
+    };
+
     return (
         <div className="p-8 space-y-6">
             <div>
@@ -109,13 +114,26 @@ export default function SettingsPage() {
                                 <label className="text-sm font-medium text-gray-300">
                                     Google API Key (Gemini)
                                 </label>
-                                <Input
-                                    type="password"
-                                    value={keys.GOOGLE_API_KEY}
-                                    onChange={(e) => handleChange('GOOGLE_API_KEY', e.target.value)}
-                                    placeholder="AIza..."
-                                    className="bg-gray-950 border-gray-800 text-white"
-                                />
+                                <div className="relative">
+                                    <Input
+                                        type={showKeys['GOOGLE_API_KEY'] ? 'text' : 'password'}
+                                        value={keys.GOOGLE_API_KEY}
+                                        onChange={(e) => handleChange('GOOGLE_API_KEY', e.target.value)}
+                                        placeholder="AIza..."
+                                        className="bg-gray-950 border-gray-800 text-white pr-10"
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={() => toggleShowKey('GOOGLE_API_KEY')}
+                                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white"
+                                    >
+                                        {showKeys['GOOGLE_API_KEY'] ? (
+                                            <EyeOff className="h-4 w-4" />
+                                        ) : (
+                                            <Eye className="h-4 w-4" />
+                                        )}
+                                    </button>
+                                </div>
                                 <p className="text-xs text-gray-500">
                                     Google Drive 및 Gemini AI 모델 사용에 필요합니다
                                 </p>
@@ -125,13 +143,26 @@ export default function SettingsPage() {
                                 <label className="text-sm font-medium text-gray-300">
                                     OpenAI API Key
                                 </label>
-                                <Input
-                                    type="password"
-                                    value={keys.OPENAI_API_KEY}
-                                    onChange={(e) => handleChange('OPENAI_API_KEY', e.target.value)}
-                                    placeholder="sk-..."
-                                    className="bg-gray-950 border-gray-800 text-white"
-                                />
+                                <div className="relative">
+                                    <Input
+                                        type={showKeys['OPENAI_API_KEY'] ? 'text' : 'password'}
+                                        value={keys.OPENAI_API_KEY}
+                                        onChange={(e) => handleChange('OPENAI_API_KEY', e.target.value)}
+                                        placeholder="sk-..."
+                                        className="bg-gray-950 border-gray-800 text-white pr-10"
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={() => toggleShowKey('OPENAI_API_KEY')}
+                                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white"
+                                    >
+                                        {showKeys['OPENAI_API_KEY'] ? (
+                                            <EyeOff className="h-4 w-4" />
+                                        ) : (
+                                            <Eye className="h-4 w-4" />
+                                        )}
+                                    </button>
+                                </div>
                                 <p className="text-xs text-gray-500">
                                     GPT 모델 사용에 필요합니다 (선택사항)
                                 </p>
@@ -141,13 +172,26 @@ export default function SettingsPage() {
                                 <label className="text-sm font-medium text-gray-300">
                                     Yahoo Finance API Key
                                 </label>
-                                <Input
-                                    type="password"
-                                    value={keys.YAHOO_FINANCE_API_KEY}
-                                    onChange={(e) => handleChange('YAHOO_FINANCE_API_KEY', e.target.value)}
-                                    placeholder="API Key (선택사항)"
-                                    className="bg-gray-950 border-gray-800 text-white"
-                                />
+                                <div className="relative">
+                                    <Input
+                                        type={showKeys['YAHOO_FINANCE_API_KEY'] ? 'text' : 'password'}
+                                        value={keys.YAHOO_FINANCE_API_KEY}
+                                        onChange={(e) => handleChange('YAHOO_FINANCE_API_KEY', e.target.value)}
+                                        placeholder="API Key (선택사항)"
+                                        className="bg-gray-950 border-gray-800 text-white pr-10"
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={() => toggleShowKey('YAHOO_FINANCE_API_KEY')}
+                                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white"
+                                    >
+                                        {showKeys['YAHOO_FINANCE_API_KEY'] ? (
+                                            <EyeOff className="h-4 w-4" />
+                                        ) : (
+                                            <Eye className="h-4 w-4" />
+                                        )}
+                                    </button>
+                                </div>
                                 <p className="text-xs text-gray-500">
                                     Yahoo Finance는 기본적으로 무료로 사용 가능합니다
                                 </p>

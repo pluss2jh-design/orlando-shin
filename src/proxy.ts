@@ -16,7 +16,7 @@ export default async function proxy(request: NextRequest) {
 
   const session = await auth();
   const user = session?.user;
-  const isAdmin = user?.email && ADMIN_EMAILS.includes(user.email);
+  const isAdmin = user?.email && ADMIN_EMAILS.includes(user.email) || (user as any)?.role === 'ADMIN';
   const isAuthenticated = !!user;
 
   if (pathname.startsWith('/admin')) {

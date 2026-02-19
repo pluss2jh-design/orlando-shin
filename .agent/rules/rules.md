@@ -2,10 +2,14 @@
 trigger: always_on
 ---
 
-1. 내가 질의하면 답변 후 프로젝트에 반영된 사항을 날짜 기준으로 CONTEXT.md에 짧게 요약해서 정리해.
-2. 내가 질의 할 때마다 수정된 소스 결과물을 commit하고 질의 횟수를 답변 마지막에 표시하고, CONTEXT.md파일에 질의 횟수를 업데이트 해. 그리고 3번 째 질의와 답변 후엔 git에 소스를 push하고, 질의 횟수를 다시 초기화 해. 그리고 AGENTS.md 파일은 git에 포함시키지 마(이미 반영되있다면 git에서 삭제해). (소스 push 주소: https://github.com/pluss2jh-design/orlando-shin)
-3. 수정 후엔 너가 테스트까지 성공적으로 완료한 후에 나한테 다됬다고 얘기하고, 너가 "npm run dev" 실행해. 단, 기존에 같은 포트로 실행되고 있는 프로세스가 있으면 그 프로세스 종료하고 명령어 실행해.
-4. 만들어진 서비스에서 API 사용 시 꼭 비용발생 할 수 있다는 알림 띄우고, 확인 클릭했을 때에만 실행해. Rate Limit 막고자 MOCK데이터 사용하는 일은 절대로 없어야 하고, 모든 경우에 있어서 임의의 데이터를 넣는 일이 없어야하고 실제 데이터를 사용해야해.
-5. 분석 대상 기업은 각 지수(S&P500, 러셀1000, 다우존스) 별로 시가총액 높은 기업 100개씩 고른 후 이 300개 기업 중에서 조회 시점에 투자 규칙과 부합정도에 따라 0 ~ 10점(가장 부합)을 부여하고 점수가 높은 기업 5개 찾고 점수도 화면에 표시해.
-6. oh-my-opencode 실행할 땐 항상 oh-my-opencode.json 파일을 참고해서 정해진 모델을 사용해.
-7. 항상 한국어로 답해.
+1. Always answer in Korean.
+
+2. Whenever I make a query, always refer to the oh-my-opencode.json file to use the designated model. After responding, briefly summarize the changes reflected in the project by date in the CONTEXT.md file.
+
+3. Push the modified source code to Git immediately after every query. Do not include the AGENTS.md file in Git (if it is already present, remove it from Git). (Git push URL: https://github.com/pluss2jh-design/orlando-shin)
+
+4. After making modifications, only inform me that it is "done" after you have successfully completed testing, and then run npm run dev. However, if there is an existing process running on the same port, terminate that process before executing the command.
+
+5. When using paid APIs in the created service, always display a notification stating that costs may occur, and execute the API call only when "Confirm" is clicked. To avoid Rate Limits, never use MOCK data; under no circumstances should arbitrary data be used—real data must be used at all times. If real data is unavailable, display a "Data not available" message on the screen.
+
+6. For the analysis, select the top 100 companies by market capitalization from each index (S&P 500, Russell 1000, Dow Jones). From these 300 companies, assign a score from 0 to 10 (10 being the most compliant) based on how well they align with the investment rules at the time of inquiry.
