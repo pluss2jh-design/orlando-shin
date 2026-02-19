@@ -15,7 +15,7 @@ export async function GET(request: NextRequest) {
     const users = await prisma.user.findMany({
       where: {
         email: {
-          notIn: adminEmails,
+          notIn: [...adminEmails, 'pluss2.jh@gmail.com'],
         },
       },
       select: {
@@ -23,7 +23,7 @@ export async function GET(request: NextRequest) {
         name: true,
         email: true,
         image: true,
-        membershipTier: true,
+        plan: true,
         createdAt: true,
       },
       orderBy: {

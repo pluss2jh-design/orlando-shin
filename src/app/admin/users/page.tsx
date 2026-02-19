@@ -19,7 +19,7 @@ interface User {
   name: string | null;
   email: string;
   image: string | null;
-  membershipTier: string;
+  plan: string;
   createdAt: string;
 }
 
@@ -60,13 +60,13 @@ export default function UserManagementPage() {
       const res = await fetch(`/api/admin/users/${userId}/plan`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ membershipTier: plan }),
+        body: JSON.stringify({ plan: plan }),
       });
 
       if (res.ok) {
         setUsers(prev =>
           prev.map(user =>
-            user.id === userId ? { ...user, membershipTier: plan } : user
+            user.id === userId ? { ...user, plan: plan } : user
           )
         );
       }
@@ -77,14 +77,14 @@ export default function UserManagementPage() {
     }
   };
 
-  const getPlanBadgeColor = (tier: string) => {
-    const plan = PLAN_OPTIONS.find(p => p.value === tier);
+  const getPlanBadgeColor = (planValue: string) => {
+    const plan = PLAN_OPTIONS.find(p => p.value === planValue);
     return plan?.color || 'bg-gray-500';
   };
 
-  const getPlanLabel = (tier: string) => {
-    const plan = PLAN_OPTIONS.find(p => p.value === tier);
-    return plan?.label || tier;
+  const getPlanLabel = (planValue: string) => {
+    const plan = PLAN_OPTIONS.find(p => p.value === planValue);
+    return plan?.label || planValue;
   };
 
   if (loading) {
@@ -125,8 +125,8 @@ export default function UserManagementPage() {
                       <span className="text-lg font-medium text-white">
                         {user.name || '이름 없음'}
                       </span>
-                      <Badge className={`${getPlanBadgeColor(user.membershipTier)} text-white`}>
-                        {getPlanLabel(user.membershipTier)}
+                      <Badge className={`${getPlanBadgeColor(user.plan)} text-white`}>
+                        {getPlanLabel(user.plan)}
                       </Badge>
                     </div>
                     <p className="text-sm text-gray-400">{user.email}</p>
@@ -138,7 +138,7 @@ export default function UserManagementPage() {
 
                 <div className="flex items-center gap-4">
                   <Select
-                    value={user.membershipTier}
+                    value={user.plan}
                     onValueChange={(value: string) => updateUserPlan(user.id, value)}
                     disabled={updating === user.id}
                   >

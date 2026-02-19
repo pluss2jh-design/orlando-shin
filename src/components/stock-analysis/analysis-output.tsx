@@ -25,7 +25,7 @@ export function AnalysisOutput({ results, conditions, isLoading, onSendEmail }: 
   const [isSendingEmail, setIsSendingEmail] = useState(false);
   const [emailSent, setEmailSent] = useState(false);
   const [canSendEmail, setCanSendEmail] = useState(false);
-  const [membershipTier, setMembershipTier] = useState<string>('FREE');
+  const [plan, setPlan] = useState<string>('FREE');
 
   useEffect(() => {
     const checkFeatures = async () => {
@@ -34,7 +34,7 @@ export function AnalysisOutput({ results, conditions, isLoading, onSendEmail }: 
         if (res.ok) {
           const data = await res.json();
           setCanSendEmail(data.canSendEmail);
-          setMembershipTier(data.membershipTier);
+          setPlan(data.plan);
         }
       } catch (error) {
         console.error('Failed to check features:', error);
@@ -48,6 +48,10 @@ export function AnalysisOutput({ results, conditions, isLoading, onSendEmail }: 
 
   const handleSendEmail = async () => {
     if (!email || !onSendEmail || !canSendEmail) return;
+
+    const confirmed = window.confirm('이메일 발송을 위해 API 비용이 발생할 수 있습니다. 계속하시겠습니까?');
+    if (!confirmed) return;
+
     setIsSendingEmail(true);
     try {
       await onSendEmail(email);

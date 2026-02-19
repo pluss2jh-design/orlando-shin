@@ -35,8 +35,8 @@ export function UserMenu() {
 
   if (!session) return null;
 
-  const isAdmin = (session.user as any).role === 'ADMIN' || (session.user as any).membershipTier === 'MASTER';
-  const currentPlan = (session.user as any).membershipTier || (session.user as any).plan || 'FREE';
+  const isAdmin = (session.user as any).role === 'ADMIN';
+  const currentPlan = ((session.user as any).plan || 'FREE').toUpperCase();
 
   const handleLogout = async () => {
     await signOut({ redirect: false });
@@ -46,7 +46,7 @@ export function UserMenu() {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" className="relative h-10 w-10 rounded-full">
+        <Button variant="ghost" className="relative h-10 w-10 rounded-full z-[100]">
           <Avatar className="h-10 w-10">
             <AvatarImage src={session.user?.image || ''} alt={session.user?.name || ''} />
             <AvatarFallback className="bg-primary/10">

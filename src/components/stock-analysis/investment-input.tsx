@@ -61,7 +61,7 @@ export function InvestmentInput({ onAnalyze, disabled }: InvestmentInputProps) {
   const [newsApiKey, setNewsApiKey] = useState('');
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [userFeatures, setUserFeatures] = useState<{
-    membershipTier: string;
+    plan: string;
     weeklyAnalysisLimit: number;
     usedAnalysisThisWeek: number;
     remainingAnalysis: number;
@@ -123,11 +123,11 @@ export function InvestmentInput({ onAnalyze, disabled }: InvestmentInputProps) {
           <div className="flex items-center gap-2 mt-2">
             <BarChart3 className="h-4 w-4 text-muted-foreground" />
             <span className="text-sm text-muted-foreground">
-              이번 주 남은 분석 횟수: 
+              이번 주 남은 분석 횟수:
             </span>
             <Badge variant={userFeatures.remainingAnalysis === 0 ? "destructive" : "secondary"}>
-              {userFeatures.weeklyAnalysisLimit === -1 
-                ? '무제한' 
+              {userFeatures.weeklyAnalysisLimit === -1
+                ? '무제한'
                 : `${userFeatures.remainingAnalysis}회 / ${userFeatures.weeklyAnalysisLimit}회`
               }
             </Badge>
@@ -250,8 +250,8 @@ export function InvestmentInput({ onAnalyze, disabled }: InvestmentInputProps) {
           size="lg"
         >
           <Search className="h-4 w-4 mr-2" />
-          {userFeatures && !userFeatures.canAnalyze 
-            ? '이번 주 분석 횟수 초과' 
+          {userFeatures && !userFeatures.canAnalyze
+            ? '이번 주 분석 횟수 초과'
             : `기업 ${companyCount}개 찾기`
           }
         </Button>

@@ -17,8 +17,7 @@ model User {
   emailVerified   DateTime?
   image           String?
   password        String?
-  plan            String          @default("free")
-  membershipTier  MembershipTier  @default(FREE)
+  plan            Plan            @default(FREE)
   createdAt       DateTime        @default(now()) @db.Timestamptz(3)
   updatedAt       DateTime        @updatedAt @db.Timestamptz(3)
 
@@ -28,7 +27,7 @@ model User {
   analysisUsages  AnalysisUsage[]
 }
 
-enum MembershipTier {
+enum Plan {
   FREE
   STANDARD
   PREMIUM

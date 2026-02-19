@@ -23,7 +23,7 @@ function LoginForm() {
     if (status === 'loading') return;
 
     if (status === 'authenticated' && session?.user) {
-      const isAdmin = (session.user as any).role === 'ADMIN' || (session.user as any).membershipTier === 'MASTER';
+      const isAdmin = (session.user as any).role === 'ADMIN';
 
       if (isAdmin) {
         router.push('/admin/dashboard');

@@ -23,7 +23,7 @@ function getWeekStart(date: Date): Date {
 }
 
 const planLimits: Record<string, { weeklyAnalysisLimit: number }> = {
-  FREE: { weeklyAnalysisLimit: 3 },
+  FREE: { weeklyAnalysisLimit: 1 },
   STANDARD: { weeklyAnalysisLimit: 7 },
   PREMIUM: { weeklyAnalysisLimit: 10 },
   MASTER: { weeklyAnalysisLimit: -1 },
@@ -32,37 +32,41 @@ const planLimits: Record<string, { weeklyAnalysisLimit: number }> = {
 export async function POST(request: NextRequest) {
   try {
     const session = await auth();
-    
+
     if (!session?.user?.id) {
       return NextResponse.json({ error: '로그인이 필요합니다.' }, { status: 401 });
     }
 
     const user = await prisma.user.findUnique({
       where: { id: session.user.id },
-      select: { membershipTier: true }
+      select: { plan: true, email: true }
     });
 
     if (!user) {
       return NextResponse.json({ error: '사용자를 찾을 수 없습니다.' }, { status: 404 });
     }
 
-    const planConfig = planLimits[user.membershipTier] || planLimits.FREE;
+    const isMaster = user.email === 'pluss2.jh@gmail.com';
+    const effectivePlan = isMaster ? 'MASTER' : user.plan;
+    const planConfig = planLimits[effectivePlan] || planLimits.FREE;
 
     if (planConfig.weeklyAnalysisLimit !== -1) {
       const weekStart = getWeekStart(new Date());
-      
-      const analysisUsage = await prisma.$queryRaw`
-        SELECT count FROM "AnalysisUsage" 
-        WHERE "userId" = ${session.user.id} 
-        AND "weekStart" = ${weekStart}
-        LIMIT 1
-      `;
 
-      const currentCount = (analysisUsage as any[])?.[0]?.count || 0;
+      const analysisUsage = await prisma.analysisUsage.findUnique({
+        where: {
+          userId_weekStart: {
+            userId: session.user.id,
+            weekStart: weekStart
+          }
+        }
+      });
+
+      const currentCount = analysisUsage?.count || 0;
 
       if (currentCount >= planConfig.weeklyAnalysisLimit) {
         return NextResponse.json(
-          { 
+          {
             error: '이번 주 분석 횟수를 모두 사용했습니다.',
             weeklyLimit: planConfig.weeklyAnalysisLimit,
             usedCount: currentCount,
@@ -96,12 +100,24 @@ export async function POST(request: NextRequest) {
 
     if (planConfig.weeklyAnalysisLimit !== -1) {
       const weekStart = getWeekStart(new Date());
-      await prisma.$executeRaw`
-        INSERT INTO "AnalysisUsage" (id, "userId", "weekStart", count, "createdAt", "updatedAt")
-        VALUES (gen_random_uuid(), ${session.user.id}, ${weekStart}, 1, NOW(), NOW())
-        ON CONFLICT ("userId", "weekStart")
-        DO UPDATE SET count = "AnalysisUsage".count + 1, "updatedAt" = NOW()
-      `;
+      await prisma.analysisUsage.upsert({
+        where: {
+          userId_weekStart: {
+            userId: session.user.id,
+            weekStart: weekStart
+          }
+        },
+        create: {
+          userId: session.user.id,
+          weekStart: weekStart,
+          count: 1
+        },
+        update: {
+          count: {
+            increment: 1
+          }
+        }
+      });
     }
 
     return NextResponse.json(result);

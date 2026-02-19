@@ -1,0 +1,173 @@
+'use client';
+
+import { useState, useEffect } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Sparkles, User, Mail, Lock, ShieldCheck } from 'lucide-react';
+
+export default function OnboardingPage() {
+    const router = useRouter();
+    const searchParams = useSearchParams();
+    const email = searchParams.get('email') || '';
+    const name = searchParams.get('name') || '';
+    const provider = searchParams.get('provider') || '';
+
+    const [isLoading, setIsLoading] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+    const [formData, setFormData] = useState({
+        nickname: name,
+        email: email,
+        password: '',
+        confirmPassword: '',
+    });
+
+    const validatePassword = (pass: string) => {
+        // 8자리 이상, 대소문자, 숫자 포함
+        const regex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/;
+        return regex.test(pass);
+    };
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setError(null);
+
+        if (!formData.nickname || !formData.email || !formData.password) {
+            setError('모든 필수 항목을 입력해주세요.');
+            return;
+        }
+
+        if (!validatePassword(formData.password)) {
+            setError('비밀번호는 최소 8자리이며, 영어 대소문자와 숫자를 모두 포함해야 합니다.');
+            return;
+        }
+
+        if (formData.password !== formData.confirmPassword) {
+            setError('비밀번호가 일치하지 않습니다.');
+            return;
+        }
+
+        setIsLoading(true);
+
+        try {
+            const response = await fetch('/api/auth/onboarding', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    ...formData,
+                    provider,
+                }),
+            });
+
+            if (!response.ok) {
+                const data = await response.json();
+                throw new Error(data.error || '회원가입 실패');
+            }
+
+            // 가입 성공 후 로그인 페이지로 이동하여 세션 갱신 유도
+            alert('회원가입이 완료되었습니다. 다시 로그인해주세요.');
+            router.push('/login');
+        } catch (err) {
+            setError(err instanceof Error ? err.message : '알 수 없는 오류가 발생했습니다.');
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    return (
+        <div className="min-h-screen flex items-center justify-center bg-[#05070a] p-4 relative overflow-hidden">
+            {/* Background patterns */}
+            <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:40px_40px]" />
+            <div className="absolute inset-0 bg-gradient-to-tr from-blue-500/5 via-transparent to-emerald-500/5" />
+
+            <Card className="w-full max-w-md relative z-10 bg-black/60 border-gray-800 backdrop-blur-xl shadow-2xl">
+                <CardHeader className="text-center space-y-2">
+                    <div className="mx-auto w-12 h-12 bg-blue-500/10 rounded-xl flex items-center justify-center mb-2 border border-blue-500/20">
+                        <ShieldCheck className="w-6 h-6 text-blue-400" />
+                    </div>
+                    <CardTitle className="text-2xl font-black tracking-tight text-white uppercase">추가 정보 입력</CardTitle>
+                    <CardDescription className="text-gray-400 font-medium">
+                        {provider.toUpperCase()} 계정과 연결을 위해 정보를 완성해주세요.
+                    </CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <form onSubmit={handleSubmit} className="space-y-5">
+                        {error && (
+                            <Alert variant="destructive" className="bg-red-500/10 border-red-500/20 text-red-400">
+                                <AlertDescription>{error}</AlertDescription>
+                            </Alert>
+                        )}
+
+                        <div className="space-y-2">
+                            <Label className="text-gray-400 text-xs font-bold uppercase tracking-widest">이메일</Label>
+                            <div className="relative">
+                                <Mail className="absolute left-3 top-3 h-4 w-4 text-gray-500" />
+                                <Input
+                                    type="email"
+                                    value={formData.email}
+                                    disabled
+                                    className="pl-10 bg-gray-900/50 border-gray-800 text-gray-500 cursor-not-allowed"
+                                />
+                            </div>
+                        </div>
+
+                        <div className="space-y-2">
+                            <Label className="text-gray-400 text-xs font-bold uppercase tracking-widest">닉네임</Label>
+                            <div className="relative">
+                                <User className="absolute left-3 top-3 h-4 w-4 text-gray-500" />
+                                <Input
+                                    placeholder="사용할 닉네임을 입력하세요"
+                                    value={formData.nickname}
+                                    onChange={(e) => setFormData({ ...formData, nickname: e.target.value })}
+                                    className="pl-10 bg-gray-900/50 border-gray-800 text-white focus:ring-blue-500 focus:border-blue-500"
+                                    required
+                                />
+                            </div>
+                        </div>
+
+                        <div className="space-y-2">
+                            <Label className="text-gray-400 text-xs font-bold uppercase tracking-widest">비밀번호 설정</Label>
+                            <div className="relative">
+                                <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-500" />
+                                <Input
+                                    type="password"
+                                    placeholder="대소문자+숫자 포함 8자리 이상"
+                                    value={formData.password}
+                                    onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                                    className="pl-10 bg-gray-900/50 border-gray-800 text-white focus:ring-blue-500 focus:border-blue-500"
+                                    required
+                                />
+                            </div>
+                        </div>
+
+                        <div className="space-y-2">
+                            <Label className="text-gray-400 text-xs font-bold uppercase tracking-widest">비밀번호 확인</Label>
+                            <div className="relative">
+                                <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-500" />
+                                <Input
+                                    type="password"
+                                    placeholder="비밀번호를 다시 입력하세요"
+                                    value={formData.confirmPassword}
+                                    onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
+                                    className="pl-10 bg-gray-900/50 border-gray-800 text-white focus:ring-blue-500 focus:border-blue-500"
+                                    required
+                                />
+                            </div>
+                        </div>
+
+                        <Button
+                            type="submit"
+                            className="w-full h-12 bg-blue-600 hover:bg-blue-700 text-white font-bold transition-all transform hover:scale-[1.02]"
+                            disabled={isLoading}
+                        >
+                            {isLoading ? '처리 중...' : '회원가입 완료'}
+                        </Button>
+                    </form>
+                </CardContent>
+            </Card>
+        </div>
+    );
+}

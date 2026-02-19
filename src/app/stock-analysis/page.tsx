@@ -55,7 +55,7 @@ export default function StockAnalysisPage() {
         const res = await fetch('/api/user/features');
         if (res.ok) {
           const data = await res.json();
-          setUserPlan(data.membershipTier);
+          setUserPlan(data.plan);
         }
       } catch (error) {
         console.error('Failed to fetch user plan:', error);
@@ -131,11 +131,6 @@ export default function StockAnalysisPage() {
   };
 
   const handleAnalyze = async (newConditions: InvestmentConditions & { companyAiModel?: string; companyApiKey?: string; newsAiModel?: string; newsApiKey?: string; companyCount?: number }) => {
-    if (userPlan === 'FREE') {
-      setShowUpgradeModal(true);
-      return;
-    }
-
     const confirmed = window.confirm('기업 분석을 위해 실시간 데이터를 조회하며 API 비용이 발생할 수 있습니다. 계속하시겠습니까?');
     if (!confirmed) return;
 
@@ -168,6 +163,11 @@ export default function StockAnalysisPage() {
       console.log('API Response data:', data);
 
       if (!response.ok) {
+        if (response.status === 403) {
+          setShowUpgradeModal(true);
+          setAnalysisState(prev => ({ ...prev, isAnalyzing: false }));
+          return;
+        }
         throw new Error(data.error || '분석 실패');
       }
 
@@ -264,6 +264,8 @@ export default function StockAnalysisPage() {
     );
   }
 
+  const isAdmin = (session?.user as any)?.role === 'ADMIN';
+
   return (
     <div className="min-h-screen bg-[#05070a] text-gray-100 relative overflow-hidden">
       {/* Background Digital Grid Effect */}
@@ -274,18 +276,20 @@ export default function StockAnalysisPage() {
         <div className="flex justify-end gap-3 mb-12">
           {session ? (
             <div className="flex items-center gap-3">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => router.push('/pricing')}
-                className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
-              >
-                멤버십 업그레이드
-              </Button>
+              {!isAdmin && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => router.push('/pricing')}
+                  className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                >
+                  플랜 업그레이드
+                </Button>
+              )}
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => window.location.href = '/inquiry'}
+                onClick={() => router.push('/inquiry')}
               >
                 <MessageSquare className="mr-2 h-4 w-4" />
                 1:1 문의
@@ -411,7 +415,7 @@ export default function StockAnalysisPage() {
               </CardHeader>
               <CardContent className="space-y-4">
                 <p className="text-center text-gray-600">
-                  기업 분석 기능을 사용하려면 Standard 이상의 플랜이 필요합니다.
+                  기업 분석 가능 횟수를 초과했거나 더 높은 권한이 필요합니다.
                 </p>
                 <div className="flex gap-3 justify-center">
                   <Button variant="outline" onClick={() => setShowUpgradeModal(false)}>

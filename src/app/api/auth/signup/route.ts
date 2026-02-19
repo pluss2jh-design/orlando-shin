@@ -25,8 +25,7 @@ export async function POST(request: NextRequest) {
                 name,
                 email,
                 password: hashedPassword,
-                plan: plan || 'free',
-                membershipTier: (plan === 'premium' ? 'PREMIUM' : 'FREE') as any,
+                plan: (plan?.toUpperCase() || 'FREE') as any,
             }
         });
 

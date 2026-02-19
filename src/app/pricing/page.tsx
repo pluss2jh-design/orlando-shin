@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useSession } from 'next-auth/react';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Check, Sparkles } from 'lucide-react';
@@ -21,6 +22,7 @@ interface Plan {
 }
 
 export default function PricingPage() {
+    const { data: session, update } = useSession();
     const router = useRouter();
     const [plans, setPlans] = useState<Plan[]>([]);
     const [loading, setLoading] = useState(true);
@@ -41,8 +43,35 @@ export default function PricingPage() {
         fetchPlans();
     }, []);
 
-    const handleSelectPlan = (planId: string) => {
-        router.push(`/signup?plan=${planId}`);
+    const handleSelectPlan = async (planId: string) => {
+        if (!session) {
+            router.push(`/signup?plan=${planId}`);
+            return;
+        }
+
+        const confirmed = window.confirm(`${planId.toUpperCase()} 플랜으로 변경하시겠습니까? (테스트 결제)`);
+        if (!confirmed) return;
+
+        try {
+            const res = await fetch('/api/payment/confirm', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ planId, paymentId: 'mock_pay_' + Date.now() }),
+            });
+
+            if (res.ok) {
+                const data = await res.json();
+                // 세션 즉시 업데이트 요청
+                await update({ plan: data.plan });
+                alert('플랜이 성공적으로 변경되었습니다!');
+                router.push('/stock-analysis');
+            } else {
+                alert('플랜 변경에 실패했습니다.');
+            }
+        } catch (error) {
+            console.error('Payment error:', error);
+            alert('결제 처리 중 오류가 발생했습니다.');
+        }
     };
 
     if (loading) {
@@ -110,8 +139,8 @@ export default function PricingPage() {
                                 <Button
                                     onClick={() => handleSelectPlan(plan.id)}
                                     className={`w-full py-6 text-lg font-bold shadow-md transition-all active:scale-95 ${plan.isPopular
-                                            ? 'bg-blue-600 hover:bg-blue-700 text-white'
-                                            : 'bg-white border-2 border-blue-600 text-blue-600 hover:bg-blue-50'
+                                        ? 'bg-blue-600 hover:bg-blue-700 text-white'
+                                        : 'bg-white border-2 border-blue-600 text-blue-600 hover:bg-blue-50'
                                         }`}
                                 >
                                     시작하기

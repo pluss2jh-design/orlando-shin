@@ -14,18 +14,18 @@ export async function PATCH(
 
     const { id } = await params;
     const body = await request.json();
-    const { membershipTier } = body;
+    const { plan } = body;
 
-    if (!membershipTier) {
+    if (!plan) {
       return NextResponse.json(
-        { error: 'Membership tier is required' },
+        { error: 'Plan is required' },
         { status: 400 }
       );
     }
 
     const updatedUser = await prisma.user.update({
       where: { id },
-      data: { membershipTier },
+      data: { plan: plan.toUpperCase() as any },
     });
 
     return NextResponse.json({ user: updatedUser });
