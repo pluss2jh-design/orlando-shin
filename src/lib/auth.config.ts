@@ -17,6 +17,7 @@ export const authConfig = {
                 clientId: process.env.KAKAO_CLIENT_ID,
                 clientSecret: process.env.KAKAO_CLIENT_SECRET || undefined,
                 allowDangerousEmailAccountLinking: true,
+                checks: ["state"],
                 profile(profile) {
                     if (!profile) return null as any;
                     const email = profile.kakao_account?.email || `${profile.id}@kakao.com`;
@@ -29,12 +30,7 @@ export const authConfig = {
                         email: email,
                         image: image,
                     }
-                },
-                authorization: {
-                    params: {
-                        scope: "profile_nickname account_email",
-                    },
-                },
+                }
             })
         ] : []),
         ...(process.env.NAVER_CLIENT_ID ? [

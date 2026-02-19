@@ -3,13 +3,11 @@ import { auth } from '@/lib/auth';
 import fs from 'fs/promises';
 import path from 'path';
 
-const ADMIN_EMAILS = ['pluss2.jh@gmail.com'];
-
 export async function GET() {
     try {
         const session = await auth();
 
-        if (!session?.user?.email || !ADMIN_EMAILS.includes(session.user.email)) {
+        if ((session?.user as any)?.role !== 'ADMIN') {
             return NextResponse.json({ error: '권한이 없습니다' }, { status: 403 });
         }
 

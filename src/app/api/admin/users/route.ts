@@ -2,19 +2,20 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 
-const ADMIN_EMAILS = ['pluss2.jh@gmail.com'];
-
 export async function GET(request: NextRequest) {
   try {
     const session = await auth();
-    if (!session?.user?.email || !ADMIN_EMAILS.includes(session.user.email)) {
+    if ((session?.user as any)?.role !== 'ADMIN') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+
+    const admins = await prisma.adminUser.findMany({ select: { email: true } });
+    const adminEmails = admins.map(a => a.email);
 
     const users = await prisma.user.findMany({
       where: {
         email: {
-          notIn: ADMIN_EMAILS,
+          notIn: adminEmails,
         },
       },
       select: {

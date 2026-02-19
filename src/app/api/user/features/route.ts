@@ -21,23 +21,30 @@ const planLimits: Record<string, { weeklyAnalysisLimit: number; canSendEmail: bo
 export async function GET(request: NextRequest) {
   try {
     const session = await auth();
-    
+
     if (!session?.user?.id) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const user = await prisma.user.findUnique({
-      where: { id: session.user.id },
-      select: { membershipTier: true }
-    });
+    const [user, adminUser] = await Promise.all([
+      prisma.user.findUnique({
+        where: { id: session.user.id },
+        select: { membershipTier: true, email: true }
+      }),
+      prisma.adminUser.findUnique({
+        where: { email: session.user.email as string }
+      })
+    ]);
 
     if (!user) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
-    const planConfig = planLimits[user.membershipTier] || planLimits.FREE;
+    const isMaster = !!adminUser;
+    const effectiveTier = isMaster ? 'MASTER' : user.membershipTier;
+    const planConfig = planLimits[effectiveTier] || planLimits.FREE;
     const weekStart = getWeekStart(new Date());
-    
+
     const analysisUsage = await prisma.$queryRaw`
       SELECT count FROM "AnalysisUsage" 
       WHERE "userId" = ${session.user.id} 
@@ -47,12 +54,12 @@ export async function GET(request: NextRequest) {
 
     const currentCount = (analysisUsage as any[])?.[0]?.count || 0;
 
-    const remainingAnalysis = planConfig.weeklyAnalysisLimit === -1 
-      ? -1 
+    const remainingAnalysis = planConfig.weeklyAnalysisLimit === -1
+      ? -1
       : Math.max(0, planConfig.weeklyAnalysisLimit - currentCount);
 
     return NextResponse.json({
-      membershipTier: user.membershipTier,
+      membershipTier: effectiveTier,
       weeklyAnalysisLimit: planConfig.weeklyAnalysisLimit,
       usedAnalysisThisWeek: currentCount,
       remainingAnalysis,

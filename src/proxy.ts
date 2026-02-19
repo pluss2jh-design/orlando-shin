@@ -9,14 +9,12 @@ const { auth } = NextAuth({
   trustHost: true,
 });
 
-const ADMIN_EMAILS = ['pluss2.jh@gmail.com'];
-
 export default async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   const session = await auth();
   const user = session?.user;
-  const isAdmin = user?.email && ADMIN_EMAILS.includes(user.email) || (user as any)?.role === 'ADMIN';
+  const isAdmin = (user as any)?.role === 'ADMIN';
   const isAuthenticated = !!user;
 
   if (pathname.startsWith('/admin')) {

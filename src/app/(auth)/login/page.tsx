@@ -9,8 +9,6 @@ import { Separator } from '@/components/ui/separator';
 import { Chrome } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 
-const ADMIN_EMAILS = ['pluss2.jh@gmail.com'];
-
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -25,8 +23,7 @@ function LoginForm() {
     if (status === 'loading') return;
 
     if (status === 'authenticated' && session?.user) {
-      const userEmail = session.user.email;
-      const isAdmin = ADMIN_EMAILS.includes(userEmail || '') || (session.user as any).role === 'ADMIN';
+      const isAdmin = (session.user as any).role === 'ADMIN' || (session.user as any).membershipTier === 'MASTER';
 
       if (isAdmin) {
         router.push('/admin/dashboard');
@@ -41,9 +38,9 @@ function LoginForm() {
     try {
       setIsLoading(provider);
       setError('');
-      
+
       await signIn(provider, {
-        callbackUrl: '/stock-analysis',
+        callbackUrl: '/login',
         redirect: true,
       });
     } catch (error) {

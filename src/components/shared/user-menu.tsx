@@ -17,18 +17,16 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { 
-  User, 
-  Settings, 
-  LogOut, 
-  LayoutDashboard, 
-  Moon, 
-  Sun, 
+import {
+  User,
+  Settings,
+  LogOut,
+  LayoutDashboard,
+  Moon,
+  Sun,
   Monitor,
   Laptop
 } from 'lucide-react';
-
-const ADMIN_EMAILS = ['pluss2.jh@gmail.com'];
 
 export function UserMenu() {
   const { data: session } = useSession();
@@ -37,7 +35,8 @@ export function UserMenu() {
 
   if (!session) return null;
 
-  const isAdmin = session.user?.email && ADMIN_EMAILS.includes(session.user.email) || (session.user as any).role === 'ADMIN';
+  const isAdmin = (session.user as any).role === 'ADMIN' || (session.user as any).membershipTier === 'MASTER';
+  const currentPlan = (session.user as any).membershipTier || (session.user as any).plan || 'FREE';
 
   const handleLogout = async () => {
     await signOut({ redirect: false });
@@ -63,14 +62,20 @@ export function UserMenu() {
             <p className="text-xs leading-none text-muted-foreground">
               {session.user?.email}
             </p>
-            <p className="text-[10px] text-muted-foreground font-semibold uppercase mt-1">
-              {(session.user as any)?.plan || 'FREE'}
-            </p>
+            <div className="flex items-center gap-2 mt-1">
+              <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-full border ${currentPlan === 'MASTER' ? 'bg-yellow-500/10 text-yellow-500 border-yellow-500/20' :
+                  currentPlan === 'PREMIUM' ? 'bg-purple-500/10 text-purple-500 border-purple-500/20' :
+                    currentPlan === 'STANDARD' ? 'bg-blue-500/10 text-blue-500 border-blue-500/20' :
+                      'bg-gray-500/10 text-gray-500 border-gray-500/20'
+                }`}>
+                {currentPlan}
+              </span>
+            </div>
           </div>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
         <DropdownMenuGroup>
-          {isAdmin && (
+          {isAdmin ? (
             <>
               <DropdownMenuItem onClick={() => router.push('/admin/dashboard')}>
                 <LayoutDashboard className="mr-2 h-4 w-4" />
@@ -78,9 +83,15 @@ export function UserMenu() {
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => router.push('/stock-analysis')}>
                 <Laptop className="mr-2 h-4 w-4" />
-                <span>사용자 대시보드</span>
+                <span>분석 서비스로</span>
               </DropdownMenuItem>
-              <DropdownMenuSeparator />
+            </>
+          ) : (
+            <>
+              <DropdownMenuItem onClick={() => router.push('/pricing')}>
+                <LayoutDashboard className="mr-2 h-4 w-4 text-blue-500" />
+                <span className="text-blue-500 font-semibold">플랜 업그레이드</span>
+              </DropdownMenuItem>
             </>
           )}
           <DropdownMenuItem onClick={() => router.push('/settings')}>

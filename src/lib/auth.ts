@@ -68,26 +68,34 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       // 3. 토큰 정보 유지 및 DB 데이터 동기화
       if (token.sub) {
         try {
-          // 성능을 위해 매번 조회하기보다 필요할 때나 세션 갱신 시 조회
-          const dbUser = await prisma.user.findUnique({
-            where: { id: token.sub as string },
-            select: { name: true, image: true, membershipTier: true, plan: true }
-          });
+          const [dbUser, adminUser] = await Promise.all([
+            prisma.user.findUnique({
+              where: { id: token.sub as string },
+              select: { name: true, image: true, membershipTier: true, plan: true, email: true }
+            }),
+            prisma.adminUser.findUnique({
+              where: { email: token.email as string }
+            })
+          ]);
 
           if (dbUser) {
             token.name = dbUser.name || token.name;
             token.picture = dbUser.image || token.picture;
-            token.membershipTier = dbUser.membershipTier;
-            token.plan = dbUser.plan || dbUser.membershipTier.toLowerCase();
+
+            // AdminUser 테이블에 존재하는 경우 마스터 어드민 권한 부여
+            if (adminUser) {
+              token.role = 'ADMIN';
+              token.membershipTier = 'MASTER';
+              token.plan = 'MASTER';
+            } else {
+              token.membershipTier = dbUser.membershipTier;
+              token.plan = dbUser.plan || dbUser.membershipTier.toLowerCase();
+              token.role = (user as any)?.role || token.role || 'USER';
+            }
           }
         } catch (error) {
           console.error('Error fetching user for JWT:', error);
         }
-      }
-
-      const adminEmails = ['pluss2.jh@gmail.com', 'slsl22.hn@gmail.com'];
-      if (token.email && adminEmails.includes(token.email as string)) {
-        token.role = 'ADMIN';
       }
 
       // Enrichment that requires file system - only in Node.js runtime
@@ -98,10 +106,15 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           const PLANS_FILE = path.join(process.cwd(), 'uploads', 'config', 'plans.json');
           const plansData = await fs.readFile(PLANS_FILE, 'utf-8');
           const plans = JSON.parse(plansData);
-          const currentPlanId = (token.membershipTier as string || token.plan as string || 'free').toUpperCase();
+          const currentPlanId = ((token.membershipTier as string) || (token.plan as string) || 'free').toUpperCase();
           const userPlan = plans.find((p: any) => p.id.toUpperCase() === currentPlanId);
-          
-          if (userPlan) {
+
+          if (currentPlanId === 'MASTER') {
+            token.features = plans[plans.length - 1].features.reduce((acc: any, f: any) => {
+              acc[f.id] = true;
+              return acc;
+            }, {});
+          } else if (userPlan) {
             token.features = userPlan.features.reduce((acc: any, f: any) => {
               acc[f.id] = f.enabled;
               return acc;
@@ -131,5 +144,5 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   session: {
     strategy: "jwt",
   },
-  debug: false,
+  debug: true,
 });

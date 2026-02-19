@@ -4,8 +4,6 @@ import { auth } from '@/lib/auth';
 import { AdminSidebar } from '@/components/admin/sidebar';
 import { UserMenu } from '@/components/shared/user-menu';
 
-const ADMIN_EMAILS = ['pluss2.jh@gmail.com'];
-
 export default async function AdminLayout({
     children,
 }: {
@@ -13,7 +11,7 @@ export default async function AdminLayout({
 }) {
     const session = await auth();
 
-    if (!session?.user?.email || !ADMIN_EMAILS.includes(session.user.email)) {
+    if ((session?.user as any)?.role !== 'ADMIN') {
         redirect('/login');
     }
 
