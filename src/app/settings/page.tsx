@@ -10,6 +10,7 @@ import { Label } from '@/components/ui/label';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { User, Mail, Save, RefreshCw } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import Link from 'next/link';
 
 export default function SettingsPage() {
   const { data: session, update } = useSession();
@@ -45,8 +46,15 @@ export default function SettingsPage() {
 
   return (
     <div className="container max-w-2xl mx-auto p-6 space-y-6">
-      <h1 className="text-3xl font-bold">계정 설정</h1>
-      <p className="text-muted-foreground">프로필 정보를 관리하세요.</p>
+      <div className="flex justify-between items-center mb-4">
+        <div>
+          <h1 className="text-3xl font-bold">계정 설정</h1>
+          <p className="text-muted-foreground">프로필 정보를 관리하세요.</p>
+        </div>
+        <Button variant="outline" onClick={() => router.push('/stock-analysis')}>
+          ← 분석 대시보드로
+        </Button>
+      </div>
 
       <Card>
         <CardHeader>
@@ -122,3 +130,4 @@ export default function SettingsPage() {
     </div>
   );
 }
+
