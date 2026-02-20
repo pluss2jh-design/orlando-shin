@@ -26,8 +26,8 @@ export default function OnboardingPage() {
     });
 
     const validatePassword = (pass: string) => {
-        // 8자리 이상, 대소문자, 숫자 포함
-        const regex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/;
+        // 최소 8자리, 영어 대소문자 및 숫자 허용 (전부 포함 필수 아님)
+        const regex = /^[a-zA-Z0-9!@#$%^?&*]{8,}$/;
         return regex.test(pass);
     };
 
@@ -41,7 +41,7 @@ export default function OnboardingPage() {
         }
 
         if (!validatePassword(formData.password)) {
-            setError('비밀번호는 최소 8자리이며, 영어 대소문자와 숫자를 모두 포함해야 합니다.');
+            setError('비밀번호는 영어 대소문자나 숫자를 사용하여 최소 8자리 이상으로 설정해야 합니다.');
             return;
         }
 
@@ -129,12 +129,12 @@ export default function OnboardingPage() {
                         </div>
 
                         <div className="space-y-2">
-                            <Label className="text-gray-400 text-xs font-bold uppercase tracking-widest">비밀번호 설정</Label>
+                            <Label className="text-gray-300 text-xs font-bold uppercase tracking-widest">비밀번호 설정</Label>
                             <div className="relative">
                                 <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-500" />
                                 <Input
                                     type="password"
-                                    placeholder="대소문자+숫자 포함 8자리 이상"
+                                    placeholder="영어 또는 숫자 포함 8자리 이상"
                                     value={formData.password}
                                     onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                                     className="pl-10 bg-gray-900/50 border-gray-800 text-white focus:ring-blue-500 focus:border-blue-500"

@@ -131,9 +131,6 @@ export default function StockAnalysisPage() {
   };
 
   const handleAnalyze = async (newConditions: InvestmentConditions & { companyAiModel?: string; companyApiKey?: string; newsAiModel?: string; newsApiKey?: string; companyCount?: number }) => {
-    const confirmed = window.confirm('기업 분석을 위해 실시간 데이터를 조회하며 API 비용이 발생할 수 있습니다. 계속하시겠습니까?');
-    if (!confirmed) return;
-
     console.log('Starting analysis with:', newConditions);
     setAnalysisState(prev => ({
       ...prev,
@@ -323,10 +320,10 @@ export default function StockAnalysisPage() {
             <Sparkles className="h-4 w-4" />
             AI Market Intelligence System
           </div>
-          <h1 className="text-6xl font-black tracking-tighter mb-4 text-transparent bg-clip-text bg-gradient-to-b from-white to-gray-500">
+          <h1 className="text-6xl font-black tracking-tighter mb-4 text-transparent bg-clip-text bg-gradient-to-b from-white to-gray-200">
             ORLANDO <span className="text-blue-500">ANALYSIS</span>
           </h1>
-          <p className="text-gray-500 max-w-2xl mx-auto font-medium tracking-tight">
+          <p className="text-gray-200 max-w-2xl mx-auto font-bold tracking-tight text-lg">
             Google Drive 기반의 독자적인 AI 학습 모델을 통해 S&P 500, Russell 1000 기업 중<br />
             실시간 재무 지표를 기반으로 최적의 투자 Alpha를 발굴합니다.
           </p>
@@ -346,8 +343,8 @@ export default function StockAnalysisPage() {
                 <CardContent className="py-20">
                   <div className="text-center">
                     <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-                    <h3 className="text-xl font-semibold mb-2">시장 유니버스 분석 중...</h3>
-                    <p className="text-muted-foreground whitespace-pre-line">
+                    <h3 className="text-2xl font-black text-white mb-2 uppercase tracking-tighter">시장 유니버스 분석 중...</h3>
+                    <p className="text-gray-200 font-bold whitespace-pre-line text-lg leading-relaxed">
                       {isLearned
                         ? '학습된 투자 규칙을 바탕으로 S&P 500, Russell 1000, Dow Jones 기업들을 비교 분석하고 있습니다.\n각 기업의 재무 상태와 시장 지표를 추출하는 중입니다.'
                         : 'Google Drive 자료에서 투자 인사이트를 도출하고 시장 데이터를 수집하고 있습니다.\n잠시만 기다려 주세요.'}
@@ -359,7 +356,7 @@ export default function StockAnalysisPage() {
 
             {queriedTickers.length > 0 && (
               <div className="p-4 rounded-lg border bg-muted/30">
-                <label className="text-sm font-medium mb-2 block">
+                <label className="text-sm font-bold mb-2 block text-white">
                   조회된 기업 목록 ({queriedTickers.length}개)
                 </label>
                 <select
@@ -377,7 +374,7 @@ export default function StockAnalysisPage() {
                     </option>
                   ))}
                 </select>
-                <p className="text-xs text-muted-foreground mt-2">
+                <p className="text-xs text-gray-300 font-medium mt-2">
                   분석 대상이 된 전체 기업 티커 목록입니다.
                 </p>
               </div>

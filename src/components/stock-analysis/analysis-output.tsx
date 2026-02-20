@@ -108,7 +108,7 @@ export function AnalysisOutput({ results, conditions, isLoading, onSendEmail }: 
           </div>
           <div className="space-y-2">
             <h3 className="text-xl font-bold text-gray-200">READY TO ANALYZE</h3>
-            <p className="text-gray-500 max-w-sm mx-auto">
+            <p className="text-gray-400 max-w-sm mx-auto">
               투자 조건을 설정하고 분석을 시작하세요.<br />
               AI가 수천 개의 데이터를 실시간으로 스캔합니다.
             </p>
@@ -125,7 +125,7 @@ export function AnalysisOutput({ results, conditions, isLoading, onSendEmail }: 
           <AlertCircle className="h-12 w-12 text-rose-500/40 mb-2" />
           <div className="space-y-2">
             <h3 className="text-xl font-bold text-rose-200 uppercase tracking-widest">Data Not Found</h3>
-            <p className="text-gray-500 max-w-sm mx-auto">
+            <p className="text-gray-400 max-w-sm mx-auto">
               현재 조건에 부합하는 기업 리스트를 확보하지 못했습니다.<br />
               투자 기간이나 분석 모델을 변경해 보세요.
             </p>
@@ -160,7 +160,7 @@ export function AnalysisOutput({ results, conditions, isLoading, onSendEmail }: 
           <div className="w-8 h-[1px] bg-blue-500" />
           AI Analysis Core Output
         </h3>
-        <Badge variant="outline" className="text-[10px] font-mono border-gray-800 text-gray-500">
+        <Badge variant="outline" className="text-[10px] font-mono border-gray-800 text-gray-400">
           U_D.{new Date().toLocaleTimeString()}
         </Badge>
       </div>
@@ -185,7 +185,7 @@ export function AnalysisOutput({ results, conditions, isLoading, onSendEmail }: 
                     </CardTitle>
                     {getRiskBadge(result.riskLevel)}
                   </div>
-                  <div className="flex items-center gap-2 text-xs font-mono text-gray-500">
+                  <div className="flex items-center gap-2 text-xs font-mono text-gray-400">
                     <span className="text-blue-500/70">$</span> {result.ticker}
                     <span className="text-gray-700">•</span>
                     <span className="uppercase">{result.market}</span>
@@ -196,7 +196,7 @@ export function AnalysisOutput({ results, conditions, isLoading, onSendEmail }: 
               </div>
 
               <div className="text-right">
-                <p className="text-[10px] font-mono text-gray-500 tracking-tighter mb-1 uppercase">Confidence Level</p>
+                <p className="text-[10px] font-mono text-gray-400 tracking-tighter mb-1 uppercase">Confidence Level</p>
                 <div className="flex items-center gap-2">
                   <div className="w-24 h-1.5 bg-gray-900 rounded-full overflow-hidden border border-gray-800">
                     <div
@@ -215,7 +215,7 @@ export function AnalysisOutput({ results, conditions, isLoading, onSendEmail }: 
               <div className="lg:col-span-7 space-y-6">
                 <div className="p-6 rounded-2xl bg-gray-950/50 border border-gray-800/50 relative overflow-hidden group/box">
                   <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-blue-500/20 to-transparent" />
-                  <h4 className="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-3 flex items-center gap-2">
+                  <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3 flex items-center gap-2">
                     <Sparkles className="h-3 w-3 text-blue-500/50" />
                     Strategic Thesis
                   </h4>
@@ -226,7 +226,7 @@ export function AnalysisOutput({ results, conditions, isLoading, onSendEmail }: 
 
                 {result.sources.length > 0 && (
                   <div className="space-y-4">
-                    <h4 className="text-[10px] font-black text-gray-500 uppercase tracking-widest flex items-center gap-2">
+                    <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
                       <Lock className="h-3 w-3 text-rose-500/50" />
                       Evidence Matrix
                     </h4>
@@ -242,7 +242,7 @@ export function AnalysisOutput({ results, conditions, isLoading, onSendEmail }: 
                           )}>
                             <div className="flex items-center justify-between mb-2">
                               {getSourceIcon(source.type)}
-                              <span className="text-[10px] font-mono text-gray-600">
+                              <span className="text-[10px] font-mono text-gray-400">
                                 {source.pageOrTimestamp !== '-' ? `ID.${source.pageOrTimestamp}` : 'GEN_ANALYSIS'}
                               </span>
                             </div>
@@ -278,7 +278,7 @@ export function AnalysisOutput({ results, conditions, isLoading, onSendEmail }: 
                       {result.ruleScores?.map((rule, rIdx) => (
                         <div key={rIdx} className="group/rule relative">
                           <div className="flex items-center justify-between mb-1 text-[11px]">
-                            <span className="text-gray-400 font-medium">{rule.rule.split(':')[0]}</span>
+                            <span className="text-gray-300 font-medium">{rule.rule.split(':')[0]}</span>
                             <span className={cn("font-mono font-black",
                               rule.score >= 8 ? "text-emerald-400" :
                                 rule.score >= 5 ? "text-amber-400" : "text-rose-400"
@@ -307,7 +307,7 @@ export function AnalysisOutput({ results, conditions, isLoading, onSendEmail }: 
                 <div className="p-6 rounded-2xl bg-emerald-500/[0.02] border border-emerald-500/10 flex items-center justify-between">
                   <div className="space-y-1">
                     <p className="text-[10px] font-black text-emerald-500/70 uppercase tracking-widest">ROI Estimate</p>
-                    <p className="text-xs text-gray-500 italic">Projected Performance</p>
+                    <p className="text-xs text-gray-400 italic">Projected Performance</p>
                   </div>
                   <div className="text-right">
                     <div className="text-3xl font-black text-emerald-400 font-mono tracking-tighter">
@@ -330,10 +330,10 @@ export function AnalysisOutput({ results, conditions, isLoading, onSendEmail }: 
           <div className="absolute inset-0 bg-gray-950/60 backdrop-blur-[2px] z-10 flex items-center justify-center">
             <div className="text-center p-8">
               <div className="w-12 h-12 rounded-full bg-gray-900 border border-gray-800 flex items-center justify-center mx-auto mb-4">
-                <Lock className="h-5 w-5 text-gray-600" />
+                <Lock className="h-5 w-5 text-gray-400" />
               </div>
               <h4 className="text-sm font-black text-white uppercase tracking-widest mb-1">Encrypted Feature</h4>
-              <p className="text-xs text-gray-500 mb-6">분석 결과 이메일 자동 발송은 PREMIUM 전용입니다</p>
+              <p className="text-xs text-gray-400 mb-6">분석 결과 이메일 자동 발송은 PREMIUM 전용입니다</p>
               <Button size="sm" variant="outline" className="h-8 text-[11px] font-bold border-gray-700 hover:border-blue-500 transition-colors">
                 UPGRADE SYSTEM
               </Button>
@@ -347,7 +347,7 @@ export function AnalysisOutput({ results, conditions, isLoading, onSendEmail }: 
                 <Mail className="h-6 w-6 text-blue-500" />
                 Data Export Protocol
               </h4>
-              <p className="text-sm text-gray-500 max-w-md">
+              <p className="text-sm text-gray-400 max-w-md">
                 심층 분석 보고서를 지정된 이메일 주소로 즉시 전송합니다.<br />
                 모든 분석 근거와 재무 데이터가 매핑된 완성된 리포트입니다.
               </p>

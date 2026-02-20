@@ -88,7 +88,7 @@ export function NewsSection({ summaries, isLoading }: NewsSectionProps) {
                     {getSentimentIcon(summary.overallSentiment)}
                     <div className="text-left">
                       <CardTitle className="text-lg font-bold">{summary.companyName}</CardTitle>
-                      <p className="text-sm text-muted-foreground">{summary.ticker}</p>
+                      <p className="text-sm text-gray-300">{summary.ticker}</p>
                     </div>
                   </div>
                   <div className="flex items-center gap-3">
@@ -97,7 +97,7 @@ export function NewsSection({ summaries, isLoading }: NewsSectionProps) {
                   </div>
                 </div>
               </CollapsibleTrigger>
-              
+
               <CollapsibleContent>
                 <div className="mt-4 pt-4 border-t border-border/50">
                   <div className="bg-primary/5 p-4 rounded-lg mb-4">
@@ -107,7 +107,7 @@ export function NewsSection({ summaries, isLoading }: NewsSectionProps) {
                     </h4>
                     <ul className="space-y-2">
                       {summary.keyHighlights.map((highlight, idx) => (
-                        <li key={idx} className="text-sm text-muted-foreground flex items-start gap-2">
+                        <li key={idx} className="text-sm text-gray-300 flex items-start gap-2">
                           <span className="text-primary font-bold">{idx + 1}.</span>
                           {highlight}
                         </li>
@@ -116,7 +116,7 @@ export function NewsSection({ summaries, isLoading }: NewsSectionProps) {
                   </div>
 
                   <div className="space-y-3">
-                    <h4 className="text-sm font-bold text-muted-foreground uppercase">
+                    <h4 className="text-sm font-bold text-gray-400 uppercase">
                       최신 뉴스 ({summary.latestNews.length}건)
                     </h4>
                     {summary.latestNews.map((news) => (
@@ -127,10 +127,10 @@ export function NewsSection({ summaries, isLoading }: NewsSectionProps) {
                         <div className="flex items-start justify-between gap-2">
                           <div className="flex-1">
                             <h5 className="font-medium text-sm mb-1">{news.title}</h5>
-                            <p className="text-xs text-muted-foreground line-clamp-2 mb-2">
+                            <p className="text-xs text-gray-300 line-clamp-2 mb-2">
                               {news.content}
                             </p>
-                            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                            <div className="flex items-center gap-2 text-xs text-gray-400">
                               <span>{news.source}</span>
                               <span>•</span>
                               <span>{new Date(news.publishedAt).toLocaleDateString('ko-KR')}</span>
@@ -153,8 +153,8 @@ export function NewsSection({ summaries, isLoading }: NewsSectionProps) {
                               news.sentiment === 'positive'
                                 ? 'border-green-500 text-green-600'
                                 : news.sentiment === 'negative'
-                                ? 'border-red-500 text-red-600'
-                                : 'border-gray-500 text-gray-600'
+                                  ? 'border-red-500 text-red-600'
+                                  : 'border-gray-500 text-gray-600'
                             }
                           >
                             {news.sentiment === 'positive' ? '긍정' : news.sentiment === 'negative' ? '부정' : '중립'}

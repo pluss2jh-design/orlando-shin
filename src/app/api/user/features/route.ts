@@ -45,14 +45,17 @@ export async function GET(request: NextRequest) {
     const planConfig = planLimits[effectivePlan] || planLimits.FREE;
     const weekStart = getWeekStart(new Date());
 
-    const analysisUsage = await prisma.$queryRaw`
-      SELECT count FROM "AnalysisUsage" 
-      WHERE "userId" = ${session.user.id} 
-      AND "weekStart" = ${weekStart}
-      LIMIT 1
-    `;
+    const analysisUsage = await prisma.analysisUsage.findUnique({
+      where: {
+        userId_weekStart: {
+          userId: session.user.id,
+          weekStart: weekStart
+        }
+      },
+      select: { count: true }
+    });
 
-    const currentCount = (analysisUsage as any[])?.[0]?.count || 0;
+    const currentCount = analysisUsage?.count || 0;
 
     const remainingAnalysis = planConfig.weeklyAnalysisLimit === -1
       ? -1

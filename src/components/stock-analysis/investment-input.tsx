@@ -121,14 +121,14 @@ export function InvestmentInput({ onAnalyze, disabled }: InvestmentInputProps) {
         </CardTitle>
         {userFeatures && (
           <div className="flex items-center gap-2 mt-2">
-            <BarChart3 className="h-4 w-4 text-muted-foreground" />
-            <span className="text-sm text-muted-foreground">
-              이번 주 남은 분석 횟수:
+            <BarChart3 className="h-4 w-4 text-blue-400" />
+            <span className="text-sm text-gray-200 font-medium">
+              분석 리소스 현황:
             </span>
-            <Badge variant={userFeatures.remainingAnalysis === 0 ? "destructive" : "secondary"}>
+            <Badge variant={userFeatures.remainingAnalysis === 0 ? "destructive" : "secondary"} className="font-bold">
               {userFeatures.weeklyAnalysisLimit === -1
-                ? '무제한'
-                : `${userFeatures.remainingAnalysis}회 / ${userFeatures.weeklyAnalysisLimit}회`
+                ? 'UNLIMITED ACCESS'
+                : `${userFeatures.remainingAnalysis}회 남음 / 총 ${userFeatures.weeklyAnalysisLimit}회`
               }
             </Badge>
           </div>
@@ -146,7 +146,7 @@ export function InvestmentInput({ onAnalyze, disabled }: InvestmentInputProps) {
               onChange={(e) => setCompanyCount(Number(e.target.value))}
               className="w-full"
             />
-            <p className="text-xs text-muted-foreground mt-1">
+            <p className="text-xs text-gray-400 mt-1">
               1~20개 사이의 값을 입력하세요
             </p>
           </div>
@@ -179,7 +179,7 @@ export function InvestmentInput({ onAnalyze, disabled }: InvestmentInputProps) {
                   >
                     {renderModelOptions()}
                   </select>
-                  <p className="text-xs text-muted-foreground mt-1">
+                  <p className="text-xs text-gray-400 mt-1">
                     업로드한 자료를 분석하여 투자 규칙을 학습하는 데 사용됩니다
                   </p>
                 </div>
@@ -196,7 +196,7 @@ export function InvestmentInput({ onAnalyze, disabled }: InvestmentInputProps) {
                     placeholder="기업 분석용 API Key"
                     className="w-full"
                   />
-                  <p className="text-xs text-muted-foreground mt-1">
+                  <p className="text-xs text-gray-400 mt-1">
                     미입력 시 기본 설정 사용
                   </p>
                 </div>
@@ -234,7 +234,7 @@ export function InvestmentInput({ onAnalyze, disabled }: InvestmentInputProps) {
                     placeholder="뉴스 분석용 API Key"
                     className="w-full"
                   />
-                  <p className="text-xs text-muted-foreground mt-1">
+                  <p className="text-xs text-gray-400 mt-1">
                     미입력 시 기본 설정 사용
                   </p>
                 </div>
@@ -245,14 +245,14 @@ export function InvestmentInput({ onAnalyze, disabled }: InvestmentInputProps) {
 
         <Button
           onClick={handleAnalyze}
-          disabled={disabled || !!(userFeatures && !userFeatures.canAnalyze)}
-          className="w-full"
+          disabled={disabled || (userFeatures !== null && userFeatures.weeklyAnalysisLimit !== -1 && userFeatures.remainingAnalysis <= 0)}
+          className="w-full h-14 bg-blue-600 hover:bg-blue-700 text-white text-lg font-black shadow-lg transition-all transform hover:scale-[1.01]"
           size="lg"
         >
-          <Search className="h-4 w-4 mr-2" />
-          {userFeatures && !userFeatures.canAnalyze
-            ? '이번 주 분석 횟수 초과'
-            : `기업 ${companyCount}개 찾기`
+          <Search className="h-5 w-5 mr-3" />
+          {userFeatures && userFeatures.weeklyAnalysisLimit !== -1 && userFeatures.remainingAnalysis <= 0
+            ? '이번 주 리서치 제한 도달'
+            : `Alpha 기업 ${companyCount}개 정밀 분석 시작`
           }
         </Button>
       </CardContent>

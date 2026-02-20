@@ -99,8 +99,8 @@ export default function UserManagementPage() {
     <div className="p-8 space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-white mb-2">사용자 관리</h1>
-          <p className="text-gray-400">사용자별 플랜을 관리하세요</p>
+          <h1 className="text-3xl font-black text-white mb-2 tracking-tight">사용자 권한 관리</h1>
+          <p className="text-gray-200 font-medium text-lg">플랫폼 가입 사용자의 등급 및 권한을 실시간으로 관리합니다.</p>
         </div>
         <Button onClick={fetchUsers} variant="outline" className="border-gray-700 text-gray-300">
           <RefreshCw className="h-4 w-4 mr-2" />
@@ -125,13 +125,13 @@ export default function UserManagementPage() {
                       <span className="text-lg font-medium text-white">
                         {user.name || '이름 없음'}
                       </span>
-                      <Badge className={`${getPlanBadgeColor(user.plan)} text-white`}>
+                      <Badge className={`${getPlanBadgeColor(user.plan)} text-white font-bold px-3 py-1 uppercase tracking-wider`}>
                         {getPlanLabel(user.plan)}
                       </Badge>
                     </div>
-                    <p className="text-sm text-gray-400">{user.email}</p>
-                    <p className="text-xs text-gray-500 mt-1">
-                      가입일: {new Date(user.createdAt).toLocaleDateString('ko-KR')}
+                    <p className="text-sm text-gray-200 font-mono mt-1 font-semibold">{user.email}</p>
+                    <p className="text-xs text-gray-400 font-medium mt-1">
+                      DATABASE_ENTRY: {new Date(user.createdAt).toLocaleDateString('ko-KR')}
                     </p>
                   </div>
                 </div>

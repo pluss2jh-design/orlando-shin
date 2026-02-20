@@ -10,11 +10,11 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: '필수 정보가 누락되었습니다.' }, { status: 400 });
         }
 
-        // 비밀번호 강도 체크
-        const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/;
+        // 비밀번호 강도 체크: 최소 8자리, 영어 대소문자 및 숫자 허용 (전부 포함 필수 아님)
+        const passwordRegex = /^[a-zA-Z0-9!@#$%^?&*]{8,}$/;
         if (!passwordRegex.test(password)) {
             return NextResponse.json({
-                error: '비밀번호는 최소 8자리이며, 영어 대소문자와 숫자를 모두 포함해야 합니다.'
+                error: '비밀번호는 영어 대소문자나 숫자를 사용하여 최소 8자리 이상으로 설정해야 합니다.'
             }, { status: 400 });
         }
 
