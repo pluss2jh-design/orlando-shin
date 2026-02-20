@@ -65,6 +65,7 @@ const AI_MODELS = [
 
 export default function DataLibraryPage() {
     const [files, setFiles] = useState<DriveFile[]>([]);
+    const [expandedKnowledgeId, setExpandedKnowledgeId] = useState<string | null>(null);
     const [knowledgeList, setKnowledgeList] = useState<LearnedKnowledgeRecord[]>([]);
     const [loading, setLoading] = useState(true);
     const [syncing, setSyncing] = useState(false);
@@ -429,10 +430,39 @@ export default function DataLibraryPage() {
                                                 <Button
                                                     variant="outline"
                                                     className="h-10 border-gray-700 text-gray-300 font-black text-xs hover:bg-gray-800"
+                                                    onClick={() => setExpandedKnowledgeId(expandedKnowledgeId === kb.id ? null : kb.id)}
                                                 >
-                                                    <Eye className="h-4 w-4 mr-1" /> 상세 보기
+                                                    <Eye className="h-4 w-4 mr-1" /> {expandedKnowledgeId === kb.id ? '접기' : '상세 보기'}
                                                 </Button>
                                             </div>
+                                            {expandedKnowledgeId === kb.id && (
+                                                <div className="mt-4 p-4 bg-gray-950 rounded-lg border border-gray-800 text-xs text-gray-300 space-y-4">
+                                                    <div>
+                                                        <h5 className="font-black text-blue-400 mb-2">단기 투자 조건</h5>
+                                                        <ul className="list-disc pl-4 space-y-1">
+                                                            {kb.content?.strategy?.shortTermConditions?.map((c: string, idx: number) => (
+                                                                <li key={idx}>{c}</li>
+                                                            ))}
+                                                        </ul>
+                                                    </div>
+                                                    <div>
+                                                        <h5 className="font-black text-purple-400 mb-2">장기 투자 조건</h5>
+                                                        <ul className="list-disc pl-4 space-y-1">
+                                                            {kb.content?.strategy?.longTermConditions?.map((c: string, idx: number) => (
+                                                                <li key={idx}>{c}</li>
+                                                            ))}
+                                                        </ul>
+                                                    </div>
+                                                    <div>
+                                                        <h5 className="font-black text-emerald-400 mb-2">주요 분석 규칙 수</h5>
+                                                        <ul className="space-y-1 mt-1 text-gray-400">
+                                                            <li>펀더멘털: {kb.content?.criteria?.goodCompanyRules?.length || 0}개</li>
+                                                            <li>기술적: {kb.content?.criteria?.technicalRules?.length || 0}개</li>
+                                                            <li>시장규모: {kb.content?.criteria?.marketSizeRules?.length || 0}개</li>
+                                                        </ul>
+                                                    </div>
+                                                </div>
+                                            )}
                                         </div>
                                     ))}
                                     {knowledgeList.length === 0 && (

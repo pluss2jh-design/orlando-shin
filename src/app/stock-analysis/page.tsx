@@ -354,31 +354,6 @@ export default function StockAnalysisPage() {
               </Card>
             )}
 
-            {queriedTickers.length > 0 && (
-              <div className="p-4 rounded-lg border bg-muted/30">
-                <label className="text-sm font-bold mb-2 block text-white">
-                  조회된 기업 목록 ({queriedTickers.length}개)
-                </label>
-                <select
-                  className="w-full p-2 text-sm border rounded-md bg-background"
-                  onChange={(e) => {
-                    if (e.target.value) {
-                      window.open(`https://finance.yahoo.com/quote/${e.target.value}`, '_blank');
-                    }
-                  }}
-                >
-                  <option value="">티커 선택...</option>
-                  {queriedTickers.map((ticker) => (
-                    <option key={ticker} value={ticker}>
-                      {ticker}
-                    </option>
-                  ))}
-                </select>
-                <p className="text-xs text-gray-300 font-medium mt-2">
-                  분석 대상이 된 전체 기업 티커 목록입니다.
-                </p>
-              </div>
-            )}
           </div>
 
           <div className="lg:col-span-8 space-y-6">
