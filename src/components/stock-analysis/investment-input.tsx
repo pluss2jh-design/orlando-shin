@@ -1,50 +1,20 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Search, Sparkles, Key, Settings, Building2, Newspaper, BarChart3 } from 'lucide-react';
+import { Search, Sparkles, BarChart3, Info } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { InvestmentConditions } from '@/types/stock-analysis';
-
-interface AIModelConfig {
-  id: string;
-  name: string;
-  provider: string;
-}
-
-const AI_MODELS: AIModelConfig[] = [
-  { id: 'gpt-4o', name: 'GPT-4o', provider: 'OpenAI' },
-  { id: 'gpt-4o-mini', name: 'GPT-4o Mini', provider: 'OpenAI' },
-  { id: 'gpt-4-turbo', name: 'GPT-4 Turbo', provider: 'OpenAI' },
-  { id: 'gpt-4', name: 'GPT-4', provider: 'OpenAI' },
-  { id: 'gpt-3.5-turbo', name: 'GPT-3.5 Turbo', provider: 'OpenAI' },
-  { id: 'claude-3-5-sonnet-20241022', name: 'Claude 3.5 Sonnet', provider: 'Anthropic' },
-  { id: 'claude-3-opus-20240229', name: 'Claude 3 Opus', provider: 'Anthropic' },
-  { id: 'claude-3-sonnet-20240229', name: 'Claude 3 Sonnet', provider: 'Anthropic' },
-  { id: 'claude-3-haiku-20240307', name: 'Claude 3 Haiku', provider: 'Anthropic' },
-  { id: 'gemini-1.5-pro', name: 'Gemini 1.5 Pro', provider: 'Google' },
-  { id: 'gemini-1.5-flash', name: 'Gemini 1.5 Flash', provider: 'Google' },
-  { id: 'gemini-1.0-pro', name: 'Gemini 1.0 Pro', provider: 'Google' },
-  { id: 'mistral-large-latest', name: 'Mistral Large', provider: 'Mistral' },
-  { id: 'mistral-medium-latest', name: 'Mistral Medium', provider: 'Mistral' },
-  { id: 'mistral-small-latest', name: 'Mistral Small', provider: 'Mistral' },
-  { id: 'command-r-plus', name: 'Command R+', provider: 'Cohere' },
-  { id: 'command-r', name: 'Command R', provider: 'Cohere' },
-  { id: 'llama-3.1-70b-versatile', name: 'Llama 3.1 70B', provider: 'Groq' },
-  { id: 'llama-3.1-8b-instant', name: 'Llama 3.1 8B', provider: 'Groq' },
-  { id: 'mixtral-8x7b-32768', name: 'Mixtral 8x7B', provider: 'Groq' },
-  { id: 'gemma-7b-it', name: 'Gemma 7B', provider: 'Groq' },
-  { id: 'llama-3.1-sonar-large-128k-online', name: 'Llama 3.1 Sonar Large', provider: 'Perplexity' },
-  { id: 'llama-3.1-sonar-small-128k-online', name: 'Llama 3.1 Sonar Small', provider: 'Perplexity' },
-];
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 interface ExtendedInvestmentConditions extends InvestmentConditions {
-  companyAiModel?: string;
-  companyApiKey?: string;
-  newsAiModel?: string;
-  newsApiKey?: string;
   companyCount?: number;
 }
 
@@ -55,11 +25,7 @@ interface InvestmentInputProps {
 
 export function InvestmentInput({ onAnalyze, disabled }: InvestmentInputProps) {
   const [companyCount, setCompanyCount] = useState(5);
-  const [companyAiModel, setCompanyAiModel] = useState('gpt-4o-mini');
-  const [companyApiKey, setCompanyApiKey] = useState('');
-  const [newsAiModel, setNewsAiModel] = useState('gpt-4o-mini');
-  const [newsApiKey, setNewsApiKey] = useState('');
-  const [showAdvanced, setShowAdvanced] = useState(false);
+  const [activeKnowledge, setActiveKnowledge] = useState<{ title: string } | null>(null);
   const [userFeatures, setUserFeatures] = useState<{
     plan: string;
     weeklyAnalysisLimit: number;
@@ -80,179 +46,92 @@ export function InvestmentInput({ onAnalyze, disabled }: InvestmentInputProps) {
         console.error('Failed to fetch user features:', error);
       }
     };
+
+    const fetchActiveKnowledge = async () => {
+      try {
+        const res = await fetch('/api/gdrive/learn'); // This GET returns current knowledge status
+        if (res.ok) {
+          const data = await res.json();
+          if (data.exists) {
+            setActiveKnowledge({ title: data.title || '기본 AI 투자 로직' });
+          }
+        }
+      } catch (error) {
+        console.error('Failed to fetch active knowledge:', error);
+      }
+    };
+
     fetchUserFeatures();
+    fetchActiveKnowledge();
   }, []);
 
   const handleAnalyze = () => {
     onAnalyze?.({
       amount: 0,
       periodMonths: 0,
-      companyAiModel,
-      companyApiKey,
-      newsAiModel,
-      newsApiKey,
       companyCount,
     });
   };
 
-  const renderModelOptions = () => {
-    const providers = [...new Set(AI_MODELS.map(m => m.provider))];
-    return (
-      <>
-        {providers.map(provider => (
-          <optgroup key={provider} label={provider}>
-            {AI_MODELS.filter(m => m.provider === provider).map(model => (
-              <option key={model.id} value={model.id}>
-                {model.name}
-              </option>
-            ))}
-          </optgroup>
-        ))}
-      </>
-    );
-  };
-
   return (
-    <Card className="w-full">
-      <CardHeader className="pb-3">
-        <CardTitle className="text-lg font-semibold flex items-center gap-2">
-          <Sparkles className="h-5 w-5" />
-          기업 찾기 (Find Companies)
-        </CardTitle>
-        {userFeatures && (
-          <div className="flex items-center gap-2 mt-2">
-            <BarChart3 className="h-4 w-4 text-blue-400" />
-            <span className="text-sm text-gray-200 font-medium">
-              분석 리소스 현황:
-            </span>
-            <Badge variant={userFeatures.remainingAnalysis === 0 ? "destructive" : "secondary"} className="font-bold">
+    <Card className="w-full bg-gray-900 border-gray-800 shadow-2xl overflow-hidden">
+      <CardHeader className="pb-4 bg-gray-900/50 border-b border-gray-800">
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-xl font-black flex items-center gap-3 text-white">
+            <Sparkles className="h-6 w-6 text-blue-500" />
+            ALPHA SCANNER
+          </CardTitle>
+          {userFeatures && (
+            <Badge variant={userFeatures.remainingAnalysis === 0 ? "destructive" : "secondary"} className="font-black px-3 py-1">
               {userFeatures.weeklyAnalysisLimit === -1
                 ? 'UNLIMITED ACCESS'
-                : `${userFeatures.remainingAnalysis}회 남음 / 총 ${userFeatures.weeklyAnalysisLimit}회`
+                : `REMAINING: ${userFeatures.remainingAnalysis} / ${userFeatures.weeklyAnalysisLimit}`
               }
             </Badge>
-          </div>
-        )}
+          )}
+        </div>
+        <div className="flex items-center gap-2 mt-4 p-3 bg-blue-500/5 rounded-lg border border-blue-500/20">
+          <Info className="h-4 w-4 text-blue-400" />
+          <span className="text-xs text-gray-300 font-bold">
+            CURRENT LOGIC: <span className="text-blue-400 uppercase">{activeKnowledge?.title || '시스템 통합 로직'}</span>
+          </span>
+        </div>
       </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="space-y-3">
-          <div>
-            <label className="text-sm font-medium mb-2 block">찾을 기업 개수</label>
+      <CardContent className="p-6 space-y-6">
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <div className="flex justify-between items-center">
+              <label className="text-xs font-black text-gray-400 uppercase tracking-widest">분석 대상 기업 수 (TOP N)</label>
+              <span className="text-xs font-bold text-blue-400">1 ~ 20 개 선택 가능</span>
+            </div>
             <Input
               type="number"
               min={1}
               max={20}
               value={companyCount}
               onChange={(e) => setCompanyCount(Number(e.target.value))}
-              className="w-full"
+              className="w-full h-12 bg-gray-950 border-gray-800 text-white font-black text-lg focus:ring-blue-500 focus:border-blue-500 transition-all"
             />
-            <p className="text-xs text-gray-400 mt-1">
-              1~20개 사이의 값을 입력하세요
-            </p>
           </div>
 
-          <button
-            onClick={() => setShowAdvanced(!showAdvanced)}
-            className="text-sm text-muted-foreground hover:text-primary flex items-center gap-1 w-full justify-center py-2"
-          >
-            <Settings className="h-4 w-4" />
-            {showAdvanced ? '고급 설정 닫기' : 'AI 모델 및 API 키 설정'}
-          </button>
-
-          {showAdvanced && (
-            <div className="space-y-4 p-3 bg-muted/50 rounded-lg">
-              <div className="space-y-3 border-b border-border pb-4">
-                <div className="flex items-center gap-2 text-sm font-semibold text-primary">
-                  <Building2 className="h-4 w-4" />
-                  기업 분석용 AI 설정
-                </div>
-
-                <div>
-                  <label className="text-sm font-medium mb-2 block flex items-center gap-1">
-                    <Settings className="h-3 w-3" />
-                    AI 모델 (올랜도킴 자료 분석용)
-                  </label>
-                  <select
-                    value={companyAiModel}
-                    onChange={(e) => setCompanyAiModel(e.target.value)}
-                    className="w-full p-2 border rounded-md bg-background"
-                  >
-                    {renderModelOptions()}
-                  </select>
-                  <p className="text-xs text-gray-400 mt-1">
-                    업로드한 자료를 분석하여 투자 규칙을 학습하는 데 사용됩니다
-                  </p>
-                </div>
-
-                <div>
-                  <label className="text-sm font-medium mb-2 block flex items-center gap-1">
-                    <Key className="h-3 w-3" />
-                    API 키 (기업 분석)
-                  </label>
-                  <Input
-                    type="password"
-                    value={companyApiKey}
-                    onChange={(e) => setCompanyApiKey(e.target.value)}
-                    placeholder="기업 분석용 API Key"
-                    className="w-full"
-                  />
-                  <p className="text-xs text-gray-400 mt-1">
-                    미입력 시 기본 설정 사용
-                  </p>
-                </div>
-              </div>
-
-              <div className="space-y-3">
-                <div className="flex items-center gap-2 text-sm font-semibold text-primary">
-                  <Newspaper className="h-4 w-4" />
-                  뉴스 분석용 AI 설정
-                </div>
-
-                <div>
-                  <label className="text-sm font-medium mb-2 block flex items-center gap-1">
-                    <Settings className="h-3 w-3" />
-                    AI 모델 (뉴스 분석)
-                  </label>
-                  <select
-                    value={newsAiModel}
-                    onChange={(e) => setNewsAiModel(e.target.value)}
-                    className="w-full p-2 border rounded-md bg-background"
-                  >
-                    {renderModelOptions()}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="text-sm font-medium mb-2 block flex items-center gap-1">
-                    <Key className="h-3 w-3" />
-                    API 키 (뉴스 분석)
-                  </label>
-                  <Input
-                    type="password"
-                    value={newsApiKey}
-                    onChange={(e) => setNewsApiKey(e.target.value)}
-                    placeholder="뉴스 분석용 API Key"
-                    className="w-full"
-                  />
-                  <p className="text-xs text-gray-400 mt-1">
-                    미입력 시 기본 설정 사용
-                  </p>
-                </div>
-              </div>
-            </div>
-          )}
+          <div className="p-4 bg-gray-950 rounded-xl border border-gray-800">
+            <p className="text-[11px] text-gray-400 font-medium leading-relaxed">
+              * 선택된 개수만큼의 S&P 500 / Russell 1000 기업을 AI가 전수 조사합니다.<br />
+              * 분석에는 활성화된 <strong>{activeKnowledge?.title || '최신 투자 로직'}</strong>이 적용됩니다.
+            </p>
+          </div>
         </div>
 
         <Button
           onClick={handleAnalyze}
           disabled={disabled || (userFeatures !== null && userFeatures.weeklyAnalysisLimit !== -1 && userFeatures.remainingAnalysis <= 0)}
-          className="w-full h-14 bg-blue-600 hover:bg-blue-700 text-white text-lg font-black shadow-lg transition-all transform hover:scale-[1.01]"
+          className="w-full h-16 bg-blue-600 hover:bg-blue-700 text-white text-xl font-black shadow-lg shadow-blue-500/20 transition-all transform hover:scale-[1.01] active:scale-[0.99]"
           size="lg"
         >
-          <Search className="h-5 w-5 mr-3" />
+          <Search className="h-6 w-6 mr-3" />
           {userFeatures && userFeatures.weeklyAnalysisLimit !== -1 && userFeatures.remainingAnalysis <= 0
-            ? '이번 주 리서치 제한 도달'
-            : `Alpha 기업 ${companyCount}개 정밀 분석 시작`
+            ? 'WEEKLY LIMIT REACHED'
+            : `SCAN FOR ALPHA (${companyCount} COMPANIES)`
           }
         </Button>
       </CardContent>

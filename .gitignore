@@ -40,11 +40,10 @@ yarn-error.log*
 /uploads/
 *.log
 
-# agents
-AGENTS.md
+# context & agents
+*.md
+!README.md
 
 # typescript
 *.tsbuildinfo
 next-env.d.ts
-
-CONTEXT.md

@@ -21,8 +21,8 @@ const KNOWLEDGE_DIR = process.env.UPLOAD_DIR
 
 const KNOWLEDGE_FILE = path.join(KNOWLEDGE_DIR, 'learned-knowledge.json');
 
-function getGeminiClient() {
-  const apiKey = process.env.GOOGLE_API_KEY;
+function getGeminiClient(customApiKey?: string) {
+  const apiKey = customApiKey || process.env.GOOGLE_API_KEY;
   if (!apiKey) {
     throw new Error('GOOGLE_API_KEY 환경변수가 설정되지 않았습니다.');
   }
@@ -63,9 +63,17 @@ function hasActualAnalysis(keyConditions: string[]): boolean {
   );
 }
 
-export async function runLearningPipeline(): Promise<LearnedKnowledge> {
+export async function runLearningPipeline(
+  targetFileIds?: string[],
+  aiModel: string = 'gemini-2.0-pro-exp-02-05',
+  apiKey?: string
+): Promise<LearnedKnowledge> {
   const syncResult = await listDriveFiles();
-  const files = syncResult.files;
+  const allFiles = syncResult.files;
+
+  const files = targetFileIds && targetFileIds.length > 0
+    ? allFiles.filter(f => targetFileIds.includes(f.id))
+    : allFiles;
 
   if (files.length === 0) {
     throw new Error('Google Drive 폴터에 파일이 없습니다.');
@@ -97,7 +105,7 @@ export async function runLearningPipeline(): Promise<LearnedKnowledge> {
   }
 
   const fileAnalyses: FileAnalysis[] = [];
-  const genAI = getGeminiClient();
+  const genAI = getGeminiClient(apiKey);
 
   for (const file of targetFiles) {
     try {
@@ -146,7 +154,7 @@ export async function runLearningPipeline(): Promise<LearnedKnowledge> {
 
       console.log(`Processing PDF file: ${file.name}`);
 
-      const model = genAI.getGenerativeModel({ model: 'gemini-2.5-pro' });
+      const model = genAI.getGenerativeModel({ model: aiModel || 'gemini-2.0-pro-exp-02-05' });
 
       const prompt = `당신은 전문 주식 투자 분석가입니다. 제공된 자료(PDF 또는 텍스트)에서 주가 상승 및 기업 분석에 핵심적인 "모든" 규칙과 지표를 최대한 많이 추출하세요.
 
@@ -252,7 +260,7 @@ ${content.substring(0, 12000)}`;
   console.log(`Total PDF conditions length: ${pdfConditions.length} chars`);
   console.log(`PDF conditions preview: ${pdfConditions.substring(0, 500)}...`);
 
-  const strategyModel = genAI.getGenerativeModel({ model: 'gemini-2.5-pro' });
+  const strategyModel = genAI.getGenerativeModel({ model: aiModel || 'gemini-2.0-pro-exp-02-05' });
 
   const strategyPrompt = `전설적인 투자 전략가로서 PDF 자료에서 추출된 핵심 조건들을 종합하여 포괄적인 투자 전략과 기업 선정 규칙을 도출하세요.
 
@@ -507,7 +515,42 @@ async function extractFileContent(file: DriveFileInfo): Promise<string> {
   return '';
 }
 
+import { prisma } from '@/lib/db';
+
+export async function saveKnowledgeToDB(knowledge: LearnedKnowledge, title?: string): Promise<string> {
+  const result = await prisma.learnedKnowledge.create({
+    data: {
+      title: title || `Learning Session ${new Date().toLocaleString()}`,
+      content: knowledge as any,
+      files: knowledge.sourceFiles as any,
+      isActive: false, // 기본적으로는 비활성, 사용자가 나중에 활성화
+    }
+  });
+  return result.id;
+}
+
+export async function getActiveKnowledgeFromDB(): Promise<LearnedKnowledge | null> {
+  const active = await prisma.learnedKnowledge.findFirst({
+    where: { isActive: true },
+    orderBy: { updatedAt: 'desc' }
+  });
+
+  if (active) {
+    return active.content as unknown as LearnedKnowledge;
+  }
+  return null;
+}
+
 export async function getLearnedKnowledge(): Promise<LearnedKnowledge | null> {
+  // 1. DB에서 활성화된 지식 먼저 찾기
+  try {
+    const activeKnowledge = await getActiveKnowledgeFromDB();
+    if (activeKnowledge) return activeKnowledge;
+  } catch (error) {
+    console.error('Failed to fetch active knowledge from DB:', error);
+  }
+
+  // 2. 파일 기반 지식 (Fallback)
   try {
     const data = await fs.readFile(KNOWLEDGE_FILE, 'utf-8');
     return JSON.parse(data);
@@ -517,6 +560,9 @@ export async function getLearnedKnowledge(): Promise<LearnedKnowledge | null> {
 }
 
 export async function hasLearnedKnowledge(): Promise<boolean> {
+  const count = await prisma.learnedKnowledge.count();
+  if (count > 0) return true;
+
   try {
     await fs.access(KNOWLEDGE_FILE);
     return true;

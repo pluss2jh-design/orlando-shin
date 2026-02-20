@@ -1,9 +1,36 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { FileText, Film, RefreshCw, CheckCircle, Clock, AlertCircle } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+    FileText,
+    Film,
+    RefreshCw,
+    CheckCircle,
+    Clock,
+    AlertCircle,
+    Brain,
+    Database,
+    Trash2,
+    ChevronRight,
+    Search,
+    Sparkles,
+    Eye
+} from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Badge } from '@/components/ui/badge';
+import { Checkbox } from '@/components/ui/checkbox';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface DriveFile {
     id: string;
@@ -14,19 +41,48 @@ interface DriveFile {
     learnStatus: 'completed' | 'pending' | 'processing';
 }
 
+interface LearnedKnowledgeRecord {
+    id: string;
+    title: string;
+    isActive: boolean;
+    createdAt: string;
+    files: string[];
+    content: any;
+}
+
+const AI_MODELS = [
+    { value: 'gemini-2.0-pro-exp-02-05', label: 'Gemini 2.0 Pro Exp' },
+    { value: 'gemini-2.0-flash-exp', label: 'Gemini 2.0 Flash Exp' },
+    { value: 'gemini-2.0-flash', label: 'Gemini 2.0 Flash' },
+];
+
 export default function DataLibraryPage() {
     const [files, setFiles] = useState<DriveFile[]>([]);
+    const [knowledgeList, setKnowledgeList] = useState<LearnedKnowledgeRecord[]>([]);
     const [loading, setLoading] = useState(true);
     const [syncing, setSyncing] = useState(false);
-    const [learningFileId, setLearningFileId] = useState<string | null>(null);
+    const [learning, setLearning] = useState(false);
+
+    // UI State
+    const [selectedFileIds, setSelectedFileIds] = useState<Set<string>>(new Set());
+    const [aiConfig, setAiConfig] = useState({
+        model: 'gemini-2.0-pro-exp-02-05',
+        apiKey: '',
+        title: ''
+    });
 
     useEffect(() => {
-        fetchFiles();
+        fetchInitialData();
     }, []);
+
+    const fetchInitialData = async () => {
+        setLoading(true);
+        await Promise.all([fetchFiles(), fetchKnowledge()]);
+        setLoading(false);
+    };
 
     const fetchFiles = async () => {
         try {
-            setLoading(true);
             const response = await fetch('/api/admin/files');
             if (response.ok) {
                 const data = await response.json();
@@ -34,8 +90,18 @@ export default function DataLibraryPage() {
             }
         } catch (error) {
             console.error('Failed to fetch files:', error);
-        } finally {
-            setLoading(false);
+        }
+    };
+
+    const fetchKnowledge = async () => {
+        try {
+            const response = await fetch('/api/admin/knowledge');
+            if (response.ok) {
+                const data = await response.json();
+                setKnowledgeList(data.knowledgeList || []);
+            }
+        } catch (error) {
+            console.error('Failed to fetch knowledge:', error);
         }
     };
 
@@ -53,55 +119,93 @@ export default function DataLibraryPage() {
         }
     };
 
-    const handleLearnFile = async (fileId: string) => {
+    const handleToggleFileSelection = (fileId: string) => {
+        const next = new Set(selectedFileIds);
+        if (next.has(fileId)) next.delete(fileId);
+        else next.add(fileId);
+        setSelectedFileIds(next);
+    };
+
+    const handleSelectAll = (checked: boolean) => {
+        if (checked) {
+            setSelectedFileIds(new Set(files.map(f => f.id)));
+        } else {
+            setSelectedFileIds(new Set());
+        }
+    };
+
+    const handleRunLearning = async () => {
+        if (selectedFileIds.size === 0) {
+            alert('학습할 파일을 선택해주세요.');
+            return;
+        }
+
         try {
-            setLearningFileId(fileId);
-            const response = await fetch('/api/admin/learn-file', {
+            setLearning(true);
+            const response = await fetch('/api/gdrive/learn', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ fileId }),
+                body: JSON.stringify({
+                    fileIds: Array.from(selectedFileIds),
+                    aiModel: aiConfig.model,
+                    apiKey: aiConfig.apiKey,
+                    title: aiConfig.title
+                }),
             });
 
             if (response.ok) {
-                await fetchFiles();
+                alert('학습이 완료되었습니다.');
+                await fetchInitialData();
+                setSelectedFileIds(new Set());
+                setAiConfig(prev => ({ ...prev, title: '' }));
+            } else {
+                const error = await response.json();
+                alert(`학합 실패: ${error.error}`);
             }
         } catch (error) {
-            console.error('Learn file failed:', error);
+            console.error('Learning failed:', error);
+            alert('학습 엔진 실행 중 오류가 발생했습니다.');
         } finally {
-            setLearningFileId(null);
+            setLearning(false);
+        }
+    };
+
+    const handleActivateKnowledge = async (id: string, active: boolean) => {
+        try {
+            const response = await fetch('/api/admin/knowledge', {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id, isActive: active }),
+            });
+
+            if (response.ok) {
+                await fetchKnowledge();
+            }
+        } catch (error) {
+            console.error('Activation failed:', error);
+        }
+    };
+
+    const handleDeleteKnowledge = async (id: string) => {
+        if (!confirm('정말 삭제하시겠습니까?')) return;
+
+        try {
+            const response = await fetch(`/api/admin/knowledge?id=${id}`, {
+                method: 'DELETE',
+            });
+
+            if (response.ok) {
+                await fetchKnowledge();
+            }
+        } catch (error) {
+            console.error('Deletion failed:', error);
         }
     };
 
     const getFileIcon = (mimeType: string) => {
         if (mimeType.includes('pdf')) return <FileText className="h-5 w-5 text-red-500" />;
         if (mimeType.includes('video')) return <Film className="h-5 w-5 text-purple-500" />;
-        return <FileText className="h-5 w-5 text-gray-500" />;
-    };
-
-    const getStatusBadge = (status: string) => {
-        switch (status) {
-            case 'completed':
-                return (
-                    <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-green-500/10 text-green-500 text-xs font-medium">
-                        <CheckCircle className="h-3 w-3" />
-                        학습완료
-                    </span>
-                );
-            case 'processing':
-                return (
-                    <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-blue-500/10 text-blue-500 text-xs font-medium">
-                        <RefreshCw className="h-3 w-3 animate-spin" />
-                        처리중
-                    </span>
-                );
-            default:
-                return (
-                    <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-yellow-500/10 text-yellow-500 text-xs font-medium">
-                        <Clock className="h-3 w-3" />
-                        대기
-                    </span>
-                );
-        }
+        return <FileText className="h-5 w-5 text-gray-400" />;
     };
 
     const formatFileSize = (bytes?: number) => {
@@ -111,105 +215,234 @@ export default function DataLibraryPage() {
     };
 
     return (
-        <div className="p-8 space-y-6">
+        <div className="p-8 space-y-8 animate-in fade-in duration-500">
             <div className="flex items-center justify-between">
                 <div>
-                    <h1 className="text-3xl font-bold text-white mb-2">데이터 라이브러리</h1>
-                    <p className="text-gray-400">Google Drive에서 불러온 파일 목록</p>
+                    <h1 className="text-4xl font-black text-white mb-2 tracking-tighter">데이터 라이브러리</h1>
+                    <p className="text-gray-400 font-medium">Google Drive 기반 AI 지식 베이스 구축 및 투자 로직 관리</p>
                 </div>
-                <Button
-                    onClick={handleSync}
-                    disabled={syncing}
-                    className="bg-blue-600 hover:bg-blue-700"
-                >
-                    {syncing ? (
-                        <>
-                            <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-                            동기화 중...
-                        </>
-                    ) : (
-                        <>
-                            <RefreshCw className="h-4 w-4 mr-2" />
-                            Google Drive 동기화
-                        </>
-                    )}
-                </Button>
+                <div className="flex gap-3">
+                    <Button
+                        onClick={handleSync}
+                        disabled={syncing}
+                        variant="outline"
+                        className="border-gray-800 text-gray-300 hover:bg-gray-800"
+                    >
+                        <RefreshCw className={`h-4 w-4 mr-2 ${syncing ? 'animate-spin' : ''}`} />
+                        Drive 동기화
+                    </Button>
+                </div>
             </div>
 
-            <Card className="bg-gray-900 border-gray-800">
-                <CardHeader>
-                    <CardTitle className="text-white">파일 목록 ({files.length}개)</CardTitle>
-                </CardHeader>
-                <CardContent>
-                    {loading ? (
-                        <div className="text-center py-12">
-                            <RefreshCw className="h-8 w-8 text-gray-500 animate-spin mx-auto mb-4" />
-                            <p className="text-gray-500">파일 목록을 불러오는 중...</p>
-                        </div>
-                    ) : files.length === 0 ? (
-                        <div className="text-center py-12">
-                            <AlertCircle className="h-12 w-12 text-gray-600 mx-auto mb-4" />
-                            <p className="text-gray-500 mb-4">파일이 없습니다</p>
-                            <Button onClick={handleSync} variant="outline">
-                                Google Drive 동기화하기
+            <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
+                {/* 1. 파일 목록 및 학습 설정 */}
+                <div className="xl:col-span-2 space-y-8">
+                    <Card className="bg-gray-900 border-gray-800 overflow-hidden shadow-2xl">
+                        <CardHeader className="border-b border-gray-800 bg-gray-900/50">
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <CardTitle className="text-white text-xl flex items-center gap-2 font-black">
+                                        <Database className="h-5 w-5 text-blue-500" />
+                                        원천 데이터 스캔
+                                    </CardTitle>
+                                    <CardDescription className="text-gray-400">학습에 사용할 PDF 및 비디오 파일을 선택하세요</CardDescription>
+                                </div>
+                                <div className="flex items-center gap-4 bg-gray-800/50 p-2 rounded-lg border border-gray-800">
+                                    <div className="flex items-center gap-2">
+                                        <Checkbox
+                                            id="select-all"
+                                            checked={selectedFileIds.size === files.length && files.length > 0}
+                                            onCheckedChange={handleSelectAll}
+                                        />
+                                        <Label htmlFor="select-all" className="text-xs font-bold text-gray-300 cursor-pointer">전체 선택</Label>
+                                    </div>
+                                    <Badge variant="secondary" className="bg-blue-500/20 text-blue-400 font-bold">
+                                        {selectedFileIds.size}개 선택됨
+                                    </Badge>
+                                </div>
+                            </div>
+                        </CardHeader>
+                        <CardContent className="p-0">
+                            <ScrollArea className="h-[500px]">
+                                <div className="divide-y divide-gray-800/50">
+                                    {files.map((file) => (
+                                        <div
+                                            key={file.id}
+                                            className={`flex items-center gap-4 p-4 hover:bg-gray-800/20 transition-all cursor-pointer group ${selectedFileIds.has(file.id) ? 'bg-blue-500/5' : ''}`}
+                                            onClick={() => handleToggleFileSelection(file.id)}
+                                        >
+                                            <Checkbox
+                                                checked={selectedFileIds.has(file.id)}
+                                                onCheckedChange={() => handleToggleFileSelection(file.id)}
+                                                onClick={(e) => e.stopPropagation()}
+                                            />
+                                            <div className="p-2 bg-gray-950 rounded-lg group-hover:scale-110 transition-transform">
+                                                {getFileIcon(file.mimeType)}
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                                <h4 className="text-white font-bold truncate text-sm">{file.name}</h4>
+                                                <p className="text-xs text-gray-500 font-medium">
+                                                    {formatFileSize(file.size)} • {new Date(file.modifiedTime).toLocaleDateString('ko-KR')}
+                                                </p>
+                                            </div>
+                                            {file.learnStatus === 'completed' && (
+                                                <Badge className="bg-emerald-500/10 text-emerald-500 border-none">
+                                                    <CheckCircle className="h-3 w-3 mr-1" />
+                                                    PROCESSED
+                                                </Badge>
+                                            )}
+                                        </div>
+                                    ))}
+                                    {files.length === 0 && (
+                                        <div className="p-20 text-center">
+                                            <Search className="h-12 w-12 text-gray-800 mx-auto mb-4" />
+                                            <p className="text-gray-500 font-bold">동기화된 파일이 없습니다.</p>
+                                        </div>
+                                    )}
+                                </div>
+                            </ScrollArea>
+                        </CardContent>
+                        <div className="p-6 border-t border-gray-800 bg-gray-900/80">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                                <div className="space-y-2">
+                                    <Label className="text-xs font-black text-gray-400 uppercase tracking-widest">AI Engine Title</Label>
+                                    <Input
+                                        placeholder="지식 베이스 버전을 입력하세요 (예: 2024년 2분기 리포트)"
+                                        className="bg-gray-950 border-gray-800 text-white font-medium"
+                                        value={aiConfig.title}
+                                        onChange={(e) => setAiConfig({ ...aiConfig, title: e.target.value })}
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label className="text-xs font-black text-gray-400 uppercase tracking-widest">Select AI Intelligence</Label>
+                                    <Select
+                                        value={aiConfig.model}
+                                        onValueChange={(v) => setAiConfig({ ...aiConfig, model: v })}
+                                    >
+                                        <SelectTrigger className="bg-gray-950 border-gray-800 text-white font-medium">
+                                            <SelectValue placeholder="모델 선택" />
+                                        </SelectTrigger>
+                                        <SelectContent className="bg-gray-900 border-gray-700 text-white">
+                                            {AI_MODELS.map(m => (
+                                                <SelectItem key={m.value} value={m.value} className="focus:bg-gray-800">{m.label}</SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                            </div>
+                            <div className="space-y-2 mb-6">
+                                <Label className="text-xs font-black text-gray-400 uppercase tracking-widest">Deep Engine API Key (Optional)</Label>
+                                <Input
+                                    type="password"
+                                    placeholder="별도 API Key 사용 시 입력 (비어있으면 시스템 기본값 사용)"
+                                    className="bg-gray-950 border-gray-800 text-white font-mono"
+                                    value={aiConfig.apiKey}
+                                    onChange={(e) => setAiConfig({ ...aiConfig, apiKey: e.target.value })}
+                                />
+                            </div>
+                            <Button
+                                onClick={handleRunLearning}
+                                disabled={learning || selectedFileIds.size === 0}
+                                className="w-full h-14 bg-blue-600 hover:bg-blue-700 text-white text-lg font-black shadow-lg transform active:scale-[0.98] transition-all"
+                            >
+                                {learning ? (
+                                    <>
+                                        <RefreshCw className="h-5 w-5 mr-3 animate-spin" />
+                                        DEEP LEARNING IN PROGRESS...
+                                    </>
+                                ) : (
+                                    <>
+                                        <Brain className="h-5 w-5 mr-3 text-white" />
+                                        선택한 {selectedFileIds.size}개 파일로 지식 학습 시작
+                                    </>
+                                )}
                             </Button>
                         </div>
-                    ) : (
-                        <div className="overflow-x-auto">
-                            <table className="w-full">
-                                <thead>
-                                    <tr className="border-b border-gray-800">
-                                        <th className="text-left py-3 px-4 text-sm font-medium text-gray-400">파일</th>
-                                        <th className="text-left py-3 px-4 text-sm font-medium text-gray-400">크기</th>
-                                        <th className="text-left py-3 px-4 text-sm font-medium text-gray-400">수정일</th>
-                                        <th className="text-left py-3 px-4 text-sm font-medium text-gray-400">상태</th>
-                                        <th className="text-right py-3 px-4 text-sm font-medium text-gray-400">작업</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {files.map((file) => (
-                                        <tr key={file.id} className="border-b border-gray-800/50 hover:bg-gray-800/30">
-                                            <td className="py-3 px-4">
-                                                <div className="flex items-center gap-3">
-                                                    {getFileIcon(file.mimeType)}
-                                                    <span className="text-white font-medium">{file.name}</span>
+                    </Card>
+                </div>
+
+                {/* 2. 저장된 지식 베이스 목록 */}
+                <div className="space-y-8">
+                    <Card className="bg-gray-900 border-gray-800 shadow-xl lg:sticky lg:top-8">
+                        <CardHeader className="border-b border-gray-800">
+                            <CardTitle className="text-white text-xl font-black flex items-center gap-2">
+                                <Brain className="h-5 w-5 text-purple-500" />
+                                통합 투자 로직 (DB)
+                            </CardTitle>
+                            <CardDescription className="text-gray-400">시스템이 사용할 활성 지식 베이스를 선택하세요</CardDescription>
+                        </CardHeader>
+                        <CardContent className="p-0">
+                            <ScrollArea className="h-[750px]">
+                                <div className="p-4 space-y-4">
+                                    {knowledgeList.map((kb) => (
+                                        <div
+                                            key={kb.id}
+                                            className={`p-5 rounded-xl border transition-all ${kb.isActive
+                                                ? 'bg-blue-600/10 border-blue-500 shadow-blue-500/10'
+                                                : 'bg-gray-950 border-gray-800 hover:border-gray-700'}`}
+                                        >
+                                            <div className="flex items-start justify-between gap-3 mb-4">
+                                                <div className="min-w-0">
+                                                    <h4 className="text-white font-black truncate text-sm mb-1">{kb.title || `Session ${kb.id.slice(-4)}`}</h4>
+                                                    <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">
+                                                        CREATED : {new Date(kb.createdAt).toLocaleDateString()}
+                                                    </p>
                                                 </div>
-                                            </td>
-                                            <td className="py-3 px-4 text-gray-400 text-sm">
-                                                {formatFileSize(file.size)}
-                                            </td>
-                                            <td className="py-3 px-4 text-gray-400 text-sm">
-                                                {new Date(file.modifiedTime).toLocaleDateString('ko-KR')}
-                                            </td>
-                                            <td className="py-3 px-4">
-                                                {getStatusBadge(file.learnStatus)}
-                                            </td>
-                                            <td className="py-3 px-4 text-right">
+                                                <div className="flex gap-2 shrink-0">
+                                                    <Button
+                                                        size="icon"
+                                                        variant="ghost"
+                                                        className="h-8 w-8 text-rose-500 hover:text-rose-400 hover:bg-rose-500/10"
+                                                        onClick={() => handleDeleteKnowledge(kb.id)}
+                                                    >
+                                                        <Trash2 className="h-4 w-4" />
+                                                    </Button>
+                                                </div>
+                                            </div>
+
+                                            <div className="flex flex-wrap gap-2 mb-6">
+                                                <Badge variant="outline" className="bg-gray-900 border-gray-700 text-gray-300 font-bold text-[10px]">
+                                                    {kb.files.length} FILES
+                                                </Badge>
+                                                {kb.isActive && (
+                                                    <Badge className="bg-blue-500 text-white font-black text-[10px] animate-pulse">
+                                                        ACTIVE
+                                                    </Badge>
+                                                )}
+                                            </div>
+
+                                            <div className="grid grid-cols-2 gap-2">
                                                 <Button
-                                                    size="sm"
-                                                    variant="outline"
-                                                    onClick={() => handleLearnFile(file.id)}
-                                                    disabled={learningFileId === file.id || file.learnStatus === 'processing'}
-                                                    className="border-gray-700 hover:bg-gray-800"
+                                                    variant={kb.isActive ? "default" : "outline"}
+                                                    className={`h-10 font-black text-xs ${kb.isActive ? "bg-blue-600" : "border-gray-700 text-gray-300 hover:bg-gray-800"}`}
+                                                    onClick={() => handleActivateKnowledge(kb.id, !kb.isActive)}
                                                 >
-                                                    {learningFileId === file.id ? (
-                                                        <>
-                                                            <RefreshCw className="h-3 w-3 mr-1 animate-spin" />
-                                                            학습 중
-                                                        </>
-                                                    ) : (
-                                                        '개별 학습'
-                                                    )}
+                                                    {kb.isActive ? '현재 사용 중' : '로직 활성화'}
                                                 </Button>
-                                            </td>
-                                        </tr>
+                                                <Button
+                                                    variant="outline"
+                                                    className="h-10 border-gray-700 text-gray-300 font-black text-xs hover:bg-gray-800"
+                                                >
+                                                    <Eye className="h-4 w-4 mr-1" /> 상세 보기
+                                                </Button>
+                                            </div>
+                                        </div>
                                     ))}
-                                </tbody>
-                            </table>
-                        </div>
-                    )}
-                </CardContent>
-            </Card>
+                                    {knowledgeList.length === 0 && (
+                                        <div className="text-center py-12 border-2 border-dashed border-gray-800 rounded-xl">
+                                            <Sparkles className="h-8 w-8 text-gray-800 mx-auto mb-3" />
+                                            <p className="text-gray-500 text-xs font-bold leading-relaxed">
+                                                아직 학습된 데이터가 없습니다.<br />
+                                                왼쪽에서 파일을 선택해 학습을 시작하세요.
+                                            </p>
+                                        </div>
+                                    )}
+                                </div>
+                            </ScrollArea>
+                        </CardContent>
+                    </Card>
+                </div>
+            </div>
         </div>
     );
 }

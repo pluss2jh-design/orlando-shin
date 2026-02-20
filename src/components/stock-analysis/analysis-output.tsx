@@ -49,9 +49,6 @@ export function AnalysisOutput({ results, conditions, isLoading, onSendEmail }: 
   const handleSendEmail = async () => {
     if (!email || !onSendEmail || !canSendEmail) return;
 
-    const confirmed = window.confirm('이메일 발송을 위해 API 비용이 발생할 수 있습니다. 계속하시겠습니까?');
-    if (!confirmed) return;
-
     setIsSendingEmail(true);
     try {
       await onSendEmail(email);
