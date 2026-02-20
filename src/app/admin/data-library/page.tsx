@@ -51,9 +51,16 @@ interface LearnedKnowledgeRecord {
 }
 
 const AI_MODELS = [
+    { value: 'gemini-2.5-pro', label: 'Gemini 2.5 Pro' },
+    { value: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash' },
     { value: 'gemini-2.0-pro-exp-02-05', label: 'Gemini 2.0 Pro Exp' },
     { value: 'gemini-2.0-flash-exp', label: 'Gemini 2.0 Flash Exp' },
     { value: 'gemini-2.0-flash', label: 'Gemini 2.0 Flash' },
+    { value: 'gemini-2.0-flash-lite-preview-02-05', label: 'Gemini 2.0 Flash Lite' },
+    { value: 'gemini-2.0-flash-thinking-exp-01-21', label: 'Gemini 2.0 Flash Thinking' },
+    { value: 'gemini-1.5-pro', label: 'Gemini 1.5 Pro' },
+    { value: 'gemini-1.5-flash', label: 'Gemini 1.5 Flash' },
+    { value: 'gemini-1.5-flash-8b', label: 'Gemini 1.5 Flash 8B' },
 ];
 
 export default function DataLibraryPage() {
@@ -160,7 +167,7 @@ export default function DataLibraryPage() {
                 setAiConfig(prev => ({ ...prev, title: '' }));
             } else {
                 const error = await response.json();
-                alert(`학합 실패: ${error.error}`);
+                alert(`학습 실패: ${error.error}`);
             }
         } catch (error) {
             console.error('Learning failed:', error);

@@ -129,18 +129,16 @@ export async function runLearningPipeline(
         continue;
       }
 
-      if (!isPDFFile(file)) {
-        console.log(`Skipping non-PDF file: ${file.name}`);
+      if (!isPDFFile(file) && !isTextOrDocumentFile(file)) {
+        console.log(`Skipping unsupported file: ${file.name}`);
         continue;
       }
 
       let content = '';
 
-      if (isPDFFile(file)) {
+      if (isPDFFile(file) || isTextOrDocumentFile(file)) {
         content = await extractFileContent(file);
-        console.log(`Extracted PDF content length: ${content.length} chars`);
-      } else {
-        content = await extractFileContent(file);
+        console.log(`Extracted file content length: ${content.length} chars`);
       }
 
       if (!content || content.trim().length === 0) {
@@ -245,31 +243,35 @@ ${content.substring(0, 12000)}`;
   console.log(`Successfully analyzed ${fileAnalyses.length} files`);
 
   if (fileAnalyses.length === 0) {
-    throw new Error('처리할 수 있는 파일이 없습니다. Google Drive에 PDF 파일이 있는지 확인해주세요.');
+    throw new Error('처리할 수 있는 파일이 없습니다. Google Drive에 지원되는 파일(PDF, 텍스트, 문서, MP4 등)이 있는지 확인해주세요.');
   }
 
-  const pdfAnalyses = fileAnalyses.filter(fa =>
-    fa.fileName.toLowerCase().endsWith('.pdf')
+  const documentAnalyses = fileAnalyses.filter(fa =>
+    !isVideoFile({ name: fa.fileName, id: fa.fileId, mimeType: '' } as any)
   );
-  console.log(`PDF analyses count: ${pdfAnalyses.length}`);
+  console.log(`Document analyses count: ${documentAnalyses.length}`);
 
-  const pdfConditions = pdfAnalyses
+  const docConditions = documentAnalyses
     .flatMap(fa => fa.keyConditions)
     .join('\n');
 
-  console.log(`Total PDF conditions length: ${pdfConditions.length} chars`);
-  console.log(`PDF conditions preview: ${pdfConditions.substring(0, 500)}...`);
+  console.log(`Total Document conditions length: ${docConditions.length} chars`);
+  console.log(`Document conditions preview: ${docConditions.substring(0, 500)}...`);
 
   const strategyModel = genAI.getGenerativeModel({ model: aiModel || 'gemini-2.0-pro-exp-02-05' });
 
-  const strategyPrompt = `전설적인 투자 전략가로서 PDF 자료에서 추출된 핵심 조건들을 종합하여 포괄적인 투자 전략과 기업 선정 규칙을 도출하세요.
+  const strategyPrompt = `전설적인 투자 전략가로서 제공된 자료에서 추출된 핵심 조건들을 종합하여 포괄적인 투자 전략과 기업 선정 규칙을 도출하세요.
 
+추출된 핵심 조건들:
+${docConditions}
+
+위 조건들을 바탕으로 다음 JSON 구조로 정리해 주세요.
 다음 카테고리별로 규칙을 최대한 많이 추출하세요 (각 카테고리당 5~15개 이상):
 
 1. 재무지표 규칙 (goodCompanyRules): ROE, PER, PBR, EPS, EV/EBITDA, 부채비율, FCF 등
 2. 기술적 분석 규칙 (technicalRules): 스토캐스틱, RSI, MACD, 이동평균선, 볼린저밴드, 거래량 등
 3. 시장 규모 규칙 (marketSizeRules): TAM, SAM, SOM, 시장 성장률, 시장 점유율 등
-4. 단위 경제성 규칙 (unitEconomicsRules): CAC(고객획득비용), LTV(고객생애가치), 공헌이익률, 매출채권회전율 등
+4. 단위 경제성 규칙 (unitEconomicsRules): CAC(고객획득비용), LTV(고객생애가치), 공헌이익률 등
 5. 기업 생애주기 규칙 (lifecycleRules): 도입기, 성장기, 성숙기, 쇠퇴기별 투자 기준
 6. 매수 타이밍 규칙 (buyTimingRules): 지금 당장 매수하기 좋은 시점 판단 기준
 
@@ -294,11 +296,11 @@ JSON 형식:
 }
 
 PDF 자료에서 추출한 주가 상승 핵심 조건들입니다:
-${pdfConditions.substring(0, 15000)}`;
+${docConditions.substring(0, 15000)}`;
 
   let strategyData: any = {};
 
-  if (pdfConditions.trim().length > 0) {
+  if (docConditions.trim().length > 0) {
     try {
       const strategyResult = await strategyModel.generateContent(strategyPrompt);
       const strategyText = strategyResult.response.text();
