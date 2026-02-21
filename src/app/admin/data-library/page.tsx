@@ -89,7 +89,7 @@ export default function DataLibraryPage() {
 
     const fetchInitialData = async () => {
         setLoading(true);
-        await Promise.all([fetchFiles(), fetchKnowledge(), fetchKeys()]);
+        await Promise.all([fetchKnowledge(), fetchKeys()]);
         setLoading(false);
     };
 
@@ -247,6 +247,26 @@ export default function DataLibraryPage() {
         if (!bytes) return '-';
         const mb = bytes / (1024 * 1024);
         return `${mb.toFixed(2)} MB`;
+    };
+
+    const isModelSelectionComplete = () => {
+        if (selectedFileIds.size === 0) return true; // Disabled handled by selectedFileIds.size === 0 anyway
+
+        const selectedExts = new Set<string>();
+        for (const file of files) {
+            if (selectedFileIds.has(file.id)) {
+                selectedExts.add(getFileExt(file.name, file.mimeType));
+            }
+        }
+
+        for (const ext of selectedExts) {
+            if (ext !== 'mp4' && ext !== 'other') {
+                if (!aiModels[ext]) {
+                    return false;
+                }
+            }
+        }
+        return true;
     };
 
     return (
@@ -429,8 +449,8 @@ export default function DataLibraryPage() {
                             </div>
                             <Button
                                 onClick={handleRunLearning}
-                                disabled={learning || selectedFileIds.size === 0}
-                                className="w-full h-14 bg-blue-600 hover:bg-blue-700 text-white text-lg font-black shadow-lg transform active:scale-[0.98] transition-all"
+                                disabled={learning || selectedFileIds.size === 0 || !isModelSelectionComplete()}
+                                className="w-full h-14 bg-blue-600 hover:bg-blue-700 text-white text-lg font-black shadow-lg transform active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                                 {learning ? (
                                     <>

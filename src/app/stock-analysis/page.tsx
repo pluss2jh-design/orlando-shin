@@ -355,9 +355,6 @@ export default function StockAnalysisPage() {
               </Card>
             )}
 
-          </div>
-
-          <div className="lg:col-span-8 space-y-6">
             {analysisState.error && !analysisState.isAnalyzing && (
               <div className="p-4 rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm">
                 {analysisState.error}
