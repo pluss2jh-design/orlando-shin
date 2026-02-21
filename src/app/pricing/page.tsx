@@ -17,7 +17,8 @@ interface Plan {
     id: string;
     name: string;
     price: number;
-    features: Feature[];
+    weeklyAnalysisLimit: number;
+    canSendEmail: boolean;
     isPopular?: boolean;
 }
 
@@ -83,13 +84,18 @@ export default function PricingPage() {
     }
 
     return (
-        <div className="min-h-screen bg-gray-50 py-20 px-4">
+        <div className="min-h-screen bg-[#f3f4f6] py-20 px-4 font-sans text-gray-900">
             <div className="max-w-7xl mx-auto">
+                <div className="flex justify-start mb-8">
+                    <Button variant="ghost" onClick={() => router.push('/')} className="text-gray-500 hover:text-black">
+                        &larr; 홈으로 돌아가기
+                    </Button>
+                </div>
                 <div className="text-center mb-16">
-                    <h1 className="text-4xl font-extrabold text-gray-900 sm:text-5xl">
-                        합리적인 요금제로 주식 투자의 수준을 높이세요
+                    <h1 className="text-4xl font-black text-gray-900 sm:text-5xl tracking-tight">
+                        Pricing Plans
                     </h1>
-                    <p className="mt-4 text-xl text-gray-600 max-w-2xl mx-auto">
+                    <p className="mt-4 text-xl text-gray-500 max-w-2xl mx-auto font-medium">
                         당신에게 가장 잘 맞는 플랜을 선택하고 지금 바로 AI 분석을 시작하세요.
                     </p>
                 </div>
@@ -98,64 +104,54 @@ export default function PricingPage() {
                     {plans.map((plan) => (
                         <Card
                             key={plan.id}
-                            className={`relative border-2 transition-all hover:shadow-xl ${plan.isPopular ? 'border-blue-600 scale-105 z-10' : 'border-gray-200'
+                            className={`relative border border-gray-200 transition-all hover:-translate-y-2 hover:shadow-2xl bg-white rounded-none ${plan.isPopular ? 'scale-105 z-10 border-blue-200' : ''
                                 }`}
                         >
                             {plan.isPopular && (
-                                <div className="absolute top-0 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-blue-600 text-white px-4 py-1 rounded-full text-sm font-bold flex items-center gap-1 shadow-lg">
-                                    <Sparkles className="h-4 w-4" />
-                                    가장 인기 있음
+                                <div className="absolute top-0 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-black text-white px-4 py-1 text-xs font-bold tracking-widest uppercase shadow-lg z-10">
+                                    Popular
                                 </div>
                             )}
 
-                            <CardHeader className="text-center pb-2">
-                                <CardTitle className="text-2xl font-bold text-gray-900">
+                            <CardHeader className="text-center pb-2 pt-10">
+                                <CardTitle className="text-2xl font-black text-gray-900 uppercase tracking-tight">
                                     {plan.name}
                                 </CardTitle>
-                                <div className="mt-4 flex items-baseline justify-center gap-1">
-                                    <span className="text-4xl font-extrabold tracking-tight text-gray-900 font-mono">
+                                <div className="mt-6 flex items-baseline justify-center gap-1">
+                                    <span className="text-4xl font-black tracking-tighter text-gray-900">
                                         ₩{plan.price.toLocaleString()}
                                     </span>
-                                    <span className="text-gray-500">/월</span>
+                                    <span className="text-gray-500 font-medium">/ 1 Month</span>
                                 </div>
                             </CardHeader>
 
                             <CardContent className="pt-8">
-                                <ul className="space-y-4">
-                                    {plan.features.map((feature) => (
-                                        <li key={feature.id} className="flex items-start gap-3">
-                                            <div className={`mt-0.5 rounded-full p-0.5 ${feature.enabled ? 'bg-blue-100' : 'bg-gray-100'}`}>
-                                                <Check className={`h-4 w-4 ${feature.enabled ? 'text-blue-600' : 'text-gray-300'}`} />
-                                            </div>
-                                            <span className={`text-sm ${feature.enabled ? 'text-gray-900 font-medium' : 'text-gray-400 line-through'}`}>
-                                                {feature.name}
-                                            </span>
-                                        </li>
-                                    ))}
-                                </ul>
+                                <div className="space-y-4 px-4 text-sm text-gray-600 font-medium">
+                                    <div className="flex justify-between items-center py-2 border-b border-gray-100">
+                                        <span>주간 분석 한도</span>
+                                        <span className="font-bold text-black">{plan.weeklyAnalysisLimit === -1 ? '무제한' : `${plan.weeklyAnalysisLimit}회`}</span>
+                                    </div>
+                                    <div className="flex justify-between items-center py-2 border-b border-gray-100">
+                                        <span>이메일 리포트 전송</span>
+                                        <span className="font-bold text-black">{plan.canSendEmail ? '가능' : '불가'}</span>
+                                    </div>
+                                </div>
                             </CardContent>
 
-                            <CardFooter className="pt-8">
+                            <CardFooter className="pt-8 pb-10">
                                 <Button
                                     onClick={() => handleSelectPlan(plan.id)}
-                                    className={`w-full py-6 text-lg font-bold shadow-md transition-all active:scale-95 ${plan.isPopular
-                                        ? 'bg-blue-600 hover:bg-blue-700 text-white'
-                                        : 'bg-white border-2 border-blue-600 text-blue-600 hover:bg-blue-50'
+                                    className={`w-full h-14 rounded-none font-black text-sm tracking-widest uppercase ${plan.isPopular ? 'bg-black hover:bg-black/90 text-white' : 'bg-gray-100 hover:bg-gray-200 text-black'
                                         }`}
                                 >
-                                    시작하기
+                                    Select Plan
                                 </Button>
                             </CardFooter>
                         </Card>
                     ))}
                 </div>
-
-                <div className="mt-16 text-center">
-                    <p className="text-gray-500">
-                        모든 요금제는 부가세가 포함된 금액입니다. 언제든지 구독을 취소할 수 있습니다.
-                    </p>
-                </div>
             </div>
         </div>
     );
 }
+

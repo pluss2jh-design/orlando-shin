@@ -10,6 +10,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 interface ApiKeys {
     GOOGLE_API_KEY: string;
     OPENAI_API_KEY: string;
+    CLAUDE_API_KEY: string;
     YAHOO_FINANCE_API_KEY: string;
 }
 
@@ -17,6 +18,7 @@ export default function SettingsPage() {
     const [keys, setKeys] = useState<ApiKeys>({
         GOOGLE_API_KEY: '',
         OPENAI_API_KEY: '',
+        CLAUDE_API_KEY: '',
         YAHOO_FINANCE_API_KEY: '',
     });
     const [loading, setLoading] = useState(true);
@@ -174,6 +176,39 @@ export default function SettingsPage() {
                                     </div>
                                     <p className="text-xs text-gray-500">
                                         GPT 모델 사용에 필요합니다 (선택사항)
+                                    </p>
+                                </div>
+
+                                <div className="space-y-2">
+                                    <label className="text-sm font-medium text-gray-300">
+                                        Claude API Key
+                                    </label>
+                                    <div className="relative group">
+                                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                            <Key className="h-4 w-4 text-gray-500 group-focus-within:text-orange-500 transition-colors" />
+                                        </div>
+                                        <Input
+                                            type={showKeys['CLAUDE_API_KEY'] ? 'text' : 'password'}
+                                            value={keys.CLAUDE_API_KEY}
+                                            onChange={(e) => handleChange('CLAUDE_API_KEY', e.target.value)}
+                                            placeholder="sk-ant-..."
+                                            className="bg-gray-950 border-gray-800 text-white pl-10 pr-12 focus:ring-orange-500/50 focus:border-orange-500 transition-all font-mono"
+                                        />
+                                        <button
+                                            type="button"
+                                            onClick={() => toggleShowKey('CLAUDE_API_KEY')}
+                                            className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded-md hover:bg-gray-800 text-gray-400 hover:text-white transition-colors"
+                                            title={showKeys['CLAUDE_API_KEY'] ? "숨기기" : "보기"}
+                                        >
+                                            {showKeys['CLAUDE_API_KEY'] ? (
+                                                <EyeOff className="h-4 w-4" />
+                                            ) : (
+                                                <Eye className="h-4 w-4" />
+                                            )}
+                                        </button>
+                                    </div>
+                                    <p className="text-xs text-gray-500">
+                                        Claude 모델 사용에 필요합니다 (선택사항)
                                     </p>
                                 </div>
 

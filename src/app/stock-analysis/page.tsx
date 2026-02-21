@@ -264,66 +264,67 @@ export default function StockAnalysisPage() {
   const isAdmin = (session?.user as any)?.role === 'ADMIN';
 
   return (
-    <div className="min-h-screen bg-[#05070a] text-gray-100 relative overflow-hidden">
-      {/* Background Digital Grid Effect */}
-      <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:40px_40px] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_100%)]" />
-      <div className="absolute inset-0 bg-gradient-to-tr from-blue-500/5 via-transparent to-emerald-500/5" />
-
+    <div className="min-h-screen bg-[#f3f4f6] text-gray-900 relative overflow-hidden font-sans">
       <div className="container mx-auto px-4 py-8 max-w-7xl relative z-10">
-        <div className="flex justify-end gap-3 mb-12">
-          {session ? (
-            <div className="flex items-center gap-3">
-              {!isAdmin && (
+        <div className="flex justify-between gap-3 mb-12">
+          <Button variant="ghost" onClick={() => router.push('/')} className="text-gray-500 hover:text-black">
+            &larr; 홈
+          </Button>
+          <div className="flex items-center gap-3">
+            {session ? (
+              <>
+                {!isAdmin && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => router.push('/pricing')}
+                    className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                  >
+                    플랜 업그레이드
+                  </Button>
+                )}
                 <Button
-                  variant="ghost"
+                  variant="outline"
                   size="sm"
-                  onClick={() => router.push('/pricing')}
-                  className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                  onClick={() => router.push('/inquiry')}
                 >
-                  플랜 업그레이드
+                  <MessageSquare className="mr-2 h-4 w-4" />
+                  1:1 문의
                 </Button>
-              )}
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => router.push('/inquiry')}
-              >
-                <MessageSquare className="mr-2 h-4 w-4" />
-                1:1 문의
-              </Button>
-              <UserMenu />
-            </div>
-          ) : (
-            <>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => window.location.href = '/login'}
-              >
-                <User className="mr-2 h-4 w-4" />
-                로그인 / 회원가입
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => window.location.href = '/inquiry'}
-              >
-                <MessageSquare className="mr-2 h-4 w-4" />
-                1:1 문의
-              </Button>
-            </>
-          )}
+                <UserMenu />
+              </>
+            ) : (
+              <>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => window.location.href = '/login'}
+                >
+                  <User className="mr-2 h-4 w-4" />
+                  로그인 / 회원가입
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => window.location.href = '/inquiry'}
+                >
+                  <MessageSquare className="mr-2 h-4 w-4" />
+                  1:1 문의
+                </Button>
+              </>
+            )}
+          </div>
         </div>
 
         <div className="text-center mb-16 relative">
-          <div className="inline-flex items-center gap-2 px-6 py-2 rounded-full bg-blue-500/10 text-blue-400 text-xs font-black uppercase tracking-[0.3em] border border-blue-500/20 mb-8 animate-pulse">
+          <div className="inline-flex items-center gap-2 px-6 py-2 rounded-full bg-blue-100 text-blue-600 text-xs font-black uppercase tracking-[0.3em] border border-blue-200 mb-8 animate-pulse">
             <Sparkles className="h-4 w-4" />
             AI Market Intelligence System
           </div>
-          <h1 className="text-6xl font-black tracking-tighter mb-4 text-transparent bg-clip-text bg-gradient-to-b from-white to-gray-200">
-            ORLANDO <span className="text-blue-500">ANALYSIS</span>
+          <h1 className="text-6xl font-black tracking-tighter mb-4 text-gray-900">
+            ORLANDO <span className="text-blue-600">ANALYSIS</span>
           </h1>
-          <p className="text-gray-200 max-w-2xl mx-auto font-bold tracking-tight text-lg">
+          <p className="text-gray-500 max-w-2xl mx-auto font-medium tracking-tight text-lg">
             Google Drive 기반의 독자적인 AI 학습 모델을 통해 S&P 500, Russell 1000 기업 중<br />
             실시간 재무 지표를 기반으로 최적의 투자 Alpha를 발굴합니다.
           </p>

@@ -32,11 +32,11 @@ async function cleanupDatabase() {
     console.log('Only admin accounts remain:', ADMIN_EMAILS.join(', '));
 
     const remainingUsers = await prisma.user.findMany({
-      select: { id: true, email: true, name: true, membershipTier: true }
+      select: { id: true, email: true, name: true, plan: true }
     });
     console.log('\nRemaining users in database:');
     remainingUsers.forEach(user => {
-      console.log(`  - ${user.email} (${user.name || 'No name'}) [${user.membershipTier}]`);
+      console.log(`  - ${user.email} (${user.name || 'No name'}) [${user.plan}]`);
     });
 
   } catch (error) {

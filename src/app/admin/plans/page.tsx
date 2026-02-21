@@ -17,8 +17,7 @@ interface Plan {
     canSendEmail: boolean;
     isPopular?: boolean;
 }
-
-export default function MembershipPlanPage() {
+export default function PlanPage() {
     const [plans, setPlans] = useState<Plan[]>([]);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
@@ -82,7 +81,7 @@ export default function MembershipPlanPage() {
         <div className="p-8 space-y-6">
             <div className="flex items-center justify-between">
                 <div>
-                    <h1 className="text-3xl font-bold text-white mb-2">요금제 관리 (Membership & Plan)</h1>
+                    <h1 className="text-3xl font-bold text-white mb-2">플랜 관리 (Plan)</h1>
                     <p className="text-gray-400">각 요금제별 가격 및 제한을 설정하세요</p>
                 </div>
                 <Button onClick={handleSave} disabled={saving} className="bg-blue-600 hover:bg-blue-700">

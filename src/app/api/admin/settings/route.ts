@@ -15,6 +15,7 @@ export async function GET() {
         const keys = {
             GOOGLE_API_KEY: process.env.GOOGLE_API_KEY ? '••••••••' + process.env.GOOGLE_API_KEY.slice(-4) : '',
             OPENAI_API_KEY: process.env.OPENAI_API_KEY ? '••••••••' + process.env.OPENAI_API_KEY.slice(-4) : '',
+            CLAUDE_API_KEY: process.env.CLAUDE_API_KEY ? '••••••••' + process.env.CLAUDE_API_KEY.slice(-4) : '',
             YAHOO_FINANCE_API_KEY: process.env.YAHOO_FINANCE_API_KEY || '',
         };
 

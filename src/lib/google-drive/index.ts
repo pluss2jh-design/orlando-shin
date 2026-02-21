@@ -3,8 +3,6 @@ import { promises as fs } from 'fs';
 import path from 'path';
 
 const GOOGLE_DRIVE_FOLDER_ID = '1ODcnaY0yQgeFUWYUGOkxVxGKTXsB3t56';
-const DATA_DIR = process.env.UPLOAD_DIR || './uploads';
-const GDRIVE_DIR = path.join(DATA_DIR, 'gdrive');
 
 interface DriveFileInfo {
   id: string;
@@ -62,7 +60,7 @@ export async function listDriveFiles(
 
   try {
     console.log(`Fetching files from folder: ${folderId}`);
-    
+
     do {
       const response: any = await drive.files.list({
         q: `'${folderId}' in parents and trashed = false`,
@@ -74,7 +72,7 @@ export async function listDriveFiles(
 
       const driveFiles = response.data.files || [];
       console.log(`Found ${driveFiles.length} items in folder ${folderId}`);
-      
+
       for (const f of driveFiles) {
         console.log(`  - ${f.name} (${f.mimeType})`);
         if (f.mimeType === 'application/vnd.google-apps.folder') {
@@ -108,23 +106,15 @@ export async function listDriveFiles(
 export async function downloadDriveFile(
   fileId: string,
   fileName: string
-): Promise<string> {
+): Promise<Buffer> {
   const drive = getGoogleDriveClient();
-
-  await fs.mkdir(GDRIVE_DIR, { recursive: true });
-
-  const outputPath = path.join(GDRIVE_DIR, fileName);
-
-  const existingStat = await fs.stat(outputPath).catch(() => null);
-  if (existingStat) return outputPath;
 
   const response = await drive.files.get(
     { fileId, alt: 'media' },
     { responseType: 'arraybuffer' }
   );
 
-  await fs.writeFile(outputPath, Buffer.from(response.data as ArrayBuffer));
-  return outputPath;
+  return Buffer.from(response.data as ArrayBuffer);
 }
 
 export async function downloadTextContent(fileId: string): Promise<string> {
@@ -181,24 +171,17 @@ export async function downloadTextContent(fileId: string): Promise<string> {
 
 export async function syncAllFiles(): Promise<SyncResult> {
   const syncResult = await listDriveFiles();
-
-  await fs.mkdir(GDRIVE_DIR, { recursive: true });
-
-  const syncInfoPath = path.join(GDRIVE_DIR, 'sync-info.json');
-  await fs.writeFile(syncInfoPath, JSON.stringify(syncResult, null, 2));
-
   return syncResult;
 }
 
 export async function getSyncInfo(): Promise<SyncResult | null> {
-  const syncInfoPath = path.join(GDRIVE_DIR, 'sync-info.json');
   try {
-    const data = await fs.readFile(syncInfoPath, 'utf-8');
-    return JSON.parse(data);
+    const data = await listDriveFiles();
+    return data;
   } catch {
     return null;
   }
 }
 
-export { GOOGLE_DRIVE_FOLDER_ID, GDRIVE_DIR };
+export { GOOGLE_DRIVE_FOLDER_ID };
 export type { DriveFileInfo, SyncResult };

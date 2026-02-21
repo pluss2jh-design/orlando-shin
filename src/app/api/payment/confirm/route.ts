@@ -18,7 +18,7 @@ export async function POST(request: NextRequest) {
         // 실제 환경에서는 여기서 paymentId를 이용해 PG사 API로 결제 검증을 수행해야 합니다.
         console.log(`Payment confirmed for user ${session.user.id}, Plan: ${planId}, PaymentID: ${paymentId}`);
 
-        // DB 유저 플랜 업데이트 (MembershipTier enum 값에 맞춰 대문자로 저장)
+        // DB 유저 플랜 업데이트 (Plan enum 값에 맞춰 대문자로 저장)
         const updatedUser = await prisma.user.update({
             where: { id: session.user.id },
             data: {

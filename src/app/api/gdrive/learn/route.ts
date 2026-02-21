@@ -62,9 +62,9 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { fileIds, aiModel, apiKey, title } = body;
+    const { fileIds, aiModels, title } = body;
 
-    const knowledge = await runLearningPipeline(fileIds, aiModel, apiKey);
+    const knowledge = await runLearningPipeline(fileIds, aiModels);
 
     // DB에 저장
     const knowledgeId = await saveKnowledgeToDB(knowledge, title);

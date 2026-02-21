@@ -50,17 +50,23 @@ interface LearnedKnowledgeRecord {
     content: any;
 }
 
-const AI_MODELS = [
-    { value: 'gemini-2.5-pro', label: 'Gemini 2.5 Pro' },
-    { value: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash' },
-    { value: 'gemini-2.0-pro-exp-02-05', label: 'Gemini 2.0 Pro Exp' },
-    { value: 'gemini-2.0-flash-exp', label: 'Gemini 2.0 Flash Exp' },
-    { value: 'gemini-2.0-flash', label: 'Gemini 2.0 Flash' },
-    { value: 'gemini-2.0-flash-lite-preview-02-05', label: 'Gemini 2.0 Flash Lite' },
-    { value: 'gemini-2.0-flash-thinking-exp-01-21', label: 'Gemini 2.0 Flash Thinking' },
-    { value: 'gemini-1.5-pro', label: 'Gemini 1.5 Pro' },
-    { value: 'gemini-1.5-flash', label: 'Gemini 1.5 Flash' },
-    { value: 'gemini-1.5-flash-8b', label: 'Gemini 1.5 Flash 8B' },
+const EXT_MODELS = [
+    { value: 'gemini-2.5-pro', label: 'Gemini 2.5 Pro', reqKey: 'GOOGLE_API_KEY' },
+    { value: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash', reqKey: 'GOOGLE_API_KEY' },
+    { value: 'gemini-2.0-pro-exp-02-05', label: 'Gemini 2.0 Pro Exp', reqKey: 'GOOGLE_API_KEY' },
+    { value: 'gemini-2.0-flash-exp', label: 'Gemini 2.0 Flash Exp', reqKey: 'GOOGLE_API_KEY' },
+    { value: 'gemini-2.0-flash', label: 'Gemini 2.0 Flash', reqKey: 'GOOGLE_API_KEY' },
+    { value: 'gemini-2.0-flash-lite-preview-02-05', label: 'Gemini 2.0 Flash Lite', reqKey: 'GOOGLE_API_KEY' },
+    { value: 'gemini-2.0-flash-thinking-exp-01-21', label: 'Gemini 2.0 Flash Thinking', reqKey: 'GOOGLE_API_KEY' },
+    { value: 'gemini-1.5-pro', label: 'Gemini 1.5 Pro', reqKey: 'GOOGLE_API_KEY' },
+    { value: 'gemini-1.5-flash', label: 'Gemini 1.5 Flash', reqKey: 'GOOGLE_API_KEY' },
+    { value: 'gemini-1.5-flash-8b', label: 'Gemini 1.5 Flash 8B', reqKey: 'GOOGLE_API_KEY' },
+    { value: 'gpt-4o', label: 'GPT-4o', reqKey: 'OPENAI_API_KEY' },
+    { value: 'gpt-4o-mini', label: 'GPT-4o Mini', reqKey: 'OPENAI_API_KEY' },
+    { value: 'gpt-4-turbo', label: 'GPT-4 Turbo', reqKey: 'OPENAI_API_KEY' },
+    { value: 'claude-3-5-sonnet-20241022', label: 'Claude 3.5 Sonnet', reqKey: 'CLAUDE_API_KEY' },
+    { value: 'claude-3-5-haiku-20241022', label: 'Claude 3.5 Haiku', reqKey: 'CLAUDE_API_KEY' },
+    { value: 'claude-3-opus-20240229', label: 'Claude 3 Opus', reqKey: 'CLAUDE_API_KEY' }
 ];
 
 export default function DataLibraryPage() {
@@ -73,11 +79,9 @@ export default function DataLibraryPage() {
 
     // UI State
     const [selectedFileIds, setSelectedFileIds] = useState<Set<string>>(new Set());
-    const [aiConfig, setAiConfig] = useState({
-        model: 'gemini-2.0-pro-exp-02-05',
-        apiKey: '',
-        title: ''
-    });
+    const [title, setTitle] = useState('');
+    const [aiModels, setAiModels] = useState<Record<string, string>>({});
+    const [keys, setKeys] = useState<{ GOOGLE_API_KEY?: string, OPENAI_API_KEY?: string, CLAUDE_API_KEY?: string } | null>(null);
 
     useEffect(() => {
         fetchInitialData();
@@ -85,8 +89,28 @@ export default function DataLibraryPage() {
 
     const fetchInitialData = async () => {
         setLoading(true);
-        await Promise.all([fetchFiles(), fetchKnowledge()]);
+        await Promise.all([fetchFiles(), fetchKnowledge(), fetchKeys()]);
         setLoading(false);
+    };
+
+    const fetchKeys = async () => {
+        try {
+            const response = await fetch('/api/admin/settings');
+            if (response.ok) {
+                const data = await response.json();
+                setKeys(data.keys || {});
+            }
+        } catch (error) {
+            console.error('Failed to fetch keys:', error);
+        }
+    };
+
+    const getFileExt = (name: string, mime: string) => {
+        if (mime.includes('video') || name.toLowerCase().endsWith('.mp4')) return 'mp4';
+        if (name.toLowerCase().endsWith('.pdf') || mime.includes('pdf')) return 'pdf';
+        if (name.toLowerCase().endsWith('.docx') || name.toLowerCase().endsWith('.doc')) return 'docx';
+        if (name.toLowerCase().endsWith('.xlsx') || name.toLowerCase().endsWith('.xls') || name.toLowerCase().endsWith('.csv')) return 'xlsx';
+        return 'other';
     };
 
     const fetchFiles = async () => {
@@ -142,40 +166,43 @@ export default function DataLibraryPage() {
         }
     };
 
-    const handleRunLearning = async () => {
+    const handleRunLearning = () => {
         if (selectedFileIds.size === 0) {
             alert('학습할 파일을 선택해주세요.');
             return;
         }
 
-        try {
-            setLearning(true);
-            const response = await fetch('/api/gdrive/learn', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    fileIds: Array.from(selectedFileIds),
-                    aiModel: aiConfig.model,
-                    apiKey: aiConfig.apiKey,
-                    title: aiConfig.title
-                }),
-            });
+        const fileIdsArray = Array.from(selectedFileIds);
 
+        // Notify user early and run in background so they can navigate away safely
+        alert('백그라운드에서 AI 학습이 시작되었습니다.\n다른 메뉴로 이동하셔도 로직 처리는 계속 진행됩니다.\n초기화 된 이 화면을 그대로 두시면 학습 완료 후 시스템 팝업을 통해 알려드립니다.');
+        setLearning(true);
+        setSelectedFileIds(new Set());
+        const currentTitle = title;
+        setTitle('');
+
+        fetch('/api/gdrive/learn', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                fileIds: fileIdsArray,
+                aiModels: aiModels,
+                title: currentTitle
+            }),
+        }).then(async (response) => {
             if (response.ok) {
-                alert('학습이 완료되었습니다.');
+                alert('AI 엔진 학습이 완료되었습니다!');
                 await fetchInitialData();
-                setSelectedFileIds(new Set());
-                setAiConfig(prev => ({ ...prev, title: '' }));
             } else {
                 const error = await response.json();
                 alert(`학습 실패: ${error.error}`);
             }
-        } catch (error) {
+        }).catch(error => {
             console.error('Learning failed:', error);
             alert('학습 엔진 실행 중 오류가 발생했습니다.');
-        } finally {
+        }).finally(() => {
             setLearning(false);
-        }
+        });
     };
 
     const handleActivateKnowledge = async (id: string, active: boolean) => {
@@ -271,81 +298,133 @@ export default function DataLibraryPage() {
                             </div>
                         </CardHeader>
                         <CardContent className="p-0">
-                            <ScrollArea className="h-[500px]">
-                                <div className="divide-y divide-gray-800/50">
-                                    {files.map((file) => (
-                                        <div
-                                            key={file.id}
-                                            className={`flex items-center gap-4 p-4 hover:bg-gray-800/20 transition-all cursor-pointer group ${selectedFileIds.has(file.id) ? 'bg-blue-500/5' : ''}`}
-                                            onClick={() => handleToggleFileSelection(file.id)}
-                                        >
-                                            <Checkbox
-                                                checked={selectedFileIds.has(file.id)}
-                                                onCheckedChange={() => handleToggleFileSelection(file.id)}
-                                                onClick={(e) => e.stopPropagation()}
-                                            />
-                                            <div className="p-2 bg-gray-950 rounded-lg group-hover:scale-110 transition-transform">
-                                                {getFileIcon(file.mimeType)}
-                                            </div>
-                                            <div className="flex-1 min-w-0">
-                                                <h4 className="text-white font-bold truncate text-sm">{file.name}</h4>
-                                                <p className="text-xs text-gray-500 font-medium">
-                                                    {formatFileSize(file.size)} • {new Date(file.modifiedTime).toLocaleDateString('ko-KR')}
-                                                </p>
-                                            </div>
-                                            {file.learnStatus === 'completed' && (
-                                                <Badge className="bg-emerald-500/10 text-emerald-500 border-none">
-                                                    <CheckCircle className="h-3 w-3 mr-1" />
-                                                    PROCESSED
-                                                </Badge>
-                                            )}
-                                        </div>
-                                    ))}
-                                    {files.length === 0 && (
+                            {(() => {
+                                const groupedFiles = files.reduce((acc, file) => {
+                                    const ext = getFileExt(file.name, file.mimeType);
+                                    if (!acc[ext]) acc[ext] = [];
+                                    acc[ext].push(file);
+                                    return acc;
+                                }, {} as Record<string, DriveFile[]>);
+
+                                const tabsKeys = Object.keys(groupedFiles);
+                                if (tabsKeys.length === 0) {
+                                    return (
                                         <div className="p-20 text-center">
                                             <Search className="h-12 w-12 text-gray-800 mx-auto mb-4" />
                                             <p className="text-gray-500 font-bold">동기화된 파일이 없습니다.</p>
                                         </div>
-                                    )}
-                                </div>
-                            </ScrollArea>
+                                    );
+                                }
+
+                                return (
+                                    <Tabs defaultValue={tabsKeys[0]} className="w-full">
+                                        <div className="bg-gray-950 p-3 pb-0 border-b border-gray-800">
+                                            <TabsList className="bg-transparent space-x-2">
+                                                {tabsKeys.map(ext => (
+                                                    <TabsTrigger
+                                                        key={ext}
+                                                        value={ext}
+                                                        className="data-[state=active]:bg-gray-800 data-[state=active]:text-white text-gray-500 font-black uppercase text-xs"
+                                                    >
+                                                        {ext} ({groupedFiles[ext].length})
+                                                    </TabsTrigger>
+                                                ))}
+                                            </TabsList>
+                                        </div>
+
+                                        {tabsKeys.map(ext => (
+                                            <TabsContent key={ext} value={ext} className="m-0">
+                                                {ext !== 'other' && (
+                                                    <div className="bg-gray-900/50 p-4 border-b border-gray-800 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                                                        <div className="flex items-center gap-2">
+                                                            <Brain className="h-4 w-4 text-blue-500" />
+                                                            <span className="text-xs font-black text-white uppercase">{ext} 분석 AI 모델</span>
+                                                        </div>
+                                                        {ext === 'mp4' ? (
+                                                            <div className="flex flex-col">
+                                                                <Badge className="bg-blue-500/10 text-blue-400 border border-blue-500/20 text-xs py-1 px-3 block">
+                                                                    영상이 10분 이하일 경우엔 Gemini 3.1 Flash, 10분 초과일 경우엔 Gemini 3.1 Pro를 자동 사용합니다.
+                                                                </Badge>
+                                                            </div>
+                                                        ) : (
+                                                            <Select
+                                                                value={aiModels[ext] || ''}
+                                                                onValueChange={(val) => setAiModels({ ...aiModels, [ext]: val })}
+                                                            >
+                                                                <SelectTrigger className="w-full sm:w-[250px] bg-gray-950 border-gray-800 text-white font-bold h-9 text-xs">
+                                                                    <SelectValue placeholder="모델을 선택하세요" />
+                                                                </SelectTrigger>
+                                                                <SelectContent className="bg-gray-900 border-gray-800">
+                                                                    {EXT_MODELS.map(model => {
+                                                                        const hasKey = keys && keys[model.reqKey as keyof typeof keys];
+                                                                        return (
+                                                                            <SelectItem
+                                                                                key={model.value}
+                                                                                value={model.value}
+                                                                                disabled={!hasKey}
+                                                                                className="text-white focus:bg-gray-800"
+                                                                            >
+                                                                                <div className="flex items-center justify-between w-full gap-4">
+                                                                                    <span>{model.label}</span>
+                                                                                    {!hasKey && (
+                                                                                        <span className="text-[10px] text-rose-500">API 키 미등록</span>
+                                                                                    )}
+                                                                                </div>
+                                                                            </SelectItem>
+                                                                        );
+                                                                    })}
+                                                                </SelectContent>
+                                                            </Select>
+                                                        )}
+                                                    </div>
+                                                )}
+
+                                                <ScrollArea className="h-[430px]">
+                                                    <div className="divide-y divide-gray-800/50">
+                                                        {groupedFiles[ext].map((file) => (
+                                                            <div
+                                                                key={file.id}
+                                                                className={`flex items-center gap-4 p-4 hover:bg-gray-800/20 transition-all cursor-pointer group ${selectedFileIds.has(file.id) ? 'bg-blue-500/5' : ''}`}
+                                                                onClick={() => handleToggleFileSelection(file.id)}
+                                                            >
+                                                                <Checkbox
+                                                                    checked={selectedFileIds.has(file.id)}
+                                                                    onCheckedChange={() => handleToggleFileSelection(file.id)}
+                                                                    onClick={(e) => e.stopPropagation()}
+                                                                />
+                                                                <div className="p-2 bg-gray-950 rounded-lg group-hover:scale-110 transition-transform">
+                                                                    {getFileIcon(file.mimeType)}
+                                                                </div>
+                                                                <div className="flex-1 min-w-0">
+                                                                    <h4 className="text-white font-bold truncate text-sm">{file.name}</h4>
+                                                                    <p className="text-xs text-gray-500 font-medium">
+                                                                        {formatFileSize(file.size)} • {new Date(file.modifiedTime).toLocaleDateString('ko-KR')}
+                                                                    </p>
+                                                                </div>
+                                                                {file.learnStatus === 'completed' && (
+                                                                    <Badge className="bg-emerald-500/10 text-emerald-500 border-none">
+                                                                        <CheckCircle className="h-3 w-3 mr-1" />
+                                                                        PROCESSED
+                                                                    </Badge>
+                                                                )}
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                </ScrollArea>
+                                            </TabsContent>
+                                        ))}
+                                    </Tabs>
+                                );
+                            })()}
                         </CardContent>
                         <div className="p-6 border-t border-gray-800 bg-gray-900/80">
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                                <div className="space-y-2">
-                                    <Label className="text-xs font-black text-gray-400 uppercase tracking-widest">AI Engine Title</Label>
-                                    <Input
-                                        placeholder="지식 베이스 버전을 입력하세요 (예: 2024년 2분기 리포트)"
-                                        className="bg-gray-950 border-gray-800 text-white font-medium"
-                                        value={aiConfig.title}
-                                        onChange={(e) => setAiConfig({ ...aiConfig, title: e.target.value })}
-                                    />
-                                </div>
-                                <div className="space-y-2">
-                                    <Label className="text-xs font-black text-gray-400 uppercase tracking-widest">Select AI Intelligence</Label>
-                                    <Select
-                                        value={aiConfig.model}
-                                        onValueChange={(v) => setAiConfig({ ...aiConfig, model: v })}
-                                    >
-                                        <SelectTrigger className="bg-gray-950 border-gray-800 text-white font-medium">
-                                            <SelectValue placeholder="모델 선택" />
-                                        </SelectTrigger>
-                                        <SelectContent className="bg-gray-900 border-gray-700 text-white">
-                                            {AI_MODELS.map(m => (
-                                                <SelectItem key={m.value} value={m.value} className="focus:bg-gray-800">{m.label}</SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-                            </div>
-                            <div className="space-y-2 mb-6">
-                                <Label className="text-xs font-black text-gray-400 uppercase tracking-widest">Deep Engine API Key (Optional)</Label>
+                            <div className="mb-6">
+                                <Label className="text-xs font-black text-gray-400 uppercase tracking-widest mb-2 block">AI Engine Title</Label>
                                 <Input
-                                    type="password"
-                                    placeholder="별도 API Key 사용 시 입력 (비어있으면 시스템 기본값 사용)"
-                                    className="bg-gray-950 border-gray-800 text-white font-mono"
-                                    value={aiConfig.apiKey}
-                                    onChange={(e) => setAiConfig({ ...aiConfig, apiKey: e.target.value })}
+                                    placeholder="지식 베이스 버전을 입력하세요 (예: 2024년 2분기 리포트)"
+                                    className="bg-gray-950 border-gray-800 text-white font-medium"
+                                    value={title}
+                                    onChange={(e) => setTitle(e.target.value)}
                                 />
                             </div>
                             <Button

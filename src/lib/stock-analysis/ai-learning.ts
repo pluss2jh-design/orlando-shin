@@ -1,6 +1,9 @@
 import { promises as fs } from 'fs';
 import path from 'path';
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import OpenAI from 'openai';
+import Anthropic from '@anthropic-ai/sdk';
+import { prisma } from '@/lib/db';
 import type {
   FileAnalysis,
   LearnedInvestmentCriteria,
@@ -15,18 +18,34 @@ import {
   type DriveFileInfo,
 } from '@/lib/google-drive';
 
-const KNOWLEDGE_DIR = process.env.UPLOAD_DIR
-  ? path.join(process.env.UPLOAD_DIR, 'knowledge')
-  : './uploads/knowledge';
 
-const KNOWLEDGE_FILE = path.join(KNOWLEDGE_DIR, 'learned-knowledge.json');
 
 function getGeminiClient(customApiKey?: string) {
   const apiKey = customApiKey || process.env.GOOGLE_API_KEY;
   if (!apiKey) {
-    throw new Error('GOOGLE_API_KEY 환경변수가 설정되지 않았습니다.');
+    throw new Error('GOOGLE_API_KEY가 설정되지 않았습니다.');
   }
   return new GoogleGenerativeAI(apiKey);
+}
+
+function getOpenAIClient() {
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (!apiKey) throw new Error('OPENAI_API_KEY가 설정되지 않았습니다.');
+  return new OpenAI({ apiKey });
+}
+
+function getAnthropicClient() {
+  const apiKey = process.env.CLAUDE_API_KEY;
+  if (!apiKey) throw new Error('CLAUDE_API_KEY가 설정되지 않았습니다.');
+  return new Anthropic({ apiKey });
+}
+
+function getFileExt(name: string, mime: string) {
+  if (mime.includes('video') || name.toLowerCase().endsWith('.mp4')) return 'mp4';
+  if (name.toLowerCase().endsWith('.pdf') || mime.includes('pdf')) return 'pdf';
+  if (name.toLowerCase().endsWith('.docx') || name.toLowerCase().endsWith('.doc')) return 'docx';
+  if (name.toLowerCase().endsWith('.xlsx') || name.toLowerCase().endsWith('.xls') || name.toLowerCase().endsWith('.csv')) return 'xlsx';
+  return 'other';
 }
 
 function isPDFFile(file: DriveFileInfo): boolean {
@@ -65,8 +84,7 @@ function hasActualAnalysis(keyConditions: string[]): boolean {
 
 export async function runLearningPipeline(
   targetFileIds?: string[],
-  aiModel: string = 'gemini-2.0-pro-exp-02-05',
-  apiKey?: string
+  aiModels?: Record<string, string>
 ): Promise<LearnedKnowledge> {
   const syncResult = await listDriveFiles();
   const allFiles = syncResult.files;
@@ -83,11 +101,13 @@ export async function runLearningPipeline(
 
   let existingKnowledge: LearnedKnowledge | null = null;
   try {
-    const existingData = await fs.readFile(KNOWLEDGE_FILE, 'utf-8');
-    existingKnowledge = JSON.parse(existingData);
-    console.log('Loaded existing knowledge with', existingKnowledge?.fileAnalyses?.length || 0, 'analyses');
+    const activeKnowledge = await getActiveKnowledgeFromDB();
+    if (activeKnowledge) {
+      existingKnowledge = activeKnowledge;
+      console.log('Loaded existing knowledge from DB with', existingKnowledge?.fileAnalyses?.length || 0, 'analyses');
+    }
   } catch {
-    console.log('No existing knowledge found');
+    console.log('No existing knowledge found in DB');
   }
 
   const targetFiles = files
@@ -105,7 +125,6 @@ export async function runLearningPipeline(
   }
 
   const fileAnalyses: FileAnalysis[] = [];
-  const genAI = getGeminiClient(apiKey);
 
   for (const file of targetFiles) {
     try {
@@ -135,8 +154,20 @@ export async function runLearningPipeline(
       }
 
       let content = '';
+      let inlineDataPart: any = null;
 
-      if (isPDFFile(file) || isTextOrDocumentFile(file)) {
+      if (isPDFFile(file)) {
+        console.log(`Downloading PDF directly: ${file.name}`);
+        const fileBuffer = await downloadDriveFile(file.id, file.name);
+        // downloadDriveFile returns a Buffer, no need for fs.readFile
+        inlineDataPart = {
+          inlineData: {
+            data: fileBuffer.toString('base64'),
+            mimeType: 'application/pdf'
+          }
+        };
+        content = '[PDF CONTENTS PASSED AS INLINE DATA]';
+      } else if (isTextOrDocumentFile(file)) {
         content = await extractFileContent(file);
         console.log(`Extracted file content length: ${content.length} chars`);
       }
@@ -146,15 +177,12 @@ export async function runLearningPipeline(
         continue;
       }
 
-      if (content.length < 100) {
-        console.log(`Warning: Short content for ${file.name}: "${content.substring(0, 200)}"`);
-      }
+      console.log(`Processing file: ${file.name}`);
 
-      console.log(`Processing PDF file: ${file.name}`);
+      const ext = getFileExt(file.name, file.mimeType);
+      const chosenModelGrp = aiModels?.[ext] || 'gemini';
 
-      const model = genAI.getGenerativeModel({ model: aiModel || 'gemini-2.0-pro-exp-02-05' });
-
-      const prompt = `당신은 전문 주식 투자 분석가입니다. 제공된 자료(PDF 또는 텍스트)에서 주가 상승 및 기업 분석에 핵심적인 "모든" 규칙과 지표를 최대한 많이 추출하세요.
+      const promptText = `당신은 전문 주식 투자 분석가입니다. 제공된 자료(PDF 또는 텍스트)에서 주가 상승 및 기업 분석에 핵심적인 "모든" 규칙과 지표를 최대한 많이 추출하세요.
 
 특히 다음 요소들을 반드시 포함하여 상세하게 추출해 주세요:
 1. 재무지표: ROE, PER, PBR, EPS 성장률, EV/EBITDA, 부채비율, FCF 등
@@ -178,10 +206,57 @@ export async function runLearningPipeline(
 파일명: ${file.name}
 
 내용:
-${content.substring(0, 12000)}`;
+${isPDFFile(file) ? '(첨부된 PDF 파일 참조)' : content.substring(0, 12000)}`;
 
-      const result = await model.generateContent(prompt);
-      const responseText = result.response.text();
+      let responseText = '';
+
+      if (chosenModelGrp.startsWith('gpt')) {
+        if (isPDFFile(file)) {
+          throw new Error(`GPT 모델은 PDF 직접 분석을 완벽하게 지원하지 않을 수 있으나 텍스트 변환기를 사용해야 합니다. (선택된 파일: ${file.name})`);
+        }
+        const openai = getOpenAIClient();
+        const res = await openai.chat.completions.create({
+          model: chosenModelGrp,
+          messages: [{ role: 'user', content: promptText }]
+        });
+        responseText = res.choices[0].message.content || '';
+      } else if (chosenModelGrp.startsWith('claude')) {
+        const anthropic = getAnthropicClient();
+        if (inlineDataPart) {
+          const res = await anthropic.beta.messages.create({
+            model: chosenModelGrp as any,
+            betas: ["pdfs-2024-09-25"] as any,
+            max_tokens: 4096,
+            messages: [{
+              role: 'user',
+              content: [
+                { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: inlineDataPart.inlineData.data } } as any,
+                { type: 'text', text: promptText }
+              ]
+            }]
+          });
+          responseText = (res.content[0] as any).text || '';
+        } else {
+          const res = await anthropic.messages.create({
+            model: chosenModelGrp as any,
+            max_tokens: 4096,
+            messages: [{ role: 'user', content: promptText }]
+          });
+          responseText = (res.content[0] as any).text || '';
+        }
+      } else {
+        let activeModel = chosenModelGrp || 'gemini-1.5-pro';
+        if (ext === 'mp4') {
+          // 영상 분석시 더 높은 컨텍스트 길이/버전이 요구될 수 있습니다. 
+          // 현재는 front에서 넘어온 activeModel을 그대로 쓰되 mp4 대응 처리가 필요하면 추가.
+          activeModel = chosenModelGrp || 'gemini-2.5-pro';
+        }
+        const genAI = getGeminiClient();
+        const model = genAI.getGenerativeModel({ model: activeModel });
+        const promptParts = inlineDataPart ? [promptText, inlineDataPart] : promptText;
+        const result = await model.generateContent(promptParts);
+        responseText = result.response.text();
+      }
 
       let analysisResult: { keyConditions?: string[] } = { keyConditions: [] };
 
@@ -258,8 +333,8 @@ ${content.substring(0, 12000)}`;
   console.log(`Total Document conditions length: ${docConditions.length} chars`);
   console.log(`Document conditions preview: ${docConditions.substring(0, 500)}...`);
 
-  const strategyModel = genAI.getGenerativeModel({ model: aiModel || 'gemini-2.0-pro-exp-02-05' });
-
+  const genAI = getGeminiClient();
+  const strategyModel = genAI.getGenerativeModel({ model: 'gemini-2.0-pro-exp-02-05' });
   const strategyPrompt = `전설적인 투자 전략가로서 제공된 자료에서 추출된 핵심 조건들을 종합하여 포괄적인 투자 전략과 기업 선정 규칙을 도출하세요.
 
 추출된 핵심 조건들:
@@ -492,8 +567,7 @@ ${docConditions.substring(0, 15000)}`;
     sourceFiles: files.map((f) => f.name),
   };
 
-  await fs.mkdir(KNOWLEDGE_DIR, { recursive: true });
-  await fs.writeFile(KNOWLEDGE_FILE, JSON.stringify(knowledge, null, 2));
+
 
   return knowledge;
 }
@@ -516,8 +590,6 @@ async function extractFileContent(file: DriveFileInfo): Promise<string> {
 
   return '';
 }
-
-import { prisma } from '@/lib/db';
 
 export async function saveKnowledgeToDB(knowledge: LearnedKnowledge, title?: string): Promise<string> {
   const result = await prisma.learnedKnowledge.create({
@@ -544,35 +616,19 @@ export async function getActiveKnowledgeFromDB(): Promise<LearnedKnowledge | nul
 }
 
 export async function getLearnedKnowledge(): Promise<LearnedKnowledge | null> {
-  // 1. DB에서 활성화된 지식 먼저 찾기
+  // DB에서 활성화된 지식만 찾기
   try {
     const activeKnowledge = await getActiveKnowledgeFromDB();
     if (activeKnowledge) return activeKnowledge;
   } catch (error) {
     console.error('Failed to fetch active knowledge from DB:', error);
   }
-
-  // 2. 파일 기반 지식 (Fallback)
-  try {
-    const data = await fs.readFile(KNOWLEDGE_FILE, 'utf-8');
-    return JSON.parse(data);
-  } catch {
-    return null;
-  }
+  return null;
 }
 
 export async function hasLearnedKnowledge(): Promise<boolean> {
-  const count = await prisma.learnedKnowledge.count();
-  if (count > 0) return true;
-
-  try {
-    await fs.access(KNOWLEDGE_FILE);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-export function getOpenAIClient(): any {
-  return null;
+  const count = await prisma.learnedKnowledge.count({
+    where: { isActive: true }
+  });
+  return count > 0;
 }

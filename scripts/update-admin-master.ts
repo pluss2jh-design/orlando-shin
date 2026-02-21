@@ -8,11 +8,11 @@ async function updateAdminToMaster() {
   try {
     const updatedUser = await prisma.user.update({
       where: { email: 'pluss2.jh@gmail.com' },
-      data: { membershipTier: 'MASTER' as any },
+      data: { plan: 'MASTER' as any },
     });
 
     console.log('Admin user updated successfully:');
-    console.log(`  - ${updatedUser.email} (${updatedUser.name || 'No name'}) [${updatedUser.membershipTier}]`);
+    console.log(`  - ${updatedUser.email} (${updatedUser.name || 'No name'}) [${updatedUser.plan}]`);
 
   } catch (error) {
     console.error('Error updating admin:', error);

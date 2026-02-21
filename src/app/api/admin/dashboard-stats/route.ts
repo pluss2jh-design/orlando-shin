@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
-import fs from 'fs/promises';
-import path from 'path';
+import { getSyncInfo } from '@/lib/google-drive';
+import { prisma } from '@/lib/db';
 
 export async function GET() {
     try {
@@ -12,29 +12,33 @@ export async function GET() {
         }
 
         // Check Google Drive sync info
-        const syncInfoPath = path.join(process.cwd(), 'uploads', 'gdrive', 'sync-info.json');
         let gdriveConnected = false;
         let totalFiles = 0;
         let lastSyncTime = null;
 
         try {
-            const syncInfo = await fs.readFile(syncInfoPath, 'utf-8');
-            const data = JSON.parse(syncInfo);
-            gdriveConnected = true;
-            totalFiles = data.files?.length || 0;
-            lastSyncTime = data.lastSync || null;
+            const syncInfo = await getSyncInfo();
+            if (syncInfo) {
+                gdriveConnected = true;
+                totalFiles = syncInfo.files?.length || 0;
+                lastSyncTime = syncInfo.syncedAt || null;
+            }
         } catch (error) {
             // Sync info doesn't exist yet
         }
 
         // Check learned knowledge
-        const knowledgePath = path.join(process.cwd(), 'uploads', 'knowledge', 'learned-knowledge.json');
         let learnedFiles = 0;
 
         try {
-            const knowledge = await fs.readFile(knowledgePath, 'utf-8');
-            const data = JSON.parse(knowledge);
-            learnedFiles = data.fileAnalyses?.length || 0;
+            const active = await prisma.learnedKnowledge.findFirst({
+                where: { isActive: true },
+                orderBy: { updatedAt: 'desc' }
+            });
+            if (active && active.content) {
+                const data: any = active.content;
+                learnedFiles = data.fileAnalyses?.length || 0;
+            }
         } catch (error) {
             // Knowledge doesn't exist yet
         }

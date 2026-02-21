@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
-import fs from 'fs/promises';
-import path from 'path';
+import { getSyncInfo } from '@/lib/google-drive';
+import { prisma } from '@/lib/db';
 
 export async function GET() {
     try {
@@ -11,28 +11,30 @@ export async function GET() {
             return NextResponse.json({ error: '권한이 없습니다' }, { status: 403 });
         }
 
-        // Get sync info
-        const syncInfoPath = path.join(process.cwd(), 'uploads', 'gdrive', 'sync-info.json');
-        const knowledgePath = path.join(process.cwd(), 'uploads', 'knowledge', 'learned-knowledge.json');
-
         let files: any[] = [];
         let learnedFileIds: Set<string> = new Set();
 
         try {
-            const syncInfo = await fs.readFile(syncInfoPath, 'utf-8');
-            const data = JSON.parse(syncInfo);
-            files = data.files || [];
+            const syncInfo = await getSyncInfo();
+            if (syncInfo) {
+                files = syncInfo.files || [];
+            }
         } catch (error) {
             // No sync info yet
         }
 
         try {
-            const knowledge = await fs.readFile(knowledgePath, 'utf-8');
-            const data = JSON.parse(knowledge);
-            if (data.fileAnalyses) {
-                data.fileAnalyses.forEach((fa: any) => {
-                    if (fa.fileId) learnedFileIds.add(fa.fileId);
-                });
+            const active = await prisma.learnedKnowledge.findFirst({
+                where: { isActive: true },
+                orderBy: { updatedAt: 'desc' }
+            });
+            if (active && active.content) {
+                const data: any = active.content;
+                if (data.fileAnalyses) {
+                    data.fileAnalyses.forEach((fa: any) => {
+                        if (fa.fileId) learnedFileIds.add(fa.fileId);
+                    });
+                }
             }
         } catch (error) {
             // No knowledge yet

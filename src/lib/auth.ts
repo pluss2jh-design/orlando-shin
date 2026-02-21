@@ -106,32 +106,26 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         }
       }
 
-      // Enrichment that requires file system - only in Node.js runtime
-      if (process.env.NEXT_RUNTIME === 'nodejs') {
-        try {
-          const fs = require('fs/promises');
-          const path = require('path');
-          const PLANS_FILE = path.join(process.cwd(), 'uploads', 'config', 'plans.json');
-          const plansData = await fs.readFile(PLANS_FILE, 'utf-8');
-          const plans = JSON.parse(plansData);
-          const currentPlan = (token.plan as string || 'FREE').toUpperCase();
-          const userPlan = plans.find((p: any) => p.id.toUpperCase() === currentPlan);
+      // Assign features based on Plan enum
+      const currentPlan = (token.plan as string || 'FREE').toUpperCase();
+      let limit = 3;
+      let email = false;
 
-          if (currentPlan === 'MASTER') {
-            token.features = plans[plans.length - 1].features.reduce((acc: any, f: any) => {
-              acc[f.id] = true;
-              return acc;
-            }, {});
-          } else if (userPlan) {
-            token.features = userPlan.features.reduce((acc: any, f: any) => {
-              acc[f.id] = f.enabled;
-              return acc;
-            }, {});
-          }
-        } catch (e) {
-          console.error('Plan features fetch failed in Node JWT:', e);
-        }
+      if (currentPlan === 'MASTER') {
+        limit = -1;
+        email = true;
+      } else if (currentPlan === 'PREMIUM') {
+        limit = 10;
+        email = true;
+      } else if (currentPlan === 'STANDARD') {
+        limit = 7;
+        email = true;
       }
+
+      token.features = {
+        weeklyAnalysisLimit: limit,
+        canSendEmail: email
+      };
 
       return token;
     },
