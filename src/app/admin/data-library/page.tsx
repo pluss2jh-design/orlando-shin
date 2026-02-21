@@ -38,6 +38,7 @@ interface DriveFile {
     mimeType: string;
     size?: number;
     modifiedTime: string;
+    durationMillis?: string;
     learnStatus: 'completed' | 'pending' | 'processing';
 }
 
@@ -71,9 +72,21 @@ export default function DataLibraryPage() {
         fetchInitialData();
     }, []);
 
+    useEffect(() => {
+        let interval: NodeJS.Timeout;
+        if (syncing) {
+            interval = setInterval(() => {
+                fetchFiles();
+            }, 5000);
+        }
+        return () => {
+            if (interval) clearInterval(interval);
+        };
+    }, [syncing]);
+
     const fetchInitialData = async () => {
         setLoading(true);
-        await Promise.all([fetchKnowledge(), fetchKeys(), fetchModels()]);
+        await Promise.all([fetchFiles(), fetchKnowledge(), fetchKeys(), fetchModels()]);
         setLoading(false);
     };
 
@@ -115,6 +128,7 @@ export default function DataLibraryPage() {
             if (response.ok) {
                 const data = await response.json();
                 setFiles(data.files || []);
+                setSyncing(data.isSyncing || false);
             }
         } catch (error) {
             console.error('Failed to fetch files:', error);
@@ -134,15 +148,13 @@ export default function DataLibraryPage() {
     };
 
     const handleSync = async () => {
+        if (!confirm('구글 드라이브 동기화를 시작하시겠습니까?\n이 작업은 백그라운드에서 진행됩니다.')) return;
+
         try {
             setSyncing(true);
-            const response = await fetch('/api/gdrive/sync', { method: 'POST' });
-            if (response.ok) {
-                await fetchFiles();
-            }
+            fetch('/api/gdrive/sync', { method: 'POST' }).catch(e => console.error(e));
         } catch (error) {
             console.error('Sync failed:', error);
-        } finally {
             setSyncing(false);
         }
     };
@@ -160,6 +172,15 @@ export default function DataLibraryPage() {
         } else {
             setSelectedFileIds(new Set());
         }
+    };
+
+    const handleSelectAllExt = (extFiles: DriveFile[], checked: boolean) => {
+        const next = new Set(selectedFileIds);
+        extFiles.forEach(f => {
+            if (checked) next.add(f.id);
+            else next.delete(f.id);
+        });
+        setSelectedFileIds(next);
     };
 
     const handleRunLearning = () => {
@@ -243,6 +264,14 @@ export default function DataLibraryPage() {
         if (!bytes) return '-';
         const mb = bytes / (1024 * 1024);
         return `${mb.toFixed(2)} MB`;
+    };
+
+    const formatDuration = (millisStr?: string) => {
+        if (!millisStr) return null;
+        const totalSeconds = Math.floor(parseInt(millisStr, 10) / 1000);
+        const minutes = Math.floor(totalSeconds / 60);
+        const seconds = totalSeconds % 60;
+        return `${minutes}분 ${seconds < 10 ? '0' : ''}${seconds}초`;
     };
 
     const isModelSelectionComplete = () => {
@@ -398,7 +427,25 @@ export default function DataLibraryPage() {
                                                     </div>
                                                 )}
 
-                                                <ScrollArea className="h-[430px]">
+                                                <div className="flex bg-gray-950 px-4 py-2 border-b border-gray-800 justify-between items-center">
+                                                    <span className="text-xs text-gray-500 font-bold">{groupedFiles[ext].length}개 파일</span>
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        className="h-7 text-xs font-bold text-blue-400 hover:text-blue-300"
+                                                        onClick={() => {
+                                                            const allExtIds = groupedFiles[ext].map(f => f.id);
+                                                            const allExtSelected = allExtIds.every(id => selectedFileIds.has(id));
+                                                            handleSelectAllExt(groupedFiles[ext], !allExtSelected);
+                                                        }}
+                                                    >
+                                                        {groupedFiles[ext].map(f => f.id).every(id => selectedFileIds.has(id))
+                                                            ? '현재 확장자 전체 해제'
+                                                            : '현재 확장자 전체 선택'}
+                                                    </Button>
+                                                </div>
+
+                                                <ScrollArea className="h-[380px]">
                                                     <div className="divide-y divide-gray-800/50">
                                                         {groupedFiles[ext].map((file) => (
                                                             <div
@@ -416,8 +463,19 @@ export default function DataLibraryPage() {
                                                                 </div>
                                                                 <div className="flex-1 min-w-0">
                                                                     <h4 className="text-white font-bold truncate text-sm">{file.name}</h4>
-                                                                    <p className="text-xs text-gray-500 font-medium">
-                                                                        {formatFileSize(file.size)} • {new Date(file.modifiedTime).toLocaleDateString('ko-KR')}
+                                                                    <p className="text-xs flex items-center gap-2 text-gray-500 font-medium">
+                                                                        <span>{formatFileSize(file.size)}</span>
+                                                                        <span>•</span>
+                                                                        <span>{new Date(file.modifiedTime).toLocaleDateString('ko-KR')}</span>
+                                                                        {file.durationMillis && (
+                                                                            <>
+                                                                                <span>•</span>
+                                                                                <span className="flex items-center text-blue-400">
+                                                                                    <Clock className="w-3 h-3 mr-1 inline" />
+                                                                                    {formatDuration(file.durationMillis)}
+                                                                                </span>
+                                                                            </>
+                                                                        )}
                                                                     </p>
                                                                 </div>
                                                                 {file.learnStatus === 'completed' && (
@@ -557,6 +615,15 @@ export default function DataLibraryPage() {
                                                             <li>펀더멘털: {kb.content?.criteria?.goodCompanyRules?.length || 0}개</li>
                                                             <li>기술적: {kb.content?.criteria?.technicalRules?.length || 0}개</li>
                                                             <li>시장규모: {kb.content?.criteria?.marketSizeRules?.length || 0}개</li>
+                                                        </ul>
+                                                    </div>
+                                                    <div>
+                                                        <h5 className="font-black text-amber-400 mb-2">학습된 파일</h5>
+                                                        <ul className="list-disc pl-4 space-y-1 mt-1 text-gray-400">
+                                                            {kb.files && kb.files.map((fileId, idx) => {
+                                                                const fName = files.find(f => f.id === fileId)?.name || fileId;
+                                                                return <li key={idx} className="truncate">{fName}</li>;
+                                                            })}
                                                         </ul>
                                                     </div>
                                                 </div>

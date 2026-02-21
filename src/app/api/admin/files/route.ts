@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
-import { getSyncInfo } from '@/lib/google-drive';
+import { getSyncInfo, getDriveSyncStatus } from '@/lib/google-drive';
 import { prisma } from '@/lib/db';
 
 export async function GET() {
@@ -46,7 +46,10 @@ export async function GET() {
             learnStatus: learnedFileIds.has(file.id) ? 'completed' : 'pending',
         }));
 
-        return NextResponse.json({ files: filesWithStatus });
+        return NextResponse.json({
+            files: filesWithStatus,
+            isSyncing: getDriveSyncStatus()
+        });
     } catch (error) {
         console.error('Get files error:', error);
         return NextResponse.json({ error: '파일 목록 조회 실패' }, { status: 500 });

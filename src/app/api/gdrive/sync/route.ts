@@ -13,6 +13,7 @@ export async function POST() {
         mimeType: f.mimeType,
         size: f.size,
         modifiedTime: f.modifiedTime,
+        durationMillis: f.durationMillis,
       })),
       totalCount: result.totalCount,
       syncedAt: result.syncedAt,

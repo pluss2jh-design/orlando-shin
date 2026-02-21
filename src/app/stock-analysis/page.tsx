@@ -82,6 +82,45 @@ export default function StockAnalysisPage() {
     checkKnowledge();
   }, []);
 
+  useEffect(() => {
+    let interval: NodeJS.Timeout | null = null;
+
+    const pollStatus = async () => {
+      try {
+        const response = await fetch('/api/analysis', { method: 'GET' });
+        if (response.ok) {
+          const data = await response.json();
+          if (data.status === 'processing') {
+            setAnalysisState(prev => prev.isAnalyzing ? prev : { ...prev, isAnalyzing: true, error: null });
+            if (!interval) interval = setInterval(pollStatus, 5000);
+          } else if (data.status === 'completed' && data.result) {
+            if (interval) { clearInterval(interval); interval = null; }
+            setAnalysisState(prev => {
+              // Only trigger processAnalysisData if we haven't loaded it yet
+              if (!(prev.results.length > 0 && !prev.isAnalyzing)) {
+                setTimeout(() => processAnalysisData(data.result), 0);
+              }
+              return prev;
+            });
+          } else if (data.status === 'error') {
+            if (interval) { clearInterval(interval); interval = null; }
+            setAnalysisState(prev => ({ ...prev, isAnalyzing: false, error: data.error }));
+          }
+        }
+      } catch (e) {
+        console.error('Polling error:', e);
+      }
+    };
+
+    if (session?.user) {
+      pollStatus();
+    }
+
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [session]);
+
   const handleSendEmail = async (email: string) => {
     const response = await fetch('/api/email/send-analysis', {
       method: 'POST',
@@ -130,6 +169,50 @@ export default function StockAnalysisPage() {
     }
   };
 
+  const processAnalysisData = (data: any) => {
+    if (data.topPicks && Array.isArray(data.topPicks) && data.topPicks.length > 0) {
+      const results: AnalysisResult[] = data.topPicks.map((pick: any) => ({
+        companyName: pick.company.companyName,
+        ticker: pick.yahooData?.ticker,
+        market: pick.company.market,
+        expectedReturnRate: pick.expectedReturnRate,
+        confidenceScore: Math.round(pick.confidenceScore * 100),
+        confidenceDetails: pick.confidenceDetails,
+        reasoning: pick.company.investmentThesis || '시장 지표 및 재무 분석 결과 우수한 성장 잠재력이 확인되었습니다.',
+        sources: pick.company.sources || [],
+        riskLevel: pick.riskLevel,
+        currentPrice: pick.yahooData?.currentPrice,
+        targetPrice: pick.company.targetPrice,
+        currency: pick.yahooData?.currency,
+        ruleScores: pick.ruleScores,
+        totalRuleScore: pick.totalRuleScore,
+        maxPossibleScore: pick.maxPossibleScore,
+      }));
+
+      setAnalysisState(prev => ({
+        ...prev,
+        results,
+        isAnalyzing: false,
+      }));
+
+      const tickers = results.map(r => r.ticker).filter(Boolean) as string[];
+      if (tickers.length > 0) {
+        fetchNewsForTickers(tickers);
+      }
+
+      if (data.queriedTickers && Array.isArray(data.queriedTickers)) {
+        setQueriedTickers(data.queriedTickers);
+      }
+    } else {
+      setAnalysisState(prev => ({
+        ...prev,
+        results: [],
+        isAnalyzing: false,
+        error: data.summary || '추천 대상 기업을 찾지 못했습니다. 잠시 후 다시 시도하거나 학습 데이터를 확인해주세요.',
+      }));
+    }
+  };
+
   const handleAnalyze = async (newConditions: InvestmentConditions & { companyAiModel?: string; companyApiKey?: string; newsAiModel?: string; newsApiKey?: string; companyCount?: number }) => {
     console.log('Starting analysis with:', newConditions);
     setAnalysisState(prev => ({
@@ -137,6 +220,7 @@ export default function StockAnalysisPage() {
       conditions: newConditions,
       isAnalyzing: true,
       error: null,
+      results: [],
     }));
 
     try {
@@ -157,7 +241,6 @@ export default function StockAnalysisPage() {
       });
 
       const data = await response.json();
-      console.log('API Response data:', data);
 
       if (!response.ok) {
         if (response.status === 403) {
@@ -168,47 +251,9 @@ export default function StockAnalysisPage() {
         throw new Error(data.error || '분석 실패');
       }
 
-      if (data.topPicks && Array.isArray(data.topPicks) && data.topPicks.length > 0) {
-        const results: AnalysisResult[] = data.topPicks.map((pick: any) => ({
-          companyName: pick.company.companyName,
-          ticker: pick.yahooData?.ticker,
-          market: pick.company.market,
-          expectedReturnRate: pick.expectedReturnRate,
-          confidenceScore: Math.round(pick.confidenceScore * 100),
-          confidenceDetails: pick.confidenceDetails,
-          reasoning: pick.company.investmentThesis || '시장 지표 및 재무 분석 결과 우수한 성장 잠재력이 확인되었습니다.',
-          sources: pick.company.sources || [],
-          riskLevel: pick.riskLevel,
-          currentPrice: pick.yahooData?.currentPrice,
-          targetPrice: pick.company.targetPrice,
-          currency: pick.yahooData?.currency,
-          ruleScores: pick.ruleScores,
-          totalRuleScore: pick.totalRuleScore,
-          maxPossibleScore: pick.maxPossibleScore,
-        }));
+      // Instead of processing result, we just started background execution
+      // The useEffect pollStatus will handle the rest!
 
-        setAnalysisState(prev => ({
-          ...prev,
-          results,
-          isAnalyzing: false,
-        }));
-
-        const tickers = results.map(r => r.ticker).filter(Boolean) as string[];
-        if (tickers.length > 0) {
-          fetchNewsForTickers(tickers);
-        }
-
-        if (data.queriedTickers && Array.isArray(data.queriedTickers)) {
-          setQueriedTickers(data.queriedTickers);
-        }
-      } else {
-        setAnalysisState(prev => ({
-          ...prev,
-          results: [],
-          isAnalyzing: false,
-          error: data.summary || '추천 대상 기업을 찾지 못했습니다. 잠시 후 다시 시도하거나 학습 데이터를 확인해주세요.',
-        }));
-      }
     } catch (error) {
       console.error('Analysis error:', error);
       const message = error instanceof Error ? error.message : '분석 실패';

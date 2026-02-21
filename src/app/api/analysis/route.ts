@@ -3,6 +3,14 @@ import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { runAnalysisEngine } from '@/lib/stock-analysis/analysis-engine';
 import { getLearnedKnowledge } from '@/lib/stock-analysis/ai-learning';
+
+export const userAnalysisJobs = (global as any).userAnalysisJobs || new Map<string, {
+  status: 'processing' | 'completed' | 'error';
+  result?: any;
+  error?: string;
+  startedAt: Date;
+}>();
+(global as any).userAnalysisJobs = userAnalysisJobs;
 import type {
   InvestmentConditions,
   InvestmentStyle,
@@ -28,6 +36,24 @@ const planLimits: Record<string, { weeklyAnalysisLimit: number }> = {
   PREMIUM: { weeklyAnalysisLimit: 10 },
   MASTER: { weeklyAnalysisLimit: -1 },
 };
+
+export async function GET(request: NextRequest) {
+  try {
+    const session = await auth();
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: '로그인이 필요합니다.' }, { status: 401 });
+    }
+
+    const job = userAnalysisJobs.get(session.user.id);
+    if (!job) {
+      return NextResponse.json({ status: 'idle' });
+    }
+
+    return NextResponse.json(job);
+  } catch (error) {
+    return NextResponse.json({ error: '상태 조회 실패' }, { status: 500 });
+  }
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -87,7 +113,16 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const result = await runAnalysisEngine(
+    const userId = session.user.id;
+
+    // Start background job
+    userAnalysisJobs.set(userId, {
+      status: 'processing',
+      startedAt: new Date()
+    });
+
+    // Run async
+    runAnalysisEngine(
       { amount: 0, periodMonths: body.conditions?.periodMonths || 12 },
       knowledge,
       body.style ?? 'moderate',
@@ -96,31 +131,44 @@ export async function POST(request: NextRequest) {
       body.conditions?.companyApiKey,
       body.conditions?.newsAiModel,
       body.conditions?.newsApiKey
-    );
+    ).then(async (result) => {
+      if (planConfig.weeklyAnalysisLimit !== -1) {
+        const weekStart = getWeekStart(new Date());
+        await prisma.analysisUsage.upsert({
+          where: {
+            userId_weekStart: {
+              userId: userId,
+              weekStart: weekStart
+            }
+          },
+          create: {
+            userId: userId,
+            weekStart: weekStart,
+            count: 1
+          },
+          update: {
+            count: {
+              increment: 1
+            }
+          }
+        });
+      }
 
-    if (planConfig.weeklyAnalysisLimit !== -1) {
-      const weekStart = getWeekStart(new Date());
-      await prisma.analysisUsage.upsert({
-        where: {
-          userId_weekStart: {
-            userId: session.user.id,
-            weekStart: weekStart
-          }
-        },
-        create: {
-          userId: session.user.id,
-          weekStart: weekStart,
-          count: 1
-        },
-        update: {
-          count: {
-            increment: 1
-          }
-        }
+      userAnalysisJobs.set(userId, {
+        status: 'completed',
+        result,
+        startedAt: new Date()
       });
-    }
+    }).catch((error) => {
+      console.error('Background analysis error:', error);
+      userAnalysisJobs.set(userId, {
+        status: 'error',
+        error: error instanceof Error ? error.message : '분석 중 오류가 발생했습니다.',
+        startedAt: new Date()
+      });
+    });
 
-    return NextResponse.json(result);
+    return NextResponse.json({ status: 'started' });
   } catch (error) {
     const message = error instanceof Error ? error.message : '알 수 없는 오류가 발생했습니다.';
     console.error('Analysis API error:', error);

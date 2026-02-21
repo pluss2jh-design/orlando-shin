@@ -10,6 +10,7 @@ interface DriveFileInfo {
   mimeType: string;
   size: string;
   modifiedTime: string;
+  durationMillis?: string;
 }
 
 interface SyncResult {
@@ -64,7 +65,7 @@ export async function listDriveFiles(
     do {
       const response: any = await drive.files.list({
         q: `'${folderId}' in parents and trashed = false`,
-        fields: 'nextPageToken, files(id, name, mimeType, size, modifiedTime)',
+        fields: 'nextPageToken, files(id, name, mimeType, size, modifiedTime, videoMediaMetadata)',
         orderBy: 'modifiedTime desc',
         pageSize: 100,
         pageToken: nextPageToken,
@@ -85,6 +86,7 @@ export async function listDriveFiles(
             mimeType: f.mimeType || '',
             size: f.size || '0',
             modifiedTime: f.modifiedTime || '',
+            durationMillis: f.videoMediaMetadata?.durationMillis,
           });
         }
       }
@@ -169,18 +171,32 @@ export async function downloadTextContent(fileId: string): Promise<string> {
   return '';
 }
 
+export const driveStatus = {
+  isSyncing: false,
+  cache: null as SyncResult | null,
+};
+
 export async function syncAllFiles(): Promise<SyncResult> {
-  const syncResult = await listDriveFiles();
-  return syncResult;
+  if (driveStatus.isSyncing) {
+    return driveStatus.cache || { files: [], totalCount: 0, syncedAt: new Date() };
+  }
+
+  driveStatus.isSyncing = true;
+  try {
+    const syncResult = await listDriveFiles();
+    driveStatus.cache = syncResult;
+    return syncResult;
+  } finally {
+    driveStatus.isSyncing = false;
+  }
 }
 
 export async function getSyncInfo(): Promise<SyncResult | null> {
-  try {
-    const data = await listDriveFiles();
-    return data;
-  } catch {
-    return null;
-  }
+  return driveStatus.cache;
+}
+
+export function getDriveSyncStatus(): boolean {
+  return driveStatus.isSyncing;
 }
 
 export { GOOGLE_DRIVE_FOLDER_ID };
