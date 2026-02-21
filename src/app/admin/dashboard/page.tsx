@@ -48,35 +48,6 @@ export default function AdminDashboardPage() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {/* Google Drive 연결 상태 */}
-        <Card className="bg-white border-gray-200">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-bold text-gray-900 flex items-center gap-2 uppercase tracking-wider">
-              <Database className="h-4 w-4 text-blue-400" />
-              Google Drive Connection
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center justify-between">
-              <div>
-                <div className="text-2xl font-bold text-black">
-                  {stats.gdriveConnected ? '연결됨' : '미연결'}
-                </div>
-                {stats.lastSyncTime && (
-                  <p className="text-xs text-gray-400 font-medium mt-2">
-                    마지막 동기화: {new Date(stats.lastSyncTime).toLocaleString('ko-KR')}
-                  </p>
-                )}
-              </div>
-              {stats.gdriveConnected ? (
-                <CheckCircle className="h-8 w-8 text-green-500" />
-              ) : (
-                <XCircle className="h-8 w-8 text-red-500" />
-              )}
-            </div>
-          </CardContent>
-        </Card>
-
         {/* 전체 파일 수 */}
         <Card className="bg-white border-gray-200">
           <CardHeader className="pb-3">
@@ -108,32 +79,6 @@ export default function AdminDashboardPage() {
             </p>
           </CardContent>
         </Card>
-
-        {/* AI 모델 상태 */}
-        <Card className="bg-white border-gray-200">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-bold text-gray-900 flex items-center gap-2 uppercase tracking-wider">
-              <Clock className="h-4 w-4 text-orange-400" />
-              AI System Status
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center justify-between">
-              <div>
-                <div className="text-2xl font-bold text-black">
-                  {stats.aiModelStatus === 'active' && '가동 중'}
-                  {stats.aiModelStatus === 'idle' && '대기 중'}
-                  {stats.aiModelStatus === 'error' && '오류'}
-                </div>
-                <p className="text-xs text-gray-400 mt-1">Gemini 2.0 Pro</p>
-              </div>
-              <div className={`h-3 w-3 rounded-full ${stats.aiModelStatus === 'active' ? 'bg-green-500 animate-pulse' :
-                stats.aiModelStatus === 'idle' ? 'bg-yellow-500' :
-                  'bg-red-500'
-                }`} />
-            </div>
-          </CardContent>
-        </Card>
       </div>
 
       {/* 최근 활동 */}
@@ -150,7 +95,7 @@ export default function AdminDashboardPage() {
             )}
           </div>
         </CardContent>
-      </Card>
-    </div>
+      </Card >
+    </div >
   );
 }
