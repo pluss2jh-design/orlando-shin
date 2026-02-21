@@ -310,7 +310,7 @@ export function AnalysisOutput({ results, conditions, isLoading, onSendEmail }: 
                 <h4 className="text-xs font-black text-blue-400 uppercase tracking-[0.2em] mb-4 flex items-center gap-2">
                   <Sparkles className="h-4 w-4" /> Strategic Context & Assessment
                 </h4>
-                <p className="text-[15px] text-gray-300 leading-loose font-medium whitespace-pre-line text-justify">
+                <p className="text-[15px] text-gray-600 leading-loose font-medium whitespace-pre-line text-justify">
                   {result.reasoning}
                 </p>
               </div>
@@ -326,7 +326,7 @@ export function AnalysisOutput({ results, conditions, isLoading, onSendEmail }: 
                       <Button variant="ghost" className="w-full p-6 h-auto flex items-center justify-between hover:bg-gray-100 hover:text-gray-900 group">
                         <div className="flex items-center gap-3">
                           <CheckCircle className="h-5 w-5 text-emerald-500/70" />
-                          <span className="font-black text-xs uppercase tracking-widest text-gray-300 group-hover:text-blue-400 transition-colors">
+                          <span className="font-black text-xs uppercase tracking-widest text-gray-600 group-hover:text-blue-600 transition-colors">
                             Detailed Evidence & Score Breakdown
                           </span>
                         </div>
@@ -355,7 +355,7 @@ export function AnalysisOutput({ results, conditions, isLoading, onSendEmail }: 
                                   Score: {rule.score}
                                 </Badge>
                               </div>
-                              <div className="text-[11px] text-gray-500 italic bg-gray-100/50 p-3 rounded-md line-clamp-3">
+                              <div className="text-[11px] text-gray-400 italic bg-gray-800/50 border border-gray-700 p-3 rounded-md line-clamp-3 mt-3">
                                 {rule.reason || 'AI System calculated this score based on learned models.'}
                               </div>
                             </div>

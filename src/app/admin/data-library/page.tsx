@@ -50,24 +50,7 @@ interface LearnedKnowledgeRecord {
     content: any;
 }
 
-const EXT_MODELS = [
-    { value: 'gemini-2.5-pro', label: 'Gemini 2.5 Pro', reqKey: 'GOOGLE_API_KEY' },
-    { value: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash', reqKey: 'GOOGLE_API_KEY' },
-    { value: 'gemini-2.0-pro-exp-02-05', label: 'Gemini 2.0 Pro Exp', reqKey: 'GOOGLE_API_KEY' },
-    { value: 'gemini-2.0-flash-exp', label: 'Gemini 2.0 Flash Exp', reqKey: 'GOOGLE_API_KEY' },
-    { value: 'gemini-2.0-flash', label: 'Gemini 2.0 Flash', reqKey: 'GOOGLE_API_KEY' },
-    { value: 'gemini-2.0-flash-lite-preview-02-05', label: 'Gemini 2.0 Flash Lite', reqKey: 'GOOGLE_API_KEY' },
-    { value: 'gemini-2.0-flash-thinking-exp-01-21', label: 'Gemini 2.0 Flash Thinking', reqKey: 'GOOGLE_API_KEY' },
-    { value: 'gemini-1.5-pro', label: 'Gemini 1.5 Pro', reqKey: 'GOOGLE_API_KEY' },
-    { value: 'gemini-1.5-flash', label: 'Gemini 1.5 Flash', reqKey: 'GOOGLE_API_KEY' },
-    { value: 'gemini-1.5-flash-8b', label: 'Gemini 1.5 Flash 8B', reqKey: 'GOOGLE_API_KEY' },
-    { value: 'gpt-4o', label: 'GPT-4o', reqKey: 'OPENAI_API_KEY' },
-    { value: 'gpt-4o-mini', label: 'GPT-4o Mini', reqKey: 'OPENAI_API_KEY' },
-    { value: 'gpt-4-turbo', label: 'GPT-4 Turbo', reqKey: 'OPENAI_API_KEY' },
-    { value: 'claude-3-5-sonnet-20241022', label: 'Claude 3.5 Sonnet', reqKey: 'CLAUDE_API_KEY' },
-    { value: 'claude-3-5-haiku-20241022', label: 'Claude 3.5 Haiku', reqKey: 'CLAUDE_API_KEY' },
-    { value: 'claude-3-opus-20240229', label: 'Claude 3 Opus', reqKey: 'CLAUDE_API_KEY' }
-];
+// Models are now fetched dynamically from /api/admin/models
 
 export default function DataLibraryPage() {
     const [files, setFiles] = useState<DriveFile[]>([]);
@@ -81,6 +64,7 @@ export default function DataLibraryPage() {
     const [selectedFileIds, setSelectedFileIds] = useState<Set<string>>(new Set());
     const [title, setTitle] = useState('');
     const [aiModels, setAiModels] = useState<Record<string, string>>({});
+    const [availableModels, setAvailableModels] = useState<{ value: string, label: string, reqKey: string }[]>([]);
     const [keys, setKeys] = useState<{ GOOGLE_API_KEY?: string, OPENAI_API_KEY?: string, CLAUDE_API_KEY?: string } | null>(null);
 
     useEffect(() => {
@@ -89,8 +73,20 @@ export default function DataLibraryPage() {
 
     const fetchInitialData = async () => {
         setLoading(true);
-        await Promise.all([fetchKnowledge(), fetchKeys()]);
+        await Promise.all([fetchKnowledge(), fetchKeys(), fetchModels()]);
         setLoading(false);
+    };
+
+    const fetchModels = async () => {
+        try {
+            const response = await fetch('/api/admin/models');
+            if (response.ok) {
+                const data = await response.json();
+                setAvailableModels(data.models || []);
+            }
+        } catch (error) {
+            console.error('Failed to fetch models:', error);
+        }
     };
 
     const fetchKeys = async () => {
@@ -375,7 +371,7 @@ export default function DataLibraryPage() {
                                                                     <SelectValue placeholder="모델을 선택하세요" />
                                                                 </SelectTrigger>
                                                                 <SelectContent className="bg-gray-900 border-gray-800">
-                                                                    {EXT_MODELS.map(model => {
+                                                                    {availableModels.map(model => {
                                                                         const hasKey = keys && keys[model.reqKey as keyof typeof keys];
                                                                         return (
                                                                             <SelectItem
@@ -393,6 +389,9 @@ export default function DataLibraryPage() {
                                                                             </SelectItem>
                                                                         );
                                                                     })}
+                                                                    {availableModels.length === 0 && (
+                                                                        <div className="text-gray-500 text-xs p-3">모델 로딩 중이거나 사용가능한 모델이 없습니다.</div>
+                                                                    )}
                                                                 </SelectContent>
                                                             </Select>
                                                         )}
