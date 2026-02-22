@@ -4,7 +4,7 @@ import bcrypt from 'bcryptjs';
 
 export async function POST(request: NextRequest) {
     try {
-        const { nickname, email, password, provider } = await request.json();
+        const { nickname, email, password, provider, providerAccountId } = await request.json();
 
         if (!email || !password || !nickname) {
             return NextResponse.json({ error: '필수 정보가 누락되었습니다.' }, { status: 400 });
@@ -20,9 +20,13 @@ export async function POST(request: NextRequest) {
 
         const hashedPassword = await bcrypt.hash(password, 10);
 
-        // 기존 유저가 있는지 확인 (NextAuth가 이미 생성했을 수 있음)
-        const existingUser = await prisma.user.findUnique({
-            where: { email },
+        // 기존 유저가 있는지 확인 (provider, providerAccountId, email)
+        const existingUser = await prisma.user.findFirst({
+            where: {
+                email,
+                provider: provider || 'credentials',
+                providerAccountId: providerAccountId || ''
+            },
             include: { accounts: true }
         });
 
@@ -45,12 +49,15 @@ export async function POST(request: NextRequest) {
 
             return NextResponse.json({ success: true, userId: updatedUser.id });
         } else {
-            // 아직 유저가 생성되지 않은 경우 (가상 시나리오)
+            // 아직 유저가 생성되지 않은 경우
             const newUser = await prisma.user.create({
                 data: {
                     name: nickname,
                     email,
                     password: hashedPassword,
+                    provider: provider || 'credentials',
+                    providerAccountId: providerAccountId || '',
+                    role: 'USER',
                     plan: 'FREE'
                 }
             });

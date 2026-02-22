@@ -14,7 +14,9 @@ import {
     ChevronRight,
     Search,
     Sparkles,
-    Eye
+    Eye,
+    Pencil,
+    X
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -60,6 +62,10 @@ export default function DataLibraryPage() {
     const [loading, setLoading] = useState(true);
     const [syncing, setSyncing] = useState(false);
     const [learning, setLearning] = useState(false);
+
+    // Knowledge Edit State
+    const [editingKnowledgeId, setEditingKnowledgeId] = useState<string | null>(null);
+    const [editKnowledgeTitle, setEditKnowledgeTitle] = useState('');
 
     // UI State
     const [selectedFileIds, setSelectedFileIds] = useState<Set<string>>(new Set());
@@ -235,6 +241,23 @@ export default function DataLibraryPage() {
             }
         } catch (error) {
             console.error('Activation failed:', error);
+        }
+    };
+
+    const handleUpdateKnowledgeTitle = async (id: string) => {
+        try {
+            const response = await fetch('/api/admin/knowledge', {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id, title: editKnowledgeTitle }),
+            });
+
+            if (response.ok) {
+                await fetchKnowledge();
+                setEditingKnowledgeId(null);
+            }
+        } catch (error) {
+            console.error('Update title failed:', error);
         }
     };
 
@@ -546,8 +569,34 @@ export default function DataLibraryPage() {
                                                 : 'bg-gray-950 border-gray-800 hover:border-gray-700'}`}
                                         >
                                             <div className="flex items-start justify-between gap-3 mb-4">
-                                                <div className="min-w-0">
-                                                    <h4 className="text-white font-black truncate text-sm mb-1">{kb.title || `Session ${kb.id.slice(-4)}`}</h4>
+                                                <div className="min-w-0 flex-1">
+                                                    {editingKnowledgeId === kb.id ? (
+                                                        <div className="flex items-center gap-2 mb-1">
+                                                            <Input
+                                                                value={editKnowledgeTitle}
+                                                                onChange={(e) => setEditKnowledgeTitle(e.target.value)}
+                                                                className="h-7 text-xs bg-gray-900 border-gray-700 text-white w-full"
+                                                                autoFocus
+                                                                onKeyDown={(e) => e.key === 'Enter' && handleUpdateKnowledgeTitle(kb.id)}
+                                                            />
+                                                            <Button size="icon" variant="ghost" className="h-7 w-7 text-green-500 hover:bg-gray-800" onClick={() => handleUpdateKnowledgeTitle(kb.id)}>
+                                                                <CheckCircle className="h-4 w-4" />
+                                                            </Button>
+                                                            <Button size="icon" variant="ghost" className="h-7 w-7 text-gray-500 hover:bg-gray-800" onClick={() => setEditingKnowledgeId(null)}>
+                                                                <X className="h-4 w-4" />
+                                                            </Button>
+                                                        </div>
+                                                    ) : (
+                                                        <div className="flex items-center gap-2 mb-1">
+                                                            <h4 className="text-white font-black truncate text-sm">{kb.title || `Session ${kb.id.slice(-4)}`}</h4>
+                                                            <Button size="icon" variant="ghost" className="h-6 w-6 text-gray-400 hover:text-white hover:bg-gray-800" onClick={() => {
+                                                                setEditingKnowledgeId(kb.id);
+                                                                setEditKnowledgeTitle(kb.title || `Session ${kb.id.slice(-4)}`);
+                                                            }}>
+                                                                <Pencil className="h-3 w-3" />
+                                                            </Button>
+                                                        </div>
+                                                    )}
                                                     <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">
                                                         CREATED : {new Date(kb.createdAt).toLocaleDateString()}
                                                     </p>

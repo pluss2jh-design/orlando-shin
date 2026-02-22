@@ -133,55 +133,8 @@ function LoginForm() {
         <Separator className="my-4" />
 
         <div className="text-center text-sm text-muted-foreground">
-          <p>로그인하면 주식 선생님의 서비스를 이용할 수 있습니다.</p>
-          <p className="mt-1">처음 로그인 시 자동으로 회원가입됩니다.</p>
+          <p>상단 계정을 클릭해 로그인을 진행해 주세요.</p>
         </div>
-
-        <div className="text-center space-y-2">
-          <a
-            href="/stock-analysis"
-            className="text-sm text-primary hover:underline block"
-          >
-            ← 주식 분석 화면으로 돌아가기
-          </a>
-          <button
-            onClick={() => setShowAdminForm(!showAdminForm)}
-            className="text-xs text-muted-foreground hover:text-primary"
-          >
-            {showAdminForm ? '소셜 로그인으로 돌아가기' : '관리자 로그인'}
-          </button>
-        </div>
-
-        {showAdminForm && (
-          <>
-            <Separator className="my-4" />
-            <form onSubmit={handleAdminLogin} className="space-y-3">
-              <input
-                type="email"
-                placeholder="관리자 이메일"
-                value={adminEmail}
-                onChange={(e) => setAdminEmail(e.target.value)}
-                className="w-full h-12 px-4 border rounded-md"
-                required
-              />
-              <input
-                type="password"
-                placeholder="비밀번호"
-                value={adminPassword}
-                onChange={(e) => setAdminPassword(e.target.value)}
-                className="w-full h-12 px-4 border rounded-md"
-                required
-              />
-              <Button
-                type="submit"
-                className="w-full h-12"
-                disabled={isLoading === 'credentials'}
-              >
-                {isLoading === 'credentials' ? '로그인 중...' : '관리자 로그인'}
-              </Button>
-            </form>
-          </>
-        )}
       </CardContent>
     </Card>
   );

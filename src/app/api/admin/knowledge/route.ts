@@ -28,9 +28,9 @@ export async function PATCH(request: NextRequest) {
         }
 
         const body = await request.json();
-        const { id, isActive } = body;
+        const { id, isActive, title } = body;
 
-        if (isActive) {
+        if (isActive !== undefined) {
             // 다른 모든 항목 비활성화
             await prisma.learnedKnowledge.updateMany({
                 where: { id: { not: id } },
@@ -38,9 +38,13 @@ export async function PATCH(request: NextRequest) {
             });
         }
 
+        const data: any = {};
+        if (isActive !== undefined) data.isActive = isActive;
+        if (title !== undefined) data.title = title;
+
         const updated = await prisma.learnedKnowledge.update({
             where: { id },
-            data: { isActive }
+            data,
         });
 
         return NextResponse.json({ success: true, knowledge: updated });

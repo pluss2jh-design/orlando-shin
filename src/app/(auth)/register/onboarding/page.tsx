@@ -15,6 +15,7 @@ function OnboardingContent() {
     const email = searchParams.get('email') || '';
     const name = searchParams.get('name') || '';
     const provider = searchParams.get('provider') || '';
+    const providerAccountId = searchParams.get('providerAccountId') || '';
 
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -59,6 +60,7 @@ function OnboardingContent() {
                 body: JSON.stringify({
                     ...formData,
                     provider,
+                    providerAccountId,
                 }),
             });
 

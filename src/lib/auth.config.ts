@@ -9,35 +9,22 @@ export const authConfig = {
             GoogleProvider({
                 clientId: process.env.GOOGLE_CLIENT_ID,
                 clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-                allowDangerousEmailAccountLinking: true,
+                allowDangerousEmailAccountLinking: false,
             })
         ] : []),
         ...(process.env.KAKAO_CLIENT_ID ? [
             KakaoProvider({
                 clientId: process.env.KAKAO_CLIENT_ID,
                 clientSecret: process.env.KAKAO_CLIENT_SECRET || undefined,
-                allowDangerousEmailAccountLinking: true,
+                allowDangerousEmailAccountLinking: false,
                 checks: ["state"],
-                profile(profile) {
-                    if (!profile) return null as any;
-                    const email = profile.kakao_account?.email || `${profile.id}@kakao.com`;
-                    const nickname = profile.properties?.nickname || profile.kakao_account?.profile?.nickname || '카카오 사용자';
-                    const image = profile.properties?.profile_image || profile.kakao_account?.profile?.profile_image_url;
-
-                    return {
-                        id: profile.id.toString(),
-                        name: nickname,
-                        email: email,
-                        image: image,
-                    }
-                }
             })
         ] : []),
         ...(process.env.NAVER_CLIENT_ID ? [
             NaverProvider({
                 clientId: process.env.NAVER_CLIENT_ID,
                 clientSecret: process.env.NAVER_CLIENT_SECRET,
-                allowDangerousEmailAccountLinking: true,
+                allowDangerousEmailAccountLinking: false,
             })
         ] : []),
     ],

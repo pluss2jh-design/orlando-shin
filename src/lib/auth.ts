@@ -1,5 +1,4 @@
 import NextAuth from "next-auth";
-import { PrismaAdapter } from "@auth/prisma-adapter";
 import { prisma } from "@/lib/db";
 import GoogleProvider from "next-auth/providers/google";
 import KakaoProvider from "next-auth/providers/kakao";
@@ -10,12 +9,22 @@ import { authConfig } from "./auth.config";
 
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
-  adapter: PrismaAdapter(prisma),
   ...authConfig,
   secret: process.env.AUTH_SECRET,
   trustHost: true,
   providers: [
-    ...authConfig.providers,
+    GoogleProvider({
+      clientId: process.env.GOOGLE_CLIENT_ID,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+    }),
+    KakaoProvider({
+      clientId: process.env.KAKAO_CLIENT_ID,
+      clientSecret: process.env.KAKAO_CLIENT_SECRET,
+    }),
+    NaverProvider({
+      clientId: process.env.NAVER_CLIENT_ID,
+      clientSecret: process.env.NAVER_CLIENT_SECRET,
+    }),
     CredentialsProvider({
       name: "Credentials",
       credentials: {
@@ -49,23 +58,41 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   callbacks: {
     async signIn({ user, account, profile }) {
       if (account?.provider === 'google' || account?.provider === 'kakao' || account?.provider === 'naver') {
-        const dbUser = await prisma.user.findUnique({
-          where: { email: user.email as string }
+        const dbUser = await prisma.user.findFirst({
+          where: {
+            email: user.email as string,
+            provider: account.provider,
+            providerAccountId: account.providerAccountId
+          }
         });
+
+        if (dbUser?.suspendedUntil && new Date(dbUser.suspendedUntil) > new Date()) {
+          return `/ login ? error = Suspended`;
+        }
 
         // 비밀번호가 없으면 최초 소셜 로그인으로 간주하고 필수 정보 입력 페이지로 이동
         if (!dbUser || !dbUser.password) {
-          return `/register/onboarding?email=${encodeURIComponent(user.email as string)}&name=${encodeURIComponent(user.name || '')}&provider=${account.provider}`;
+          return `/ register / onboarding ? email = ${encodeURIComponent(user.email as string)}& name=${encodeURIComponent(user.name || '')}& provider=${account.provider}& providerAccountId=${encodeURIComponent(account.providerAccountId)} `;
+        }
+      } else if (account?.provider === 'credentials') {
+        const dbUser = await prisma.user.findFirst({
+          where: {
+            email: user.email as string,
+            provider: 'credentials'
+          }
+        });
+        if (dbUser?.suspendedUntil && new Date(dbUser.suspendedUntil) > new Date()) {
+          return `/ login ? error = Suspended`;
         }
       }
       return true;
     },
-    async jwt({ token, user, trigger, session }) {
+    async jwt({ token, user, account, trigger, session }) {
       // 1. 초기 로그인 시
-      if (user) {
+      if (user && account) {
         token.sub = user.id;
-        token.role = (user as any).role;
-        token.plan = (user as any).plan || 'FREE';
+        token.provider = account.provider;
+        token.providerAccountId = account.providerAccountId;
       }
 
       // 2. 세션 업데이트 요청 시 (클라이언트에서 update() 호출)
@@ -76,29 +103,30 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       }
 
       // 3. 토큰 정보 유지 및 DB 데이터 동기화
-      if (token.sub) {
+      if (token.email && token.provider && token.providerAccountId) {
         try {
-          const [dbUser, adminUser] = await Promise.all([
-            prisma.user.findUnique({
-              where: { id: token.sub as string },
-              select: { name: true, image: true, plan: true, email: true }
-            }),
-            prisma.adminUser.findUnique({
-              where: { email: token.email as string }
-            })
-          ]);
+          const dbUser = await prisma.user.findFirst({
+            where: {
+              email: token.email as string,
+              provider: token.provider as string,
+              providerAccountId: token.providerAccountId as string
+            },
+            select: { id: true, name: true, image: true, plan: true, role: true, suspendedUntil: true, email: true, provider: true }
+          });
 
           if (dbUser) {
+            token.sub = dbUser.id;
             token.name = dbUser.name || token.name;
             token.picture = dbUser.image || token.picture;
 
-            // AdminUser 테이블에 존재하는 경우 마스터 어드민 권한 부여
-            if (adminUser || dbUser.email === 'pluss2.jh@gmail.com') {
+            if (dbUser.suspendedUntil && new Date(dbUser.suspendedUntil) > new Date()) {
+              token.role = 'SUSPENDED';
+            } else if (dbUser.provider === 'google' && dbUser.email === 'pluss2.jh@gmail.com') {
               token.role = 'ADMIN';
               token.plan = 'MASTER';
             } else {
               token.plan = dbUser.plan || 'FREE';
-              token.role = token.role || 'USER';
+              token.role = dbUser.role || 'USER';
             }
           }
         } catch (error) {

@@ -23,6 +23,7 @@ interface User {
   image: string | null;
   plan: string;
   createdAt: string;
+  suspendedUntil?: string | null;
 }
 
 const PLAN_OPTIONS = [
@@ -76,6 +77,30 @@ export default function UserManagementPage() {
       }
     } catch (error) {
       console.error('Update user plan failed:', error);
+    } finally {
+      setUpdating(null);
+    }
+  };
+
+  const updateUserStatus = async (userId: string, action: string) => {
+    try {
+      setUpdating(userId);
+      const res = await fetch(`/api/admin/users/${userId}/suspend`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action }),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        setUsers(prev =>
+          prev.map(user =>
+            user.id === userId ? { ...user, suspendedUntil: data.user.suspendedUntil } : user
+          )
+        );
+      }
+    } catch (error) {
+      console.error('Update user status failed:', error);
     } finally {
       setUpdating(null);
     }
@@ -178,6 +203,39 @@ export default function UserManagementPage() {
                 </div>
 
                 <div className="flex items-center gap-4">
+                  {user.suspendedUntil && new Date(user.suspendedUntil) > new Date() ? (
+                    <div className="flex items-center gap-2">
+                      <Badge variant="destructive" className="animate-pulse">정지됨</Badge>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => updateUserStatus(user.id, 'unban')}
+                        disabled={updating === user.id}
+                        className="h-8 text-xs border-green-600 text-green-500 hover:bg-green-600/10"
+                      >
+                        정지 해제
+                      </Button>
+                    </div>
+                  ) : (
+                    <Select
+                      value="active"
+                      onValueChange={(val) => {
+                        if (val !== 'active') updateUserStatus(user.id, val);
+                      }}
+                      disabled={updating === user.id}
+                    >
+                      <SelectTrigger className="w-[110px] h-8 bg-gray-950 border-gray-700 text-white text-xs font-bold">
+                        <SelectValue placeholder="상태 관리" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-gray-900 border-gray-700 text-white">
+                        <SelectItem value="active" className="text-xs focus:bg-gray-800 text-green-400">활성 상태</SelectItem>
+                        <SelectItem value="1_week" className="text-xs focus:bg-gray-800 text-rose-400">1주일 정지</SelectItem>
+                        <SelectItem value="1_month" className="text-xs focus:bg-gray-800 text-rose-400">1개월 정지</SelectItem>
+                        <SelectItem value="forever" className="text-xs focus:bg-gray-800 text-rose-600 font-bold">영구 정지</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  )}
+
                   <Select
                     value={user.plan}
                     onValueChange={(value: string) => updateUserPlan(user.id, value)}

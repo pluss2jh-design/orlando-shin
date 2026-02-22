@@ -20,7 +20,7 @@ export function LearningStatusBadge() {
         };
 
         checkStatus();
-        const interval = setInterval(checkStatus, 5000);
+        const interval = setInterval(checkStatus, 30000); // Changed to 30s
         return () => clearInterval(interval);
     }, []);
 

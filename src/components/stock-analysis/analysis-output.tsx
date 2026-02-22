@@ -98,7 +98,7 @@ export function AnalysisOutput({ results, conditions, isLoading, onSendEmail }: 
     );
   }
 
-  if (!conditions) {
+  if (!conditions && results.length === 0) {
     return (
       <Card className="w-full bg-white border-gray-200 border-dashed py-16">
         <CardContent className="flex flex-col items-center text-center justify-center space-y-4">

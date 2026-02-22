@@ -25,6 +25,7 @@ export async function GET(request: NextRequest) {
         image: true,
         plan: true,
         createdAt: true,
+        suspendedUntil: true,
       },
       orderBy: {
         createdAt: 'desc',

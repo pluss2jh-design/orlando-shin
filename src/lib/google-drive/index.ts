@@ -192,7 +192,21 @@ export async function syncAllFiles(): Promise<SyncResult> {
 }
 
 export async function getSyncInfo(): Promise<SyncResult | null> {
-  return driveStatus.cache;
+  if (driveStatus.cache) {
+    return driveStatus.cache;
+  }
+
+  if (driveStatus.isSyncing) {
+    return null;
+  }
+
+  try {
+    const data = await listDriveFiles();
+    driveStatus.cache = data;
+    return data;
+  } catch {
+    return null;
+  }
 }
 
 export function getDriveSyncStatus(): boolean {
