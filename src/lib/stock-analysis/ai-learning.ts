@@ -244,9 +244,8 @@ ${isPDFFile(file) || isVideoFile(file) ? '(첨부된 미디어 파일 참조)' :
         } else {
           let activeModel = chosenModelGrp || 'gemini-1.5-pro';
           if (ext === 'mp4') {
-            // 영상 분석시 더 높은 컨텍스트 길이/버전이 요구될 수 있습니다. 
-            // 현재는 front에서 넘어온 activeModel을 그대로 쓰되 mp4 대응 처리가 필요하면 추가.
-            activeModel = chosenModelGrp || 'gemini-2.5-pro';
+            // 원천 데이터 중 mp4 학습 시에는 항상 gemini 3.1 pro를 사용하도록 처리
+            activeModel = 'gemini-3.1-pro';
           }
           const genAI = getGeminiClient();
           const model = genAI.getGenerativeModel({ model: activeModel });
