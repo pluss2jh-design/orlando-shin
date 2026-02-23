@@ -244,8 +244,8 @@ ${isPDFFile(file) || isVideoFile(file) ? '(첨부된 미디어 파일 참조)' :
         } else {
           let activeModel = chosenModelGrp || 'gemini-1.5-pro';
           if (ext === 'mp4') {
-            // 원천 데이터 중 mp4 학습 시에는 항상 gemini 3.1 pro를 사용하도록 처리
-            activeModel = 'gemini-3.1-pro';
+            // 원천 데이터 중 mp4 학습 시에는 항상 gemini 1.5 pro (3.1 Pro UI)를 사용하도록 처리
+            activeModel = 'gemini-1.5-pro';
           }
           const genAI = getGeminiClient();
           const model = genAI.getGenerativeModel({ model: activeModel });
