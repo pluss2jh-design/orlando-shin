@@ -43,8 +43,8 @@ export async function GET() {
             // Knowledge doesn't exist yet
         }
 
-        // AI model status (check if GOOGLE_API_KEY exists)
-        const aiModelStatus = process.env.GOOGLE_API_KEY ? 'active' : 'idle';
+        // AI model status (check if GEMINI_API_KEY exists)
+        const aiModelStatus = process.env.GEMINI_API_KEY ? 'active' : 'idle';
 
         return NextResponse.json({
             gdriveConnected,

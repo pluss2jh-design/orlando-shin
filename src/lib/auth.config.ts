@@ -18,6 +18,24 @@ export const authConfig = {
                 clientSecret: process.env.KAKAO_CLIENT_SECRET || undefined,
                 allowDangerousEmailAccountLinking: false,
                 checks: ["state"],
+                authorization: {
+                    params: {
+                        prompt: "login",
+                    },
+                },
+                profile(profile) {
+                    if (!profile) return null as any;
+                    const email = profile.kakao_account?.email || `${profile.id}@kakao.com`;
+                    const nickname = profile.properties?.nickname || profile.kakao_account?.profile?.nickname || '카카오 사용자';
+                    const image = profile.properties?.profile_image || profile.kakao_account?.profile?.profile_image_url;
+
+                    return {
+                        id: profile.id.toString(),
+                        name: nickname,
+                        email: email,
+                        image: image,
+                    }
+                }
             })
         ] : []),
         ...(process.env.NAVER_CLIENT_ID ? [
@@ -25,6 +43,19 @@ export const authConfig = {
                 clientId: process.env.NAVER_CLIENT_ID,
                 clientSecret: process.env.NAVER_CLIENT_SECRET,
                 allowDangerousEmailAccountLinking: false,
+                authorization: {
+                    params: {
+                        auth_type: "reprompt",
+                    },
+                },
+                profile(profile) {
+                    return {
+                        id: profile.response.id,
+                        name: profile.response.name || '네이버 사용자',
+                        email: profile.response.email,
+                        image: profile.response.profile_image,
+                    }
+                }
             })
         ] : []),
     ],

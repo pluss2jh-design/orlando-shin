@@ -39,10 +39,17 @@ function LoginForm() {
       setIsLoading(provider);
       setError('');
 
+      let authorizationParams: Record<string, string> | undefined = undefined;
+      if (provider === 'kakao') {
+        authorizationParams = { prompt: 'login' };
+      } else if (provider === 'naver') {
+        authorizationParams = { auth_type: 'reprompt' };
+      }
+
       await signIn(provider, {
         callbackUrl: '/login',
         redirect: true,
-      });
+      }, authorizationParams);
     } catch (error) {
       console.error('Exception during signIn:', error);
       setError(`로그인 중 오류가 발생했습니다: ${error instanceof Error ? error.message : '알 수 없는 오류'}`);

@@ -22,6 +22,7 @@ interface User {
   email: string;
   image: string | null;
   plan: string;
+  provider: string;
   createdAt: string;
   suspendedUntil?: string | null;
 }
@@ -39,6 +40,7 @@ export default function UserManagementPage() {
   const [updating, setUpdating] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [activeTab, setActiveTab] = useState('ALL');
+  const [providerFilter, setProviderFilter] = useState('ALL');
 
   useEffect(() => {
     fetchUsers();
@@ -129,7 +131,8 @@ export default function UserManagementPage() {
       (user.name?.toLowerCase().includes(searchTerm.toLowerCase()) || false) ||
       user.email.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesTab = activeTab === 'ALL' || user.plan === activeTab;
-    return matchesSearch && matchesTab;
+    const matchesProvider = providerFilter === 'ALL' || user.provider === providerFilter;
+    return matchesSearch && matchesTab && matchesProvider;
   });
 
   return (
@@ -146,9 +149,20 @@ export default function UserManagementPage() {
               placeholder="이름 또는 이메일 검색..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-9 w-[250px] bg-gray-900 border-gray-700 text-white placeholder-gray-500"
+              className="pl-9 w-[200px] bg-gray-900 border-gray-700 text-white placeholder-gray-500"
             />
           </div>
+          <Select value={providerFilter} onValueChange={setProviderFilter}>
+            <SelectTrigger className="w-[120px] bg-gray-900 border-gray-700 text-white font-bold h-10">
+              <SelectValue placeholder="가입 경로" />
+            </SelectTrigger>
+            <SelectContent className="bg-gray-900 border-gray-700 text-white">
+              <SelectItem value="ALL" className="focus:bg-gray-800">모든 경로</SelectItem>
+              <SelectItem value="google" className="focus:bg-gray-800 text-red-400">Google</SelectItem>
+              <SelectItem value="kakao" className="focus:bg-gray-800 text-yellow-500">Kakao</SelectItem>
+              <SelectItem value="naver" className="focus:bg-gray-800 text-green-500">Naver</SelectItem>
+            </SelectContent>
+          </Select>
           <Button onClick={fetchUsers} variant="outline" className="border-gray-700 text-gray-300">
             <RefreshCw className="h-4 w-4 mr-2" />
             새로고침
@@ -190,6 +204,9 @@ export default function UserManagementPage() {
                       </span>
                       <Badge className={`${getPlanBadgeColor(user.plan)} text-white font-bold px-2 py-0 text-[10px] uppercase tracking-wider`}>
                         {getPlanLabel(user.plan)}
+                      </Badge>
+                      <Badge variant="outline" className="border-gray-600 text-gray-300 font-bold px-2 py-0 text-[10px] tracking-wider uppercase">
+                        {user.provider}
                       </Badge>
                     </div>
                     <div className="flex items-center gap-3 mt-1">

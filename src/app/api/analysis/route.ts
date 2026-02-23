@@ -17,7 +17,7 @@ import type {
 } from '@/types/stock-analysis';
 
 interface AnalysisRequestBody {
-  conditions?: { periodMonths?: number; companyCount?: number; companyAiModel?: string; companyApiKey?: string; newsAiModel?: string; newsApiKey?: string };
+  conditions?: { periodMonths?: number; companyCount?: number; companyAiModel?: string; companyApiKey?: string; newsAiModel?: string; newsApiKey?: string; sector?: string; strategyType?: 'growth' | 'value' | 'all' };
   style?: InvestmentStyle;
 }
 
@@ -52,6 +52,19 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(job);
   } catch (error) {
     return NextResponse.json({ error: '상태 조회 실패' }, { status: 500 });
+  }
+}
+
+export async function DELETE(request: NextRequest) {
+  try {
+    const session = await auth();
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: '로그인이 필요합니다.' }, { status: 401 });
+    }
+    userAnalysisJobs.delete(session.user.id);
+    return NextResponse.json({ success: true, status: 'idle' });
+  } catch (error) {
+    return NextResponse.json({ error: '상태 초기화 실패' }, { status: 500 });
   }
 }
 
@@ -123,9 +136,9 @@ export async function POST(request: NextRequest) {
 
     // Run async
     runAnalysisEngine(
-      { amount: 0, periodMonths: body.conditions?.periodMonths || 12 },
+      { amount: 0, periodMonths: body.conditions?.periodMonths || 12, sector: body.conditions?.sector, strategyType: body.conditions?.strategyType },
       knowledge,
-      body.style ?? 'moderate',
+      body.style || 'moderate',
       body.conditions?.companyCount || 5,
       body.conditions?.companyAiModel,
       body.conditions?.companyApiKey,

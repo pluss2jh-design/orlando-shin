@@ -11,9 +11,9 @@ const FOLDER_ID = '1ODcnaY0yQgeFUWYUGOkxVxGKTXsB3t56';
 async function testGoogleDriveWithApiKey() {
   console.log('🧪 Testing Google Drive with API Key method...');
 
-  const apiKey = process.env.GOOGLE_API_KEY;
+  const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
-    console.log('❌ GOOGLE_API_KEY not set');
+    console.log('❌ GEMINI_API_KEY not set');
     return false;
   }
 

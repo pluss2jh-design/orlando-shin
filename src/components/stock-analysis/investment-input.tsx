@@ -13,6 +13,13 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface ExtendedInvestmentConditions extends InvestmentConditions {
   companyCount?: number;
@@ -25,6 +32,9 @@ interface InvestmentInputProps {
 
 export function InvestmentInput({ onAnalyze, disabled }: InvestmentInputProps) {
   const [companyCount, setCompanyCount] = useState(5);
+  const [periodMonths, setPeriodMonths] = useState(12);
+  const [sector, setSector] = useState('ALL');
+  const [strategyType, setStrategyType] = useState<'growth' | 'value' | 'all'>('all');
   const [activeKnowledge, setActiveKnowledge] = useState<{ title: string } | null>(null);
   const [userFeatures, setUserFeatures] = useState<{
     plan: string;
@@ -68,8 +78,10 @@ export function InvestmentInput({ onAnalyze, disabled }: InvestmentInputProps) {
   const handleAnalyze = () => {
     onAnalyze?.({
       amount: 0,
-      periodMonths: 0,
+      periodMonths,
       companyCount,
+      sector: sector === 'ALL' ? undefined : sector,
+      strategyType,
     });
   };
 
@@ -112,6 +124,54 @@ export function InvestmentInput({ onAnalyze, disabled }: InvestmentInputProps) {
               onChange={(e) => setCompanyCount(Number(e.target.value))}
               className="w-full h-12 bg-gray-50 border-gray-200 text-gray-900 font-black text-lg focus:ring-blue-500 focus:border-blue-500 transition-all rounded-sm"
             />
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="space-y-2">
+              <label className="text-xs font-black text-gray-500 uppercase tracking-widest">투자기간</label>
+              <Select value={periodMonths.toString()} onValueChange={(val) => setPeriodMonths(Number(val))}>
+                <SelectTrigger className="w-full h-10 border-gray-200 bg-gray-50 text-gray-800 font-bold text-sm">
+                  <SelectValue placeholder="기간 선택" />
+                </SelectTrigger>
+                <SelectContent className="bg-white border-gray-200 shadow-xl">
+                  <SelectItem value="1">1개월</SelectItem>
+                  <SelectItem value="3">3개월</SelectItem>
+                  <SelectItem value="6">6개월</SelectItem>
+                  <SelectItem value="12">1년 (12개월)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-xs font-black text-gray-500 uppercase tracking-widest">섹터 (산업군)</label>
+              <Select value={sector} onValueChange={setSector}>
+                <SelectTrigger className="w-full h-10 border-gray-200 bg-gray-50 text-gray-800 font-bold text-sm">
+                  <SelectValue placeholder="섹터 전체" />
+                </SelectTrigger>
+                <SelectContent className="bg-white border-gray-200 shadow-xl">
+                  <SelectItem value="ALL">전체 섹터</SelectItem>
+                  <SelectItem value="Technology">테크 (Technology)</SelectItem>
+                  <SelectItem value="Healthcare">헬스케어 (Healthcare)</SelectItem>
+                  <SelectItem value="Energy">에너지 (Energy)</SelectItem>
+                  <SelectItem value="Financial Services">금융 (Financials)</SelectItem>
+                  <SelectItem value="Consumer Cyclical">임의소비재 (Consumer Cyclical)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-xs font-black text-gray-500 uppercase tracking-widest">투자 스타일</label>
+              <Select value={strategyType} onValueChange={(val: any) => setStrategyType(val)}>
+                <SelectTrigger className="w-full h-10 border-gray-200 bg-gray-50 text-gray-800 font-bold text-sm">
+                  <SelectValue placeholder="모두 탐색" />
+                </SelectTrigger>
+                <SelectContent className="bg-white border-gray-200 shadow-xl">
+                  <SelectItem value="all">종합 분석 (기본)</SelectItem>
+                  <SelectItem value="growth">성장주 (매출 고속 성장)</SelectItem>
+                  <SelectItem value="value">가치주 (자산 대비 저평가)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
 
           <div className="p-4 bg-gray-50 rounded-sm border border-gray-200">

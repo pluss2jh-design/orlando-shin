@@ -22,32 +22,14 @@ function OnboardingContent() {
     const [formData, setFormData] = useState({
         nickname: name,
         email: email,
-        password: '',
-        confirmPassword: '',
     });
-
-    const validatePassword = (pass: string) => {
-        // 최소 8자리, 영어 대소문자 및 숫자 허용 (전부 포함 필수 아님)
-        const regex = /^[a-zA-Z0-9!@#$%^?&*]{8,}$/;
-        return regex.test(pass);
-    };
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setError(null);
 
-        if (!formData.nickname || !formData.email || !formData.password) {
+        if (!formData.nickname || !formData.email) {
             setError('모든 필수 항목을 입력해주세요.');
-            return;
-        }
-
-        if (!validatePassword(formData.password)) {
-            setError('비밀번호는 영어 대소문자나 숫자를 사용하여 최소 8자리 이상으로 설정해야 합니다.');
-            return;
-        }
-
-        if (formData.password !== formData.confirmPassword) {
-            setError('비밀번호가 일치하지 않습니다.');
             return;
         }
 
@@ -124,36 +106,6 @@ function OnboardingContent() {
                                     placeholder="사용할 닉네임을 입력하세요"
                                     value={formData.nickname}
                                     onChange={(e) => setFormData({ ...formData, nickname: e.target.value })}
-                                    className="pl-10 bg-gray-900/50 border-gray-800 text-white focus:ring-blue-500 focus:border-blue-500"
-                                    required
-                                />
-                            </div>
-                        </div>
-
-                        <div className="space-y-2">
-                            <Label className="text-gray-300 text-xs font-bold uppercase tracking-widest">비밀번호 설정</Label>
-                            <div className="relative">
-                                <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-500" />
-                                <Input
-                                    type="password"
-                                    placeholder="영어 또는 숫자 포함 8자리 이상"
-                                    value={formData.password}
-                                    onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                                    className="pl-10 bg-gray-900/50 border-gray-800 text-white focus:ring-blue-500 focus:border-blue-500"
-                                    required
-                                />
-                            </div>
-                        </div>
-
-                        <div className="space-y-2">
-                            <Label className="text-gray-400 text-xs font-bold uppercase tracking-widest">비밀번호 확인</Label>
-                            <div className="relative">
-                                <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-500" />
-                                <Input
-                                    type="password"
-                                    placeholder="비밀번호를 다시 입력하세요"
-                                    value={formData.confirmPassword}
-                                    onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
                                     className="pl-10 bg-gray-900/50 border-gray-800 text-white focus:ring-blue-500 focus:border-blue-500"
                                     required
                                 />

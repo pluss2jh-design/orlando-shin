@@ -24,6 +24,7 @@ export async function GET(request: NextRequest) {
         email: true,
         image: true,
         plan: true,
+        provider: true,
         createdAt: true,
         suspendedUntil: true,
       },

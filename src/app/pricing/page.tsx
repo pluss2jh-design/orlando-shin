@@ -33,7 +33,8 @@ export default function PricingPage() {
             try {
                 const res = await fetch('/api/admin/plans');
                 if (res.ok) {
-                    setPlans(await res.json());
+                    const data = await res.json();
+                    setPlans(data.filter((p: Plan) => p.id.toLowerCase() !== 'master'));
                 }
             } catch (error) {
                 console.error('Fetch plans failed:', error);
@@ -46,7 +47,7 @@ export default function PricingPage() {
 
     const handleSelectPlan = async (planId: string) => {
         if (!session) {
-            router.push(`/signup?plan=${planId}`);
+            router.push(`/login?callbackUrl=/pricing`);
             return;
         }
 

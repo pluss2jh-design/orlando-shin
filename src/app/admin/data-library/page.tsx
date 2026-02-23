@@ -72,7 +72,7 @@ export default function DataLibraryPage() {
     const [title, setTitle] = useState('');
     const [aiModels, setAiModels] = useState<Record<string, string>>({});
     const [availableModels, setAvailableModels] = useState<{ value: string, label: string, reqKey: string }[]>([]);
-    const [keys, setKeys] = useState<{ GOOGLE_API_KEY?: string, OPENAI_API_KEY?: string, CLAUDE_API_KEY?: string } | null>(null);
+    const [keys, setKeys] = useState<{ GEMINI_API_KEY?: string, OPENAI_API_KEY?: string, CLAUDE_API_KEY?: string } | null>(null);
 
     useEffect(() => {
         fetchInitialData();

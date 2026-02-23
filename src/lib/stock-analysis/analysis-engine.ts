@@ -33,11 +33,11 @@ export async function runAnalysisEngine(
   newsApiKey?: string
 ): Promise<RecommendationResult> {
   console.log(`Starting analysis engine with universe screening...`);
-  
+
   const exchangeRate = await fetchExchangeRate();
   const universe = getStockUniverse();
   console.log(`Universe size: ${universe.length} tickers`);
-  
+
   // 모든 규칙 카테고리 통합
   const criteria = knowledge.criteria;
   const allRules = [
@@ -50,11 +50,11 @@ export async function runAnalysisEngine(
   ];
 
   console.log(`Evaluating ${allRules.length} rules for each company.`);
-  
+
   // 기본 시세 데이터 1차 조회 (배치 처리)
   const batchSize = 25;
   const allYahooData: YahooFinanceData[] = [];
-  
+
   for (let i = 0; i < universe.length; i += batchSize) {
     const batch = universe.slice(i, i + batchSize);
     try {
@@ -67,7 +67,7 @@ export async function runAnalysisEngine(
         try {
           const singleQuote = await fetchBatchQuotes([ticker]);
           allYahooData.push(...singleQuote);
-        } catch (e) {}
+        } catch (e) { }
       }
     }
   }
@@ -91,7 +91,13 @@ export async function runAnalysisEngine(
     await Promise.all(chunk.map(async (stock) => {
       try {
         const fullData = await fetchYahooFinanceData(stock.ticker, conditions.periodMonths || 12);
-        
+
+        if (conditions.sector && conditions.sector !== 'ALL') {
+          if (!fullData.sector || !fullData.sector.toLowerCase().includes(conditions.sector.toLowerCase())) {
+            return; // Skip this stock
+          }
+        }
+
         let periodReturn = 0;
         if (fullData.priceHistory && fullData.priceHistory.length >= 2) {
           const startPrice = fullData.priceHistory[0].close;
@@ -127,24 +133,34 @@ export async function runAnalysisEngine(
           const scoreResult = calculateRuleScore(ruleObj.rule, fullData, company);
           // 데이터가 부족한 경우 stock(배치 데이터)에서라도 정보를 찾아 점수 보정
           if (scoreResult.score === 5 && scoreResult.reason === '보통') {
-             const refinedScore = calculateRuleScore(ruleObj.rule, stock, company);
-             if (refinedScore.score !== 5) {
-                ruleScores.push(refinedScore);
-                const weight = (ruleObj as any).weight || 0.5;
-                weightedScoreSum += refinedScore.score * weight;
-                totalWeightSum += weight;
-                continue;
-             }
+            const refinedScore = calculateRuleScore(ruleObj.rule, stock, company);
+            if (refinedScore.score !== 5) {
+              ruleScores.push(refinedScore);
+              const weight = (ruleObj as any).weight || 0.5;
+              weightedScoreSum += refinedScore.score * weight;
+              totalWeightSum += weight;
+              continue;
+            }
           }
-          
+
           const weight = (ruleObj as any).weight || 0.5;
           ruleScores.push(scoreResult);
           weightedScoreSum += scoreResult.score * weight;
           totalWeightSum += weight;
         }
 
+        let strategyBonus = 0;
+        if (conditions.strategyType === 'growth') {
+          if (fullData.revenueGrowth && fullData.revenueGrowth > 0.1) strategyBonus += 1.5;
+          if (fullData.revenueGrowth && fullData.revenueGrowth > 0.3) strategyBonus += 1.5;
+        } else if (conditions.strategyType === 'value') {
+          if (fullData.priceToBook && fullData.priceToBook > 0 && fullData.priceToBook < 1.2) strategyBonus += 1.5;
+          if (fullData.trailingPE && fullData.trailingPE > 0 && fullData.trailingPE < 12) strategyBonus += 1.5;
+        }
+
         // 0-10점 척도로 정규화 (AGENTS.md Rule 5 준수)
-        const finalScore = totalWeightSum > 0 ? (weightedScoreSum / totalWeightSum) : 5;
+        let finalScore = totalWeightSum > 0 ? (weightedScoreSum / totalWeightSum) : 5;
+        finalScore = Math.min(10, finalScore + strategyBonus);
 
         stocksWithScores.push({
           ticker: stock.ticker,
@@ -162,13 +178,13 @@ export async function runAnalysisEngine(
   }
 
   const topPicks: FilteredCandidate[] = stocksWithScores
-    .sort((a, b) => b.totalScore - a.totalScore)
+    .sort((a, b) => b.totalScore - a.totalScore || b.periodReturn - a.periodReturn)
     .slice(0, Math.min(companyCount, 20))
     .map((stock) => {
       const riskLevel = stock.periodReturn > 50 ? 'high' : stock.periodReturn > 20 ? 'medium' : 'low';
       const sortedRules = [...stock.ruleScores].sort((a, b) => b.score - a.score);
       const topRules = sortedRules.slice(0, 3);
-      
+
       const thesis = `${stock.ticker}는 종합 분석 결과 10점 만점 중 ${stock.totalScore}점으로 평가되었습니다. ` +
         `특히 ${topRules.map(r => r.rule.split(':')[0]).join(', ')} 등의 지표에서 긍정적인 신호를 보였습니다. ` +
         `실시간 데이터 기반 PER ${stock.yahooData.trailingPE?.toFixed(1) || 'N/A'}, ROE ${stock.yahooData.returnOnEquity ? (stock.yahooData.returnOnEquity * 100).toFixed(1) : 'N/A'}%를 기록하고 있어 투자 매력도가 우수합니다.`;
@@ -214,7 +230,7 @@ export async function runAnalysisEngine(
  */
 function calculateRuleScore(rule: string, data: YahooFinanceData, company: ExtractedCompanyAnalysis): RuleScore {
   const ruleLower = rule.toLowerCase();
-  
+
   // ROE 평가 (수익성)
   if (ruleLower.includes('roe')) {
     const val = (data.returnOnEquity || 0) * 100;
@@ -224,7 +240,7 @@ function calculateRuleScore(rule: string, data: YahooFinanceData, company: Extra
     if (val >= 8) return { rule, score: 6, reason: `ROE ${val.toFixed(1)}% (보통)` };
     return { rule, score: 3, reason: `ROE ${val.toFixed(1)}% (저조)` };
   }
-  
+
   // PER 평가 (밸류에이션)
   if (ruleLower.includes('per')) {
     const val = data.trailingPE;
@@ -234,7 +250,7 @@ function calculateRuleScore(rule: string, data: YahooFinanceData, company: Extra
     if (val <= 35) return { rule, score: 4, reason: `PER ${val.toFixed(1)} (고평가 영역)` };
     return { rule, score: 1, reason: `PER ${val.toFixed(1)} (과도한 고평가)` };
   }
-  
+
   // PBR 평가 (자산가치)
   if (ruleLower.includes('pbr')) {
     const val = data.priceToBook;

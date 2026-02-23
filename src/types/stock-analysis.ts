@@ -15,6 +15,8 @@ export interface UploadedFile {
 export interface InvestmentConditions {
   amount: number;
   periodMonths: number;
+  sector?: string;
+  strategyType?: 'growth' | 'value' | 'all';
 }
 
 export interface AnalysisResult {
@@ -220,6 +222,8 @@ export interface YahooFinanceData {
   trailingEps?: number;
   dividendYield?: number;
   marketCap?: number;
+  sector?: string;
+  revenueGrowth?: number;
 
   priceHistory: PriceHistoryEntry[];
 

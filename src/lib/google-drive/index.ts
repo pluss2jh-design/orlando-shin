@@ -192,21 +192,11 @@ export async function syncAllFiles(): Promise<SyncResult> {
 }
 
 export async function getSyncInfo(): Promise<SyncResult | null> {
+  // 캐시가 있으면 반환, 동기화 중이거나 캐시가 없으면 그냥 null (자동 동기화 방지)
   if (driveStatus.cache) {
     return driveStatus.cache;
   }
-
-  if (driveStatus.isSyncing) {
-    return null;
-  }
-
-  try {
-    const data = await listDriveFiles();
-    driveStatus.cache = data;
-    return data;
-  } catch {
-    return null;
-  }
+  return null;
 }
 
 export function getDriveSyncStatus(): boolean {

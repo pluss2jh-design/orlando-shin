@@ -120,7 +120,7 @@ export async function fetchYahooFinanceData(
 
   try {
     summaryResult = await yahooFinance.quoteSummary(ticker, {
-      modules: ['financialData', 'price', 'defaultKeyStatistics', 'summaryDetail'],
+      modules: ['financialData', 'price', 'defaultKeyStatistics', 'summaryDetail', 'assetProfile'],
     });
   } catch (error) {
     console.warn(`Quote summary failed for ${ticker}, attempting basic quote:`, error);
@@ -155,6 +155,7 @@ export async function fetchYahooFinanceData(
   const price = summaryResult.price;
   const keyStats = summaryResult.defaultKeyStatistics;
   const summaryDetail = summaryResult.summaryDetail;
+  const assetProfile = summaryResult.assetProfile;
 
   const currency = detectTickerCurrency(ticker, price?.currency);
 
@@ -184,6 +185,8 @@ export async function fetchYahooFinanceData(
     trailingEps: summaryDetail?.trailingAnnualDividendYield,
     dividendYield: summaryDetail?.dividendYield,
     marketCap: price?.marketCap,
+    sector: assetProfile?.sector,
+    revenueGrowth: financial?.revenueGrowth,
 
     priceHistory,
     fetchedAt: new Date(),

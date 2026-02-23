@@ -39,6 +39,9 @@ export function UserMenu() {
   const currentPlan = ((session.user as any).plan || 'FREE').toUpperCase();
 
   const handleLogout = async () => {
+    try {
+      await fetch('/api/analysis', { method: 'DELETE' });
+    } catch (e) { console.error('Clear job failed:', e); }
     await signOut({ redirect: false });
     router.push('/login');
   };
@@ -64,9 +67,9 @@ export function UserMenu() {
             </p>
             <div className="flex items-center gap-2 mt-1">
               <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-full border ${currentPlan === 'MASTER' ? 'bg-yellow-500/10 text-yellow-500 border-yellow-500/20' :
-                  currentPlan === 'PREMIUM' ? 'bg-purple-500/10 text-purple-500 border-purple-500/20' :
-                    currentPlan === 'STANDARD' ? 'bg-blue-500/10 text-blue-500 border-blue-500/20' :
-                      'bg-gray-500/10 text-gray-500 border-gray-500/20'
+                currentPlan === 'PREMIUM' ? 'bg-purple-500/10 text-purple-500 border-purple-500/20' :
+                  currentPlan === 'STANDARD' ? 'bg-blue-500/10 text-blue-500 border-blue-500/20' :
+                    'bg-gray-500/10 text-gray-500 border-gray-500/20'
                 }`}>
                 {currentPlan}
               </span>

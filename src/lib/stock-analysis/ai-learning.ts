@@ -26,9 +26,9 @@ export const learningStatus = {
 };
 
 function getGeminiClient(customApiKey?: string) {
-  const apiKey = customApiKey || process.env.GOOGLE_API_KEY;
+  const apiKey = customApiKey || process.env.GEMINI_API_KEY;
   if (!apiKey) {
-    throw new Error('GOOGLE_API_KEY가 설정되지 않았습니다.');
+    throw new Error('GEMINI_API_KEY가 설정되지 않았습니다.');
   }
   return new GoogleGenerativeAI(apiKey);
 }

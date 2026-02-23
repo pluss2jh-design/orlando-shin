@@ -39,10 +39,10 @@ export async function GET() {
         }
 
         // 2. Gemini Models
-        if (process.env.GOOGLE_API_KEY) {
+        if (process.env.GEMINI_API_KEY) {
             try {
                 // we can't fetch easily without REST call or specific trick, but standard google API exists
-                const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${process.env.GOOGLE_API_KEY}`);
+                const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${process.env.GEMINI_API_KEY}`);
                 const data = await response.json();
                 if (data.models) {
                     const geminiModels = data.models
@@ -50,7 +50,7 @@ export async function GET() {
                         .map((m: any) => ({
                             value: m.name.replace('models/', ''),
                             label: m.displayName || m.name.replace('models/', ''),
-                            reqKey: 'GOOGLE_API_KEY'
+                            reqKey: 'GEMINI_API_KEY'
                         }));
 
                     // Sort string desc

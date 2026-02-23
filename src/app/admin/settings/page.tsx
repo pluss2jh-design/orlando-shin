@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 
 interface ApiKeys {
-    GOOGLE_API_KEY: string;
+    GEMINI_API_KEY: string;
     OPENAI_API_KEY: string;
     CLAUDE_API_KEY: string;
     YAHOO_FINANCE_API_KEY: string;
@@ -16,7 +16,7 @@ interface ApiKeys {
 
 export default function SettingsPage() {
     const [keys, setKeys] = useState<ApiKeys>({
-        GOOGLE_API_KEY: '',
+        GEMINI_API_KEY: '',
         OPENAI_API_KEY: '',
         CLAUDE_API_KEY: '',
         YAHOO_FINANCE_API_KEY: '',
@@ -122,19 +122,19 @@ export default function SettingsPage() {
                                             <Key className="h-4 w-4 text-gray-500 group-focus-within:text-blue-500 transition-colors" />
                                         </div>
                                         <Input
-                                            type={showKeys['GOOGLE_API_KEY'] ? 'text' : 'password'}
-                                            value={keys.GOOGLE_API_KEY}
-                                            onChange={(e) => handleChange('GOOGLE_API_KEY', e.target.value)}
+                                            type={showKeys['GEMINI_API_KEY'] ? 'text' : 'password'}
+                                            value={keys.GEMINI_API_KEY}
+                                            onChange={(e) => handleChange('GEMINI_API_KEY', e.target.value)}
                                             placeholder="AIza..."
                                             className="bg-gray-950 border-gray-800 text-white pl-10 pr-12 focus:ring-blue-500/50 focus:border-blue-500 transition-all font-mono"
                                         />
                                         <button
                                             type="button"
-                                            onClick={() => toggleShowKey('GOOGLE_API_KEY')}
+                                            onClick={() => toggleShowKey('GEMINI_API_KEY')}
                                             className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded-md hover:bg-gray-800 text-gray-400 hover:text-white transition-colors"
-                                            title={showKeys['GOOGLE_API_KEY'] ? "숨기기" : "보기"}
+                                            title={showKeys['GEMINI_API_KEY'] ? "숨기기" : "보기"}
                                         >
-                                            {showKeys['GOOGLE_API_KEY'] ? (
+                                            {showKeys['GEMINI_API_KEY'] ? (
                                                 <EyeOff className="h-4 w-4" />
                                             ) : (
                                                 <Eye className="h-4 w-4" />
