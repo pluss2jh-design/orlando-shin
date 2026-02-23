@@ -243,15 +243,32 @@ ${isPDFFile(file) || isVideoFile(file) ? '(첨부된 미디어 파일 참조)' :
           }
         } else {
           let activeModel = chosenModelGrp || 'gemini-1.5-pro';
-          if (ext === 'mp4') {
-            // 원천 데이터 중 mp4 학습 시에는 항상 gemini 1.5 pro (3.1 Pro UI)를 사용하도록 처리
-            activeModel = 'gemini-1.5-pro';
-          }
           const genAI = getGeminiClient();
-          const model = genAI.getGenerativeModel({ model: activeModel });
           const promptParts = inlineDataPart ? [promptText, inlineDataPart] : promptText;
-          const result = await model.generateContent(promptParts);
-          responseText = result.response.text();
+
+          if (ext === 'mp4') {
+            const fallbackModels = ['gemini-3.1-pro', 'gemini-3.0-pro', 'gemini-3-pro', 'gemini-3.0-flash', 'gemini-3-flash', 'gemini-1.5-pro'];
+            let result;
+            let lastError;
+            for (const m of fallbackModels) {
+              try {
+                console.log(`[Video Analysis] Trying model: ${m}`);
+                const model = genAI.getGenerativeModel({ model: m });
+                result = await model.generateContent(promptParts);
+                console.log(`[Video Analysis] Success with model: ${m}`);
+                break;
+              } catch (err: any) {
+                console.log(`[Video Analysis] Model ${m} failed: ${err.message}`);
+                lastError = err;
+              }
+            }
+            if (!result) throw lastError;
+            responseText = result.response.text();
+          } else {
+            const model = genAI.getGenerativeModel({ model: activeModel });
+            const result = await model.generateContent(promptParts);
+            responseText = result.response.text();
+          }
         }
 
         let analysisResult: { keyConditions?: string[] } = { keyConditions: [] };

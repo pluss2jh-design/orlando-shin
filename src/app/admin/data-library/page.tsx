@@ -409,8 +409,8 @@ export default function DataLibraryPage() {
                                                     </div>
                                                     {ext === 'mp4' ? (
                                                         <div className="flex flex-col">
-                                                            <Badge className="bg-blue-500/10 text-blue-400 border border-blue-500/20 text-xs py-1 px-3 block">
-                                                                영상 길이에 상관없이 항상 최상의 품질을 위해 Gemini 3.1 Pro (1.5 Native) 모델을 고정 사용합니다.
+                                                            <Badge className="bg-blue-500/10 text-blue-400 border border-blue-500/20 text-xs py-1 px-3 block whitespace-normal">
+                                                                영상 분석은 최상의 품질을 위해 <b>Gemini 3.1 Pro ➔ 3.0 Pro ➔ 3.0 Flash ➔ 1.5 Pro</b> 순으로 자동 폴백(Fallback)하여 사용합니다.
                                                             </Badge>
                                                         </div>
                                                     ) : (
