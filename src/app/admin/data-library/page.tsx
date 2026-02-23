@@ -16,7 +16,8 @@ import {
     Sparkles,
     Eye,
     Pencil,
-    X
+    X,
+    StopCircle
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -226,6 +227,26 @@ export default function DataLibraryPage() {
         }).finally(() => {
             setLearning(false);
         });
+    };
+
+    const handleCancelLearning = async () => {
+        if (!confirm('현재 진행중인 AI 학습을 강제로 중지하시겠습니까? 처리중이던 파일 분석 데이터는 모두 삭제됩니다.')) return;
+
+        try {
+            const response = await fetch('/api/admin/learning-status', {
+                method: 'DELETE'
+            });
+            if (response.ok) {
+                alert('학습을 강제로 중지하는 명령을 서버에 전달했습니다.');
+                setLearning(false); // Can be managed by status checker too
+            } else {
+                const err = await response.json();
+                alert(`중지 요청 실패: ${err.error}`);
+            }
+        } catch (error) {
+            console.error('Cancel failed:', error);
+            alert('중지 요청 중 오류가 발생했습니다.');
+        }
     };
 
     const handleActivateKnowledge = async (id: string, active: boolean) => {
@@ -525,23 +546,33 @@ export default function DataLibraryPage() {
                                     onChange={(e) => setTitle(e.target.value)}
                                 />
                             </div>
-                            <Button
-                                onClick={handleRunLearning}
-                                disabled={learning || selectedFileIds.size === 0 || !isModelSelectionComplete()}
-                                className="w-full h-14 bg-blue-600 hover:bg-blue-700 text-white text-lg font-black shadow-lg transform active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                            >
-                                {learning ? (
-                                    <>
+                            {learning ? (
+                                <div className="flex gap-2">
+                                    <Button
+                                        disabled
+                                        className="flex-1 h-14 bg-blue-600/50 text-white text-lg font-black"
+                                    >
                                         <RefreshCw className="h-5 w-5 mr-3 animate-spin" />
                                         DEEP LEARNING IN PROGRESS...
-                                    </>
-                                ) : (
-                                    <>
-                                        <Brain className="h-5 w-5 mr-3 text-white" />
-                                        선택한 {selectedFileIds.size}개 파일로 지식 학습 시작
-                                    </>
-                                )}
-                            </Button>
+                                    </Button>
+                                    <Button
+                                        onClick={handleCancelLearning}
+                                        className="h-14 bg-rose-600 hover:bg-rose-700 text-white text-sm font-black w-24"
+                                    >
+                                        <StopCircle className="h-5 w-5 mb-1" />
+                                        강제 중지
+                                    </Button>
+                                </div>
+                            ) : (
+                                <Button
+                                    onClick={handleRunLearning}
+                                    disabled={selectedFileIds.size === 0 || !isModelSelectionComplete()}
+                                    className="w-full h-14 bg-blue-600 hover:bg-blue-700 text-white text-lg font-black shadow-lg transform active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                    <Brain className="h-5 w-5 mr-3 text-white" />
+                                    선택한 {selectedFileIds.size}개 파일로 지식 학습 시작
+                                </Button>
+                            )}
                         </div>
                     </Card>
                 </div>
@@ -691,7 +722,7 @@ export default function DataLibraryPage() {
                         </CardContent>
                     </Card>
                 </div>
-            </div>
-        </div>
+            </div >
+        </div >
     );
 }

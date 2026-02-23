@@ -22,8 +22,15 @@ import {
 
 export const learningStatus = {
   isLearning: false,
+  isCancelled: false,
   startTime: null as Date | null,
 };
+
+export function cancelLearningPipeline() {
+  if (learningStatus.isLearning) {
+    learningStatus.isCancelled = true;
+  }
+}
 
 function getGeminiClient(customApiKey?: string) {
   const apiKey = customApiKey || process.env.GEMINI_API_KEY;
@@ -96,6 +103,7 @@ export async function runLearningPipeline(
   }
 
   learningStatus.isLearning = true;
+  learningStatus.isCancelled = false;
   learningStatus.startTime = new Date();
 
   try {
@@ -140,6 +148,9 @@ export async function runLearningPipeline(
     const fileAnalyses: FileAnalysis[] = [];
 
     for (const file of targetFiles) {
+      if (learningStatus.isCancelled) {
+        throw new Error('학습이 관리자에 의해 강제 중지되었습니다. 처리되던 데이터는 모두 폐기됩니다.');
+      }
       try {
         if (!isPDFFile(file) && !isVideoFile(file) && !isTextOrDocumentFile(file)) {
           console.log(`Skipping unsupported file: ${file.name}`);
@@ -326,6 +337,10 @@ ${isPDFFile(file) || isVideoFile(file) ? '(첨부된 미디어 파일 참조)' :
       } catch (error) {
         console.error(`파일 분석 실패: ${file.name}`, error);
       }
+    }
+
+    if (learningStatus.isCancelled) {
+      throw new Error('학습이 관리자에 의해 강제 중지되었습니다. 처리되던 데이터는 모두 폐기됩니다.');
     }
 
     console.log(`Successfully analyzed ${fileAnalyses.length} files`);
@@ -585,6 +600,7 @@ ${docConditions.substring(0, 15000)}`;
     return knowledge;
   } finally {
     learningStatus.isLearning = false;
+    learningStatus.isCancelled = false;
     learningStatus.startTime = null;
   }
 }
