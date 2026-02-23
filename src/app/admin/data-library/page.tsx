@@ -308,7 +308,7 @@ export default function DataLibraryPage() {
         }
 
         for (const ext of selectedExts) {
-            if (ext !== 'mp4' && ext !== 'other') {
+            if (ext !== 'mp4') {
                 if (!aiModels[ext]) {
                     return false;
                 }
@@ -402,53 +402,51 @@ export default function DataLibraryPage() {
 
                                         {tabsKeys.map(ext => (
                                             <TabsContent key={ext} value={ext} className="m-0">
-                                                {ext !== 'other' && (
-                                                    <div className="bg-gray-900/50 p-4 border-b border-gray-800 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                                                        <div className="flex items-center gap-2">
-                                                            <Brain className="h-4 w-4 text-blue-500" />
-                                                            <span className="text-xs font-black text-white uppercase">{ext} 분석 AI 모델</span>
-                                                        </div>
-                                                        {ext === 'mp4' ? (
-                                                            <div className="flex flex-col">
-                                                                <Badge className="bg-blue-500/10 text-blue-400 border border-blue-500/20 text-xs py-1 px-3 block">
-                                                                    영상이 10분 이하일 경우엔 Gemini 3.1 Flash, 10분 초과일 경우엔 Gemini 3.1 Pro를 자동 사용합니다.
-                                                                </Badge>
-                                                            </div>
-                                                        ) : (
-                                                            <Select
-                                                                value={aiModels[ext] || ''}
-                                                                onValueChange={(val) => setAiModels({ ...aiModels, [ext]: val })}
-                                                            >
-                                                                <SelectTrigger className="w-full sm:w-[250px] bg-gray-950 border-gray-800 text-white font-bold h-9 text-xs">
-                                                                    <SelectValue placeholder="모델을 선택하세요" />
-                                                                </SelectTrigger>
-                                                                <SelectContent className="bg-gray-900 border-gray-800">
-                                                                    {availableModels.map(model => {
-                                                                        const hasKey = keys && keys[model.reqKey as keyof typeof keys];
-                                                                        return (
-                                                                            <SelectItem
-                                                                                key={model.value}
-                                                                                value={model.value}
-                                                                                disabled={!hasKey}
-                                                                                className="text-white focus:bg-gray-800"
-                                                                            >
-                                                                                <div className="flex items-center justify-between w-full gap-4">
-                                                                                    <span>{model.label}</span>
-                                                                                    {!hasKey && (
-                                                                                        <span className="text-[10px] text-rose-500">API 키 미등록</span>
-                                                                                    )}
-                                                                                </div>
-                                                                            </SelectItem>
-                                                                        );
-                                                                    })}
-                                                                    {availableModels.length === 0 && (
-                                                                        <div className="text-gray-500 text-xs p-3">모델 로딩 중이거나 사용가능한 모델이 없습니다.</div>
-                                                                    )}
-                                                                </SelectContent>
-                                                            </Select>
-                                                        )}
+                                                <div className="bg-gray-900/50 p-4 border-b border-gray-800 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                                                    <div className="flex items-center gap-2">
+                                                        <Brain className="h-4 w-4 text-blue-500" />
+                                                        <span className="text-xs font-black text-white uppercase">{ext} 분석 AI 모델</span>
                                                     </div>
-                                                )}
+                                                    {ext === 'mp4' ? (
+                                                        <div className="flex flex-col">
+                                                            <Badge className="bg-blue-500/10 text-blue-400 border border-blue-500/20 text-xs py-1 px-3 block">
+                                                                영상이 10분 이하일 경우엔 Gemini 3.1 Flash, 10분 초과일 경우엔 Gemini 3.1 Pro를 자동 사용합니다.
+                                                            </Badge>
+                                                        </div>
+                                                    ) : (
+                                                        <Select
+                                                            value={aiModels[ext] || ''}
+                                                            onValueChange={(val) => setAiModels({ ...aiModels, [ext]: val })}
+                                                        >
+                                                            <SelectTrigger className="w-full sm:w-[250px] bg-gray-950 border-gray-800 text-white font-bold h-9 text-xs">
+                                                                <SelectValue placeholder="모델을 선택하세요" />
+                                                            </SelectTrigger>
+                                                            <SelectContent className="bg-gray-900 border-gray-800">
+                                                                {availableModels.map(model => {
+                                                                    const hasKey = keys && keys[model.reqKey as keyof typeof keys];
+                                                                    return (
+                                                                        <SelectItem
+                                                                            key={model.value}
+                                                                            value={model.value}
+                                                                            disabled={!hasKey}
+                                                                            className="text-white focus:bg-gray-800"
+                                                                        >
+                                                                            <div className="flex items-center justify-between w-full gap-4">
+                                                                                <span>{model.label}</span>
+                                                                                {!hasKey && (
+                                                                                    <span className="text-[10px] text-rose-500">API 키 미등록</span>
+                                                                                )}
+                                                                            </div>
+                                                                        </SelectItem>
+                                                                    );
+                                                                })}
+                                                                {availableModels.length === 0 && (
+                                                                    <div className="text-gray-500 text-xs p-3">모델 로딩 중이거나 사용가능한 모델이 없습니다.</div>
+                                                                )}
+                                                            </SelectContent>
+                                                        </Select>
+                                                    )}
+                                                </div>
 
                                                 <div className="flex bg-gray-950 px-4 py-2 border-b border-gray-800 justify-between items-center">
                                                     <span className="text-xs text-gray-500 font-bold">{groupedFiles[ext].length}개 파일</span>

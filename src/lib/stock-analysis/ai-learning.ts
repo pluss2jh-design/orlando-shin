@@ -141,27 +141,7 @@ export async function runLearningPipeline(
 
     for (const file of targetFiles) {
       try {
-        if (isVideoFile(file)) {
-          const existingAnalysis = existingKnowledge?.fileAnalyses?.find(
-            fa => fa.fileName === file.name && fa.fileId === file.id
-          );
-
-          if (existingAnalysis && hasActualAnalysis(existingAnalysis.keyConditions)) {
-            console.log(`Keeping existing analysis for video: ${file.name}`);
-            fileAnalyses.push(existingAnalysis);
-          } else {
-            console.log(`Adding video with empty keyConditions: ${file.name}`);
-            fileAnalyses.push({
-              fileName: file.name,
-              fileId: file.id,
-              keyConditions: [],
-              extractedAt: new Date(),
-            });
-          }
-          continue;
-        }
-
-        if (!isPDFFile(file) && !isTextOrDocumentFile(file)) {
+        if (!isPDFFile(file) && !isVideoFile(file) && !isTextOrDocumentFile(file)) {
           console.log(`Skipping unsupported file: ${file.name}`);
           continue;
         }
@@ -169,17 +149,17 @@ export async function runLearningPipeline(
         let content = '';
         let inlineDataPart: any = null;
 
-        if (isPDFFile(file)) {
-          console.log(`Downloading PDF directly: ${file.name}`);
+        if (isPDFFile(file) || isVideoFile(file)) {
+          console.log(`Downloading file directly: ${file.name}`);
           const fileBuffer = await downloadDriveFile(file.id, file.name);
-          // downloadDriveFile returns a Buffer, no need for fs.readFile
+          const mimeType = isVideoFile(file) ? 'video/mp4' : 'application/pdf';
           inlineDataPart = {
             inlineData: {
               data: fileBuffer.toString('base64'),
-              mimeType: 'application/pdf'
+              mimeType: mimeType
             }
           };
-          content = '[PDF CONTENTS PASSED AS INLINE DATA]';
+          content = `[${mimeType.toUpperCase()} CONTENTS PASSED AS INLINE DATA]`;
         } else if (isTextOrDocumentFile(file)) {
           content = await extractFileContent(file);
           console.log(`Extracted file content length: ${content.length} chars`);
@@ -220,13 +200,13 @@ export async function runLearningPipeline(
 파일명: ${file.name}
 
 내용:
-${isPDFFile(file) ? '(첨부된 PDF 파일 참조)' : content.substring(0, 12000)}`;
+${isPDFFile(file) || isVideoFile(file) ? '(첨부된 미디어 파일 참조)' : content.substring(0, 12000)}`;
 
         let responseText = '';
 
         if (chosenModelGrp.startsWith('gpt')) {
-          if (isPDFFile(file)) {
-            throw new Error(`GPT 모델은 PDF 직접 분석을 완벽하게 지원하지 않을 수 있으나 텍스트 변환기를 사용해야 합니다. (선택된 파일: ${file.name})`);
+          if (isPDFFile(file) || isVideoFile(file)) {
+            throw new Error(`GPT 모델은 미디어 직접 분석을 완벽하게 지원하지 않아 텍스트 관리기를 사용해야 합니다. (선택된 파일: ${file.name})`);
           }
           const openai = getOpenAIClient();
           const res = await openai.chat.completions.create({
@@ -236,6 +216,9 @@ ${isPDFFile(file) ? '(첨부된 PDF 파일 참조)' : content.substring(0, 12000
           responseText = res.choices[0].message.content || '';
         } else if (chosenModelGrp.startsWith('claude')) {
           const anthropic = getAnthropicClient();
+          if (isVideoFile(file)) {
+            throw new Error(`Claude 모델은 비디오 직접 분석을 지원하지 않습니다. (선택된 파일: ${file.name})`);
+          }
           if (inlineDataPart) {
             const res = await anthropic.beta.messages.create({
               model: chosenModelGrp as any,
