@@ -1,0 +1,38 @@
+{
+  "orchestrator": {
+    "system_prompt": "너는 팀장이야. 복잡한 로직은 'prometheus'에게, 빠르고 정확한 논리 분석과 질의응답은 'oracle'에게, 단순 반복이나 문서 검색은 'librarian'에게, 구조 탐색은 'explore'에게 일을 시켜(delegate). @에이전트명 형식을 사용해서 호출해."
+  },
+  "agents": {
+    "prometheus": {
+      "model": "google/gemini-2.5-pro",
+      "description": "복잡한 코딩과 로직 실행 담당"
+    },
+    "oracle": {
+      "model": "google/gemini-3-flash",
+      "description": "빠르고 정확한 논리 분석 및 질의응답"
+    },
+    "librarian": {
+      "model": "google/gemini-2.5-flash",
+      "description": "빠른 문서 검색 및 반복 작업용"
+    },
+    "explore": {
+      "model": "google/gemini-2.0-flash",
+      "description": "코드베이스 구조 탐색 전용"
+    }
+  },
+  "lsp": {
+    "typescript-language-server": {
+      "command": [
+        "typescript-language-server.cmd",
+        "--stdio"
+      ],
+      "extensions": [
+        ".ts",
+        ".tsx",
+        ".js",
+        ".jsx"
+      ],
+      "priority": 10
+    }
+  }
+}
