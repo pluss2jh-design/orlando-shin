@@ -12,7 +12,24 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   ...authConfig,
   secret: process.env.AUTH_SECRET,
   trustHost: true,
-  // Providers are merged from authConfig in auth.config.ts
+  providers: [
+    ...authConfig.providers,
+    CredentialsProvider({
+      name: "Credentials",
+      credentials: {
+        email: { label: "Email", type: "email" },
+        password: { label: "Password", type: "password" }
+      },
+      async authorize(credentials) {
+        if (!credentials?.email || !credentials?.password) return null;
+        const user = await prisma.user.findFirst({ where: { email: credentials.email as string } });
+        if (!user || !user.password) return null;
+        const isCorrect = await bcrypt.compare(credentials.password as string, user.password);
+        if (!isCorrect) return null;
+        return { id: user.id, name: user.name, email: user.email, image: user.image, role: user.role, plan: user.plan };
+      }
+    }),
+  ],
   callbacks: {
     async signIn({ user, account, profile }) {
       if (account?.provider === 'google' || account?.provider === 'kakao' || account?.provider === 'naver') {

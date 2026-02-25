@@ -5,61 +5,23 @@ import NaverProvider from "next-auth/providers/naver";
 
 export const authConfig = {
     providers: [
-        ...(process.env.GOOGLE_CLIENT_ID ? [
-            GoogleProvider({
-                clientId: process.env.GOOGLE_CLIENT_ID,
-                clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-                allowDangerousEmailAccountLinking: false,
-            })
-        ] : []),
-        ...(process.env.KAKAO_CLIENT_ID ? [
-            KakaoProvider({
-                clientId: process.env.KAKAO_CLIENT_ID,
-                clientSecret: process.env.KAKAO_CLIENT_SECRET || undefined,
-                allowDangerousEmailAccountLinking: true,
-                checks: ["state"],
-                authorization: {
-                    params: {
-                        prompt: "login",
-                    },
-                },
-                profile(profile) {
-                    if (!profile) return null as any;
-                    const email = profile.kakao_account?.email || `${profile.id}@kakao.com`;
-                    const nickname = profile.properties?.nickname || profile.kakao_account?.profile?.nickname || '카카오 사용자';
-                    const image = profile.properties?.profile_image || profile.kakao_account?.profile?.profile_image_url;
-
-                    return {
-                        id: profile.id.toString(),
-                        name: nickname,
-                        email: email,
-                        image: image,
-                    }
-                }
-            })
-        ] : []),
-        ...(process.env.NAVER_CLIENT_ID ? [
-            NaverProvider({
-                clientId: process.env.NAVER_CLIENT_ID,
-                clientSecret: process.env.NAVER_CLIENT_SECRET,
-                allowDangerousEmailAccountLinking: true,
-                checks: ["state"],
-                authorization: {
-                    params: {
-                        auth_type: "reprompt",
-                    },
-                },
-                profile(profile) {
-                    if (!profile || !profile.response) return null as any;
-                    return {
-                        id: profile.response.id,
-                        name: profile.response.name || '네이버 사용자',
-                        email: profile.response.email,
-                        image: profile.response.profile_image,
-                    }
-                }
-            })
-        ] : []),
+        GoogleProvider({
+            clientId: process.env.GOOGLE_CLIENT_ID,
+            clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+            allowDangerousEmailAccountLinking: false,
+        }),
+        KakaoProvider({
+            clientId: process.env.KAKAO_CLIENT_ID,
+            clientSecret: process.env.KAKAO_CLIENT_SECRET,
+            allowDangerousEmailAccountLinking: true,
+            checks: ["state"],
+        }),
+        NaverProvider({
+            clientId: process.env.NAVER_CLIENT_ID,
+            clientSecret: process.env.NAVER_CLIENT_SECRET,
+            allowDangerousEmailAccountLinking: true,
+            checks: ["state"],
+        }),
     ],
     callbacks: {
         async jwt({ token, user }) {
@@ -87,5 +49,4 @@ export const authConfig = {
     session: {
         strategy: "jwt",
     },
-    trustHost: true,
 } satisfies NextAuthConfig;
