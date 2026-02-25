@@ -16,7 +16,7 @@ export const authConfig = {
             KakaoProvider({
                 clientId: process.env.KAKAO_CLIENT_ID,
                 clientSecret: process.env.KAKAO_CLIENT_SECRET || undefined,
-                allowDangerousEmailAccountLinking: false,
+                allowDangerousEmailAccountLinking: true,
                 checks: ["state"],
                 authorization: {
                     params: {
@@ -42,13 +42,15 @@ export const authConfig = {
             NaverProvider({
                 clientId: process.env.NAVER_CLIENT_ID,
                 clientSecret: process.env.NAVER_CLIENT_SECRET,
-                allowDangerousEmailAccountLinking: false,
+                allowDangerousEmailAccountLinking: true,
+                checks: ["state"],
                 authorization: {
                     params: {
                         auth_type: "reprompt",
                     },
                 },
                 profile(profile) {
+                    if (!profile || !profile.response) return null as any;
                     return {
                         id: profile.response.id,
                         name: profile.response.name || '네이버 사용자',
@@ -85,4 +87,5 @@ export const authConfig = {
     session: {
         strategy: "jwt",
     },
+    trustHost: true,
 } satisfies NextAuthConfig;

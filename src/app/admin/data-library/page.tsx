@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import {
     FileText,
     Film,
@@ -54,7 +54,47 @@ interface LearnedKnowledgeRecord {
     content: any;
 }
 
-// Models are now fetched dynamically from /api/admin/models
+// Optimized Model Selector Component
+const ModelSelector = ({ ext, currentModel, models, keys, onSelect }: { ext: string, currentModel: string, models: any[], keys: any, onSelect: (val: string) => void }) => {
+    return (
+        <Select value={currentModel} onValueChange={onSelect}>
+            <SelectTrigger className="w-full sm:w-[250px] bg-gray-950 border-gray-800 text-white font-bold h-9 text-xs">
+                <SelectValue placeholder="모델을 선택하세요" />
+            </SelectTrigger>
+            <SelectContent className="bg-gray-900 border-gray-800">
+                {models.map(model => {
+                    const hasKey = keys && keys[model.reqKey as keyof typeof keys];
+                    return (
+                        <SelectItem key={model.value} value={model.value} disabled={!hasKey} className="text-white focus:bg-gray-800">
+                            <div className="flex items-center justify-between w-full gap-4">
+                                <span>{model.label}</span>
+                                {!hasKey && <span className="text-[10px] text-rose-500">API 키 미등록</span>}
+                            </div>
+                        </SelectItem>
+                    );
+                })}
+            </SelectContent>
+        </Select>
+    );
+};
+
+// Optimized Title Input Component
+const TitleInput = ({ initialValue, onSave }: { initialValue: string, onSave: (val: string) => void }) => {
+    const [val, setVal] = useState(initialValue);
+    useEffect(() => { setVal(initialValue); }, [initialValue]);
+    return (
+        <div className="mb-6">
+            <Label className="text-xs font-black text-gray-400 uppercase tracking-widest mb-2 block">AI Engine Title</Label>
+            <Input
+                placeholder="지식 베이스 버전을 입력하세요 (예: 2024년 2분기 리포트)"
+                className="bg-gray-950 border-gray-800 text-white font-medium"
+                value={val}
+                onChange={(e) => setVal(e.target.value)}
+                onBlur={() => onSave(val)}
+            />
+        </div>
+    );
+};
 
 export default function DataLibraryPage() {
     const [files, setFiles] = useState<DriveFile[]>([]);
@@ -86,15 +126,45 @@ export default function DataLibraryPage() {
                 fetchFiles();
             }, 5000);
         }
-        return () => {
-            if (interval) clearInterval(interval);
-        };
+        return () => { if (interval) clearInterval(interval); };
     }, [syncing]);
+
+    // Polling learning status if learning is true
+    useEffect(() => {
+        let statusInterval: NodeJS.Timeout;
+        if (learning) {
+            statusInterval = setInterval(async () => {
+                try {
+                    const response = await fetch('/api/admin/learning-status');
+                    if (response.ok) {
+                        const data = await response.json();
+                        if (!data.isLearning) {
+                            setLearning(false);
+                            fetchInitialData();
+                        }
+                    }
+                } catch (e) { }
+            }, 5000);
+        }
+        return () => { if (statusInterval) clearInterval(statusInterval); };
+    }, [learning]);
 
     const fetchInitialData = async () => {
         setLoading(true);
-        await Promise.all([fetchFiles(), fetchKnowledge(), fetchKeys(), fetchModels()]);
+        await Promise.all([fetchFiles(), fetchKnowledge(), fetchKeys(), fetchModels(), fetchLearningStatus()]);
         setLoading(false);
+    };
+
+    const fetchLearningStatus = async () => {
+        try {
+            const response = await fetch('/api/admin/learning-status');
+            if (response.ok) {
+                const data = await response.json();
+                if (data.isLearning) setLearning(true);
+            }
+        } catch (error) {
+            console.error('Failed to fetch learning status:', error);
+        }
     };
 
     const fetchModels = async () => {
@@ -119,14 +189,6 @@ export default function DataLibraryPage() {
         } catch (error) {
             console.error('Failed to fetch keys:', error);
         }
-    };
-
-    const getFileExt = (name: string, mime: string) => {
-        if (mime.includes('video') || name.toLowerCase().endsWith('.mp4')) return 'mp4';
-        if (name.toLowerCase().endsWith('.pdf') || mime.includes('pdf')) return 'pdf';
-        if (name.toLowerCase().endsWith('.docx') || name.toLowerCase().endsWith('.doc')) return 'docx';
-        if (name.toLowerCase().endsWith('.xlsx') || name.toLowerCase().endsWith('.xls') || name.toLowerCase().endsWith('.csv')) return 'xlsx';
-        return 'other';
     };
 
     const fetchFiles = async () => {
@@ -154,9 +216,16 @@ export default function DataLibraryPage() {
         }
     };
 
+    const getFileExt = (name: string, mime: string) => {
+        if (mime.includes('video') || name.toLowerCase().endsWith('.mp4')) return 'mp4';
+        if (name.toLowerCase().endsWith('.pdf') || mime.includes('pdf')) return 'pdf';
+        if (name.toLowerCase().endsWith('.docx') || name.toLowerCase().endsWith('.doc')) return 'docx';
+        if (name.toLowerCase().endsWith('.xlsx') || name.toLowerCase().endsWith('.xls') || name.toLowerCase().endsWith('.csv')) return 'xlsx';
+        return 'other';
+    };
+
     const handleSync = async () => {
         if (!confirm('구글 드라이브 동기화를 시작하시겠습니까?\n이 작업은 백그라운드에서 진행됩니다.')) return;
-
         try {
             setSyncing(true);
             fetch('/api/gdrive/sync', { method: 'POST' }).catch(e => console.error(e));
@@ -167,27 +236,28 @@ export default function DataLibraryPage() {
     };
 
     const handleToggleFileSelection = (fileId: string) => {
-        const next = new Set(selectedFileIds);
-        if (next.has(fileId)) next.delete(fileId);
-        else next.add(fileId);
-        setSelectedFileIds(next);
+        setSelectedFileIds(prev => {
+            const next = new Set(prev);
+            if (next.has(fileId)) next.delete(fileId);
+            else next.add(fileId);
+            return next;
+        });
     };
 
     const handleSelectAll = (checked: boolean) => {
-        if (checked) {
-            setSelectedFileIds(new Set(files.map(f => f.id)));
-        } else {
-            setSelectedFileIds(new Set());
-        }
+        if (checked) setSelectedFileIds(new Set(files.map(f => f.id)));
+        else setSelectedFileIds(new Set());
     };
 
     const handleSelectAllExt = (extFiles: DriveFile[], checked: boolean) => {
-        const next = new Set(selectedFileIds);
-        extFiles.forEach(f => {
-            if (checked) next.add(f.id);
-            else next.delete(f.id);
+        setSelectedFileIds(prev => {
+            const next = new Set(prev);
+            extFiles.forEach(f => {
+                if (checked) next.add(f.id);
+                else next.delete(f.id);
+            });
+            return next;
         });
-        setSelectedFileIds(next);
     };
 
     const handleRunLearning = () => {
@@ -195,11 +265,8 @@ export default function DataLibraryPage() {
             alert('학습할 파일을 선택해주세요.');
             return;
         }
-
         const fileIdsArray = Array.from(selectedFileIds);
-
-        // Notify user early and run in background so they can navigate away safely
-        alert('백그라운드에서 AI 학습이 시작되었습니다.\n다른 메뉴로 이동하셔도 로직 처리는 계속 진행됩니다.\n초기화 된 이 화면을 그대로 두시면 학습 완료 후 시스템 팝업을 통해 알려드립니다.');
+        alert('백그라운드에서 AI 학습이 시작되었습니다.\n다른 메뉴로 이동하셔도 로직 처리는 계속 진행됩니다.\n완료 시 시스템에서 알려드립니다.');
         setLearning(true);
         setSelectedFileIds(new Set());
         const currentTitle = title;
@@ -208,11 +275,7 @@ export default function DataLibraryPage() {
         fetch('/api/gdrive/learn', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                fileIds: fileIdsArray,
-                aiModels: aiModels,
-                title: currentTitle
-            }),
+            body: JSON.stringify({ fileIds: fileIdsArray, aiModels: aiModels, title: currentTitle }),
         }).then(async (response) => {
             if (response.ok) {
                 alert('AI 엔진 학습이 완료되었습니다!');
@@ -220,25 +283,22 @@ export default function DataLibraryPage() {
             } else {
                 const error = await response.json();
                 alert(`학습 실패: ${error.error}`);
+                setLearning(false);
             }
         }).catch(error => {
             console.error('Learning failed:', error);
             alert('학습 엔진 실행 중 오류가 발생했습니다.');
-        }).finally(() => {
             setLearning(false);
         });
     };
 
     const handleCancelLearning = async () => {
         if (!confirm('현재 진행중인 AI 학습을 강제로 중지하시겠습니까? 처리중이던 파일 분석 데이터는 모두 삭제됩니다.')) return;
-
         try {
-            const response = await fetch('/api/admin/learning-status', {
-                method: 'DELETE'
-            });
+            const response = await fetch('/api/admin/learning-status', { method: 'DELETE' });
             if (response.ok) {
                 alert('학습을 강제로 중지하는 명령을 서버에 전달했습니다.');
-                setLearning(false); // Can be managed by status checker too
+                setLearning(false);
             } else {
                 const err = await response.json();
                 alert(`중지 요청 실패: ${err.error}`);
@@ -256,13 +316,8 @@ export default function DataLibraryPage() {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ id, isActive: active }),
             });
-
-            if (response.ok) {
-                await fetchKnowledge();
-            }
-        } catch (error) {
-            console.error('Activation failed:', error);
-        }
+            if (response.ok) await fetchKnowledge();
+        } catch (error) { console.error('Activation failed:', error); }
     };
 
     const handleUpdateKnowledgeTitle = async (id: string) => {
@@ -272,30 +327,19 @@ export default function DataLibraryPage() {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ id, title: editKnowledgeTitle }),
             });
-
             if (response.ok) {
                 await fetchKnowledge();
                 setEditingKnowledgeId(null);
             }
-        } catch (error) {
-            console.error('Update title failed:', error);
-        }
+        } catch (error) { console.error('Update title failed:', error); }
     };
 
     const handleDeleteKnowledge = async (id: string) => {
         if (!confirm('정말 삭제하시겠습니까?')) return;
-
         try {
-            const response = await fetch(`/api/admin/knowledge?id=${id}`, {
-                method: 'DELETE',
-            });
-
-            if (response.ok) {
-                await fetchKnowledge();
-            }
-        } catch (error) {
-            console.error('Deletion failed:', error);
-        }
+            const response = await fetch(`/api/admin/knowledge?id=${id}`, { method: 'DELETE' });
+            if (response.ok) await fetchKnowledge();
+        } catch (error) { console.error('Deletion failed:', error); }
     };
 
     const getFileIcon = (mimeType: string) => {
@@ -319,24 +363,20 @@ export default function DataLibraryPage() {
     };
 
     const isModelSelectionComplete = () => {
-        if (selectedFileIds.size === 0) return true; // Disabled handled by selectedFileIds.size === 0 anyway
-
+        if (selectedFileIds.size === 0) return true;
         const selectedExts = new Set<string>();
         for (const file of files) {
-            if (selectedFileIds.has(file.id)) {
-                selectedExts.add(getFileExt(file.name, file.mimeType));
-            }
+            if (selectedFileIds.has(file.id)) selectedExts.add(getFileExt(file.name, file.mimeType));
         }
-
         for (const ext of selectedExts) {
-            if (ext !== 'mp4') {
-                if (!aiModels[ext]) {
-                    return false;
-                }
-            }
+            if (ext !== 'mp4' && !aiModels[ext]) return false;
         }
         return true;
     };
+
+    if (loading && files.length === 0) {
+        return <div className="p-20 text-center text-white font-black">초기 데이터를 불러오는 중...</div>;
+    }
 
     return (
         <div className="p-8 space-y-8 animate-in fade-in duration-500">
@@ -346,12 +386,7 @@ export default function DataLibraryPage() {
                     <p className="text-gray-400 font-medium">Google Drive 기반 AI 지식 베이스 구축 및 투자 로직 관리</p>
                 </div>
                 <div className="flex gap-3">
-                    <Button
-                        onClick={handleSync}
-                        disabled={syncing}
-                        variant="outline"
-                        className="border-gray-800 text-gray-300 hover:bg-gray-800"
-                    >
+                    <Button onClick={handleSync} disabled={syncing} variant="outline" className="border-gray-800 text-gray-300 hover:bg-gray-800">
                         <RefreshCw className={`h-4 w-4 mr-2 ${syncing ? 'animate-spin' : ''}`} />
                         Drive 동기화
                     </Button>
@@ -359,7 +394,6 @@ export default function DataLibraryPage() {
             </div>
 
             <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
-                {/* 1. 파일 목록 및 학습 설정 */}
                 <div className="xl:col-span-2 space-y-8">
                     <Card className="bg-gray-900 border-gray-800 overflow-hidden shadow-2xl">
                         <CardHeader className="border-b border-gray-800 bg-gray-900/50">
@@ -373,16 +407,10 @@ export default function DataLibraryPage() {
                                 </div>
                                 <div className="flex items-center gap-4 bg-gray-800/50 p-2 rounded-lg border border-gray-800">
                                     <div className="flex items-center gap-2">
-                                        <Checkbox
-                                            id="select-all"
-                                            checked={selectedFileIds.size === files.length && files.length > 0}
-                                            onCheckedChange={handleSelectAll}
-                                        />
+                                        <Checkbox id="select-all" checked={selectedFileIds.size === files.length && files.length > 0} onCheckedChange={handleSelectAll} />
                                         <Label htmlFor="select-all" className="text-xs font-bold text-gray-300 cursor-pointer">전체 선택</Label>
                                     </div>
-                                    <Badge variant="secondary" className="bg-blue-500/20 text-blue-400 font-bold">
-                                        {selectedFileIds.size}개 선택됨
-                                    </Badge>
+                                    <Badge variant="secondary" className="bg-blue-500/20 text-blue-400 font-bold">{selectedFileIds.size}개 선택됨</Badge>
                                 </div>
                             </div>
                         </CardHeader>
@@ -410,11 +438,7 @@ export default function DataLibraryPage() {
                                         <div className="bg-gray-950 p-3 pb-0 border-b border-gray-800">
                                             <TabsList className="bg-transparent space-x-2">
                                                 {tabsKeys.map(ext => (
-                                                    <TabsTrigger
-                                                        key={ext}
-                                                        value={ext}
-                                                        className="data-[state=active]:bg-gray-800 data-[state=active]:text-white text-gray-500 font-black uppercase text-xs"
-                                                    >
+                                                    <TabsTrigger key={ext} value={ext} className="data-[state=active]:bg-gray-800 data-[state=active]:text-white text-gray-500 font-black uppercase text-xs">
                                                         {ext} ({groupedFiles[ext].length})
                                                     </TabsTrigger>
                                                 ))}
@@ -429,101 +453,50 @@ export default function DataLibraryPage() {
                                                         <span className="text-xs font-black text-white uppercase">{ext} 분석 AI 모델</span>
                                                     </div>
                                                     {ext === 'mp4' ? (
-                                                        <div className="flex flex-col">
-                                                            <Badge className="bg-blue-500/10 text-blue-400 border border-blue-500/20 text-xs py-1 px-3 block whitespace-normal">
-                                                                영상 분석은 최상의 품질을 위해 <b>Gemini 3.1 Pro ➔ 3.0 Pro ➔ 3.0 Flash ➔ 1.5 Pro</b> 순으로 자동 폴백(Fallback)하여 사용합니다.
-                                                            </Badge>
-                                                        </div>
+                                                        <Badge className="bg-blue-500/10 text-blue-400 border border-blue-500/20 text-xs py-1 px-3">
+                                                            자동 폴백(Gemini 3.1 Pro ➔ 1.5 Pro) 사용
+                                                        </Badge>
                                                     ) : (
-                                                        <Select
-                                                            value={aiModels[ext] || ''}
-                                                            onValueChange={(val) => setAiModels({ ...aiModels, [ext]: val })}
-                                                        >
-                                                            <SelectTrigger className="w-full sm:w-[250px] bg-gray-950 border-gray-800 text-white font-bold h-9 text-xs">
-                                                                <SelectValue placeholder="모델을 선택하세요" />
-                                                            </SelectTrigger>
-                                                            <SelectContent className="bg-gray-900 border-gray-800">
-                                                                {availableModels.map(model => {
-                                                                    const hasKey = keys && keys[model.reqKey as keyof typeof keys];
-                                                                    return (
-                                                                        <SelectItem
-                                                                            key={model.value}
-                                                                            value={model.value}
-                                                                            disabled={!hasKey}
-                                                                            className="text-white focus:bg-gray-800"
-                                                                        >
-                                                                            <div className="flex items-center justify-between w-full gap-4">
-                                                                                <span>{model.label}</span>
-                                                                                {!hasKey && (
-                                                                                    <span className="text-[10px] text-rose-500">API 키 미등록</span>
-                                                                                )}
-                                                                            </div>
-                                                                        </SelectItem>
-                                                                    );
-                                                                })}
-                                                                {availableModels.length === 0 && (
-                                                                    <div className="text-gray-500 text-xs p-3">모델 로딩 중이거나 사용가능한 모델이 없습니다.</div>
-                                                                )}
-                                                            </SelectContent>
-                                                        </Select>
+                                                        <ModelSelector
+                                                            ext={ext}
+                                                            currentModel={aiModels[ext] || ''}
+                                                            models={availableModels}
+                                                            keys={keys}
+                                                            onSelect={(val) => setAiModels(prev => ({ ...prev, [ext]: val }))}
+                                                        />
                                                     )}
                                                 </div>
 
                                                 <div className="flex bg-gray-950 px-4 py-2 border-b border-gray-800 justify-between items-center">
                                                     <span className="text-xs text-gray-500 font-bold">{groupedFiles[ext].length}개 파일</span>
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="sm"
-                                                        className="h-7 text-xs font-bold text-blue-400 hover:text-blue-300"
+                                                    <Button variant="ghost" size="sm" className="h-7 text-xs font-bold text-blue-400 hover:text-blue-300"
                                                         onClick={() => {
                                                             const allExtIds = groupedFiles[ext].map(f => f.id);
                                                             const allExtSelected = allExtIds.every(id => selectedFileIds.has(id));
                                                             handleSelectAllExt(groupedFiles[ext], !allExtSelected);
-                                                        }}
-                                                    >
-                                                        {groupedFiles[ext].map(f => f.id).every(id => selectedFileIds.has(id))
-                                                            ? '현재 확장자 전체 해제'
-                                                            : '현재 확장자 전체 선택'}
+                                                        }}>
+                                                        {groupedFiles[ext].map(f => f.id).every(id => selectedFileIds.has(id)) ? '현재 확장자 전체 해제' : '현재 확장자 전체 선택'}
                                                     </Button>
                                                 </div>
 
                                                 <ScrollArea className="h-[380px]">
                                                     <div className="divide-y divide-gray-800/50">
                                                         {groupedFiles[ext].map((file) => (
-                                                            <div
-                                                                key={file.id}
-                                                                className={`flex items-center gap-4 p-4 hover:bg-gray-800/20 transition-all cursor-pointer group ${selectedFileIds.has(file.id) ? 'bg-blue-500/5' : ''}`}
-                                                                onClick={() => handleToggleFileSelection(file.id)}
-                                                            >
-                                                                <Checkbox
-                                                                    checked={selectedFileIds.has(file.id)}
-                                                                    onCheckedChange={() => handleToggleFileSelection(file.id)}
-                                                                    onClick={(e) => e.stopPropagation()}
-                                                                />
-                                                                <div className="p-2 bg-gray-950 rounded-lg group-hover:scale-110 transition-transform">
-                                                                    {getFileIcon(file.mimeType)}
-                                                                </div>
+                                                            <div key={file.id} className={`flex items-center gap-4 p-4 hover:bg-gray-800/20 transition-all cursor-pointer group ${selectedFileIds.has(file.id) ? 'bg-blue-500/5' : ''}`}
+                                                                onClick={() => handleToggleFileSelection(file.id)}>
+                                                                <Checkbox checked={selectedFileIds.has(file.id)} onCheckedChange={() => handleToggleFileSelection(file.id)} onClick={(e) => e.stopPropagation()} />
+                                                                <div className="p-2 bg-gray-950 rounded-lg group-hover:scale-110 transition-transform">{getFileIcon(file.mimeType)}</div>
                                                                 <div className="flex-1 min-w-0">
                                                                     <h4 className="text-white font-bold truncate text-sm">{file.name}</h4>
                                                                     <p className="text-xs flex items-center gap-2 text-gray-500 font-medium">
                                                                         <span>{formatFileSize(file.size)}</span>
                                                                         <span>•</span>
                                                                         <span>{new Date(file.modifiedTime).toLocaleDateString('ko-KR')}</span>
-                                                                        {file.durationMillis && (
-                                                                            <>
-                                                                                <span>•</span>
-                                                                                <span className="flex items-center text-blue-400">
-                                                                                    <Clock className="w-3 h-3 mr-1 inline" />
-                                                                                    {formatDuration(file.durationMillis)}
-                                                                                </span>
-                                                                            </>
-                                                                        )}
                                                                     </p>
                                                                 </div>
                                                                 {file.learnStatus === 'completed' && (
                                                                     <Badge className="bg-emerald-500/10 text-emerald-500 border-none">
-                                                                        <CheckCircle className="h-3 w-3 mr-1" />
-                                                                        PROCESSED
+                                                                        <CheckCircle className="h-3 w-3 mr-1" /> PROCESSED
                                                                     </Badge>
                                                                 )}
                                                             </div>
@@ -537,53 +510,31 @@ export default function DataLibraryPage() {
                             })()}
                         </CardContent>
                         <div className="p-6 border-t border-gray-800 bg-gray-900/80">
-                            <div className="mb-6">
-                                <Label className="text-xs font-black text-gray-400 uppercase tracking-widest mb-2 block">AI Engine Title</Label>
-                                <Input
-                                    placeholder="지식 베이스 버전을 입력하세요 (예: 2024년 2분기 리포트)"
-                                    className="bg-gray-950 border-gray-800 text-white font-medium"
-                                    value={title}
-                                    onChange={(e) => setTitle(e.target.value)}
-                                />
-                            </div>
+                            <TitleInput initialValue={title} onSave={setTitle} />
                             {learning ? (
                                 <div className="flex gap-2">
-                                    <Button
-                                        disabled
-                                        className="flex-1 h-14 bg-blue-600/50 text-white text-lg font-black"
-                                    >
-                                        <RefreshCw className="h-5 w-5 mr-3 animate-spin" />
-                                        DEEP LEARNING IN PROGRESS...
+                                    <Button disabled className="flex-1 h-14 bg-blue-600/50 text-white text-lg font-black">
+                                        <RefreshCw className="h-5 w-5 mr-3 animate-spin" /> DEEP LEARNING IN PROGRESS...
                                     </Button>
-                                    <Button
-                                        onClick={handleCancelLearning}
-                                        className="h-14 bg-rose-600 hover:bg-rose-700 text-white text-sm font-black w-24"
-                                    >
-                                        <StopCircle className="h-5 w-5 mb-1" />
-                                        강제 중지
+                                    <Button onClick={handleCancelLearning} className="h-14 bg-rose-600 hover:bg-rose-700 text-white text-sm font-black w-24">
+                                        <StopCircle className="h-5 w-5 mb-1" /> 강제 중지
                                     </Button>
                                 </div>
                             ) : (
-                                <Button
-                                    onClick={handleRunLearning}
-                                    disabled={selectedFileIds.size === 0 || !isModelSelectionComplete()}
-                                    className="w-full h-14 bg-blue-600 hover:bg-blue-700 text-white text-lg font-black shadow-lg transform active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                                >
-                                    <Brain className="h-5 w-5 mr-3 text-white" />
-                                    선택한 {selectedFileIds.size}개 파일로 지식 학습 시작
+                                <Button onClick={handleRunLearning} disabled={selectedFileIds.size === 0 || !isModelSelectionComplete()}
+                                    className="w-full h-14 bg-blue-600 hover:bg-blue-700 text-white text-lg font-black shadow-lg transform active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed">
+                                    <Brain className="h-5 w-5 mr-3 text-white" /> 선택한 {selectedFileIds.size}개 파일로 지식 학습 시작
                                 </Button>
                             )}
                         </div>
                     </Card>
                 </div>
 
-                {/* 2. 저장된 지식 베이스 목록 */}
                 <div className="space-y-8">
                     <Card className="bg-gray-900 border-gray-800 shadow-xl lg:sticky lg:top-8">
                         <CardHeader className="border-b border-gray-800">
                             <CardTitle className="text-white text-xl font-black flex items-center gap-2">
-                                <Brain className="h-5 w-5 text-purple-500" />
-                                통합 투자 로직 (DB)
+                                <Brain className="h-5 w-5 text-purple-500" /> 통합 투자 로직 (DB)
                             </CardTitle>
                             <CardDescription className="text-gray-400">시스템이 사용할 활성 지식 베이스를 선택하세요</CardDescription>
                         </CardHeader>
@@ -591,138 +542,44 @@ export default function DataLibraryPage() {
                             <ScrollArea className="h-[750px]">
                                 <div className="p-4 space-y-4">
                                     {knowledgeList.map((kb) => (
-                                        <div
-                                            key={kb.id}
-                                            className={`p-5 rounded-xl border transition-all ${kb.isActive
-                                                ? 'bg-blue-600/10 border-blue-500 shadow-blue-500/10'
-                                                : 'bg-gray-950 border-gray-800 hover:border-gray-700'}`}
-                                        >
+                                        <div key={kb.id} className={`p-5 rounded-xl border transition-all ${kb.isActive ? 'bg-blue-600/10 border-blue-500 shadow-blue-500/10' : 'bg-gray-950 border-gray-800 hover:border-gray-700'}`}>
                                             <div className="flex items-start justify-between gap-3 mb-4">
                                                 <div className="min-w-0 flex-1">
                                                     {editingKnowledgeId === kb.id ? (
                                                         <div className="flex items-center gap-2 mb-1">
-                                                            <Input
-                                                                value={editKnowledgeTitle}
-                                                                onChange={(e) => setEditKnowledgeTitle(e.target.value)}
-                                                                className="h-7 text-xs bg-gray-900 border-gray-700 text-white w-full"
-                                                                autoFocus
-                                                                onKeyDown={(e) => e.key === 'Enter' && handleUpdateKnowledgeTitle(kb.id)}
-                                                            />
-                                                            <Button size="icon" variant="ghost" className="h-7 w-7 text-green-500 hover:bg-gray-800" onClick={() => handleUpdateKnowledgeTitle(kb.id)}>
-                                                                <CheckCircle className="h-4 w-4" />
-                                                            </Button>
-                                                            <Button size="icon" variant="ghost" className="h-7 w-7 text-gray-500 hover:bg-gray-800" onClick={() => setEditingKnowledgeId(null)}>
-                                                                <X className="h-4 w-4" />
-                                                            </Button>
+                                                            <Input value={editKnowledgeTitle} onChange={(e) => setEditKnowledgeTitle(e.target.value)} className="h-7 text-xs bg-gray-900 border-gray-700 text-white w-full" autoFocus onKeyDown={(e) => e.key === 'Enter' && handleUpdateKnowledgeTitle(kb.id)} />
+                                                            <Button size="icon" variant="ghost" className="h-7 w-7 text-green-500 hover:bg-gray-800" onClick={() => handleUpdateKnowledgeTitle(kb.id)}><CheckCircle className="h-4 w-4" /></Button>
+                                                            <Button size="icon" variant="ghost" className="h-7 w-7 text-gray-500 hover:bg-gray-800" onClick={() => setEditingKnowledgeId(null)}><X className="h-4 w-4" /></Button>
                                                         </div>
                                                     ) : (
                                                         <div className="flex items-center gap-2 mb-1">
                                                             <h4 className="text-white font-black truncate text-sm">{kb.title || `Session ${kb.id.slice(-4)}`}</h4>
-                                                            <Button size="icon" variant="ghost" className="h-6 w-6 text-gray-400 hover:text-white hover:bg-gray-800" onClick={() => {
-                                                                setEditingKnowledgeId(kb.id);
-                                                                setEditKnowledgeTitle(kb.title || `Session ${kb.id.slice(-4)}`);
-                                                            }}>
+                                                            <Button size="icon" variant="ghost" className="h-6 w-6 text-gray-400 hover:text-white hover:bg-gray-800" onClick={() => { setEditingKnowledgeId(kb.id); setEditKnowledgeTitle(kb.title || `Session ${kb.id.slice(-4)}`); }}>
                                                                 <Pencil className="h-3 w-3" />
                                                             </Button>
                                                         </div>
                                                     )}
-                                                    <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">
-                                                        CREATED : {new Date(kb.createdAt).toLocaleDateString()}
-                                                    </p>
+                                                    <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">CREATED : {new Date(kb.createdAt).toLocaleDateString()}</p>
                                                 </div>
-                                                <div className="flex gap-2 shrink-0">
-                                                    <Button
-                                                        size="icon"
-                                                        variant="ghost"
-                                                        className="h-8 w-8 text-rose-500 hover:text-rose-400 hover:bg-rose-500/10"
-                                                        onClick={() => handleDeleteKnowledge(kb.id)}
-                                                    >
-                                                        <Trash2 className="h-4 w-4" />
-                                                    </Button>
-                                                </div>
+                                                <Button size="icon" variant="ghost" className="h-8 w-8 text-rose-500 hover:text-rose-400" onClick={() => handleDeleteKnowledge(kb.id)}><Trash2 className="h-4 w-4" /></Button>
                                             </div>
-
-                                            <div className="flex flex-wrap gap-2 mb-6">
-                                                <Badge variant="outline" className="bg-gray-900 border-gray-700 text-gray-300 font-bold text-[10px]">
-                                                    {kb.files.length} FILES
-                                                </Badge>
-                                                {kb.isActive && (
-                                                    <Badge className="bg-blue-500 text-white font-black text-[10px] animate-pulse">
-                                                        ACTIVE
-                                                    </Badge>
-                                                )}
-                                            </div>
-
-                                            <div className="grid grid-cols-2 gap-2">
-                                                <Button
-                                                    variant={kb.isActive ? "default" : "outline"}
-                                                    className={`h-10 font-black text-xs ${kb.isActive ? "bg-blue-600" : "border-gray-700 text-gray-300 hover:bg-gray-800"}`}
-                                                    onClick={() => handleActivateKnowledge(kb.id, !kb.isActive)}
-                                                >
+                                            <div className="grid grid-cols-2 gap-2 mt-4">
+                                                <Button variant={kb.isActive ? "default" : "outline"} className={`h-10 font-black text-xs ${kb.isActive ? "bg-blue-600" : "border-gray-700 text-gray-300"}`} onClick={() => handleActivateKnowledge(kb.id, !kb.isActive)}>
                                                     {kb.isActive ? '현재 사용 중' : '로직 활성화'}
                                                 </Button>
-                                                <Button
-                                                    variant="outline"
-                                                    className="h-10 border-gray-700 text-gray-300 font-black text-xs hover:bg-gray-800"
-                                                    onClick={() => setExpandedKnowledgeId(expandedKnowledgeId === kb.id ? null : kb.id)}
-                                                >
+                                                <Button variant="outline" className="h-10 border-gray-700 text-gray-300 font-black text-xs" onClick={() => setExpandedKnowledgeId(expandedKnowledgeId === kb.id ? null : kb.id)}>
                                                     <Eye className="h-4 w-4 mr-1" /> {expandedKnowledgeId === kb.id ? '접기' : '상세 보기'}
                                                 </Button>
                                             </div>
-                                            {expandedKnowledgeId === kb.id && (
-                                                <div className="mt-4 p-4 bg-gray-950 rounded-lg border border-gray-800 text-xs text-gray-300 space-y-4">
-                                                    <div>
-                                                        <h5 className="font-black text-blue-400 mb-2">단기 투자 조건</h5>
-                                                        <ul className="list-disc pl-4 space-y-1">
-                                                            {kb.content?.strategy?.shortTermConditions?.map((c: string, idx: number) => (
-                                                                <li key={idx}>{c}</li>
-                                                            ))}
-                                                        </ul>
-                                                    </div>
-                                                    <div>
-                                                        <h5 className="font-black text-purple-400 mb-2">장기 투자 조건</h5>
-                                                        <ul className="list-disc pl-4 space-y-1">
-                                                            {kb.content?.strategy?.longTermConditions?.map((c: string, idx: number) => (
-                                                                <li key={idx}>{c}</li>
-                                                            ))}
-                                                        </ul>
-                                                    </div>
-                                                    <div>
-                                                        <h5 className="font-black text-emerald-400 mb-2">주요 분석 규칙 수</h5>
-                                                        <ul className="space-y-1 mt-1 text-gray-400">
-                                                            <li>펀더멘털: {kb.content?.criteria?.goodCompanyRules?.length || 0}개</li>
-                                                            <li>기술적: {kb.content?.criteria?.technicalRules?.length || 0}개</li>
-                                                            <li>시장규모: {kb.content?.criteria?.marketSizeRules?.length || 0}개</li>
-                                                        </ul>
-                                                    </div>
-                                                    <div>
-                                                        <h5 className="font-black text-amber-400 mb-2">학습된 파일</h5>
-                                                        <ul className="list-disc pl-4 space-y-1 mt-1 text-gray-400">
-                                                            {kb.files && kb.files.map((fileId, idx) => {
-                                                                const fName = files.find(f => f.id === fileId)?.name || fileId;
-                                                                return <li key={idx} className="truncate">{fName}</li>;
-                                                            })}
-                                                        </ul>
-                                                    </div>
-                                                </div>
-                                            )}
                                         </div>
                                     ))}
-                                    {knowledgeList.length === 0 && (
-                                        <div className="text-center py-12 border-2 border-dashed border-gray-800 rounded-xl">
-                                            <Sparkles className="h-8 w-8 text-gray-800 mx-auto mb-3" />
-                                            <p className="text-gray-500 text-xs font-bold leading-relaxed">
-                                                아직 학습된 데이터가 없습니다.<br />
-                                                왼쪽에서 파일을 선택해 학습을 시작하세요.
-                                            </p>
-                                        </div>
-                                    )}
+                                    {knowledgeList.length === 0 && <div className="text-center py-12 border-2 border-dashed border-gray-800 rounded-xl"><Sparkles className="h-8 w-8 text-gray-800 mx-auto mb-3" /><p className="text-gray-500 text-xs font-bold">아직 학습된 데이터가 없습니다.</p></div>}
                                 </div>
                             </ScrollArea>
                         </CardContent>
                     </Card>
                 </div>
-            </div >
-        </div >
+            </div>
+        </div>
     );
 }

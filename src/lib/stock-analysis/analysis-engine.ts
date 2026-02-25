@@ -93,9 +93,15 @@ export async function runAnalysisEngine(
         const fullData = await fetchYahooFinanceData(stock.ticker, conditions.periodMonths || 12);
 
         if (conditions.sector && conditions.sector !== 'ALL') {
-          if (!fullData.sector || !fullData.sector.toLowerCase().includes(conditions.sector.toLowerCase())) {
+          const stockSector = (fullData.sector || (stock as any).sector || '').toLowerCase().trim();
+          const targetSector = conditions.sector.toLowerCase().trim();
+          
+          // 섹터 문자열이 포함되어 있는지 확인 (예: 'Technology' vs 'tech')
+          if (!stockSector.includes(targetSector) && !targetSector.includes(stockSector)) {
+            console.log(`Skipping ${stock.ticker}: Sector mismatch (${stockSector} vs ${targetSector})`);
             return; // Skip this stock
           }
+          console.log(`Matched ${stock.ticker} for sector ${targetSector}`);
         }
 
         let periodReturn = 0;
