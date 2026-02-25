@@ -44,6 +44,13 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           if (dbUser.suspendedUntil && new Date(dbUser.suspendedUntil) > new Date()) {
             return `/login?error=Suspended`;
           }
+          
+          // 닉네임(name)이 없으면 가입이 완료되지 않은 것으로 간주하여 온보딩 페이지로 이동
+          if (!dbUser.name) {
+            const baseUrl = process.env.NEXTAUTH_URL || process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+            return `${baseUrl}/register/onboarding?email=${encodeURIComponent(user.email as string)}&name=${encodeURIComponent(user.name || '')}&provider=${account.provider}&providerAccountId=${encodeURIComponent(account.providerAccountId)}`;
+          }
+
           // 이메일이나 프로필 사진이 변경되었다면 DB 업데이트
           if (user.email && (dbUser.email !== user.email || dbUser.image !== user.image)) {
             await prisma.user.update({
@@ -138,6 +145,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         session.user.email = token.email || session.user.email;
         session.user.name = token.name || session.user.name;
         session.user.image = token.picture || session.user.image;
+        (session.user as any).provider = token.provider;
+        (session.user as any).providerAccountId = token.providerAccountId;
       }
       return session;
     },

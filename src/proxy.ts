@@ -17,6 +17,17 @@ export default async function proxy(request: NextRequest) {
   const user = session?.user;
   const isAdmin = (user as any)?.role === 'ADMIN';
   const isAuthenticated = !!user;
+  const isOnboarded = !!user?.name; // 닉네임이 있으면 온보딩 완료로 간주
+
+  // 로그인한 사용자가 온보딩이 안되어 있다면 온보딩 페이지로 강제 이동 (온보딩 페이지 자체는 제외)
+  if (isAuthenticated && !isOnboarded && pathname !== '/register/onboarding' && !pathname.startsWith('/api')) {
+    const onboardingUrl = new URL('/register/onboarding', request.url);
+    onboardingUrl.searchParams.set('email', user?.email || '');
+    onboardingUrl.searchParams.set('name', user?.name || '');
+    onboardingUrl.searchParams.set('provider', (user as any)?.provider || '');
+    onboardingUrl.searchParams.set('providerAccountId', (user as any)?.providerAccountId || '');
+    return NextResponse.redirect(onboardingUrl);
+  }
 
   if (pathname.startsWith('/admin')) {
     if (!isAuthenticated) {

@@ -2,6 +2,7 @@
 
 import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { useSession } from 'next-auth/react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -11,6 +12,7 @@ import { Sparkles, User, Mail, Lock, ShieldCheck } from 'lucide-react';
 
 function OnboardingContent() {
     const router = useRouter();
+    const { update } = useSession();
     const searchParams = useSearchParams();
     const email = searchParams.get('email') || '';
     const name = searchParams.get('name') || '';
@@ -51,9 +53,12 @@ function OnboardingContent() {
                 throw new Error(data.error || '회원가입 실패');
             }
 
-            // 가입 성공 후 로그인 페이지로 이동하여 세션 갱신 유도
-            alert('회원가입이 완료되었습니다. 다시 로그인해주세요.');
-            router.push('/login');
+            // 세션 정보 갱신 (닉네임 반영)
+            await update({ name: formData.nickname });
+
+            // 가입 성공 후 기업 분석 화면으로 바로 이동
+            alert('회원가입이 완료되었습니다!');
+            router.push('/stock-analysis');
         } catch (err) {
             setError(err instanceof Error ? err.message : '알 수 없는 오류가 발생했습니다.');
         } finally {
