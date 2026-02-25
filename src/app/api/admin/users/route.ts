@@ -10,7 +10,7 @@ export async function GET(request: NextRequest) {
     }
 
     const admins = await prisma.adminUser.findMany({ select: { email: true } });
-    const adminEmails = admins.map(a => a.email);
+    const adminEmails = admins.map((a: { email: string }) => a.email);
 
     const users = await prisma.user.findMany({
       where: {
