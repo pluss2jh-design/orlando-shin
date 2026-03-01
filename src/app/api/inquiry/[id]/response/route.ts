@@ -61,7 +61,7 @@ export async function POST(
 
     return NextResponse.json({ response, success: true });
   } catch (error) {
-    console.error('Response create error:', error);
+    console.error('답변 등록 오류:', error);
     return NextResponse.json(
       { error: '답변 등록 중 오류가 발생했습니다' },
       { status: 500 }

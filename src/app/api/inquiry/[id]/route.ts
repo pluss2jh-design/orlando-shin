@@ -39,7 +39,7 @@ export async function GET(
 
     return NextResponse.json({ inquiry });
   } catch (error) {
-    console.error('Inquiry detail error:', error);
+    console.error('문의 상세 조회 오류:', error);
     return NextResponse.json(
       { error: '문의 상세를 불러오는 중 오류가 발생했습니다' },
       { status: 500 }
@@ -90,7 +90,7 @@ export async function PATCH(
 
     return NextResponse.json({ inquiry: updatedInquiry, success: true });
   } catch (error) {
-    console.error('Inquiry update error:', error);
+    console.error('문의 수정 오류:', error);
     return NextResponse.json(
       { error: '문의 수정 중 오류가 발생했습니다' },
       { status: 500 }
@@ -133,7 +133,7 @@ export async function DELETE(
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error('Inquiry delete error:', error);
+    console.error('문의 삭제 오류:', error);
     return NextResponse.json(
       { error: '문의 삭제 중 오류가 발생했습니다' },
       { status: 500 }

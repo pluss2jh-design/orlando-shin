@@ -8,7 +8,7 @@ export async function PATCH(
 ) {
   try {
     const session = await auth();
-    if ((session?.user as any)?.role !== 'ADMIN') {
+    if (session?.user?.role !== 'ADMIN') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -23,14 +23,21 @@ export async function PATCH(
       );
     }
 
+    const VALID_PLANS = ['FREE', 'STANDARD', 'PREMIUM', 'MASTER'] as const;
+    type PlanType = typeof VALID_PLANS[number];
+    const upperPlan = plan.toUpperCase();
+    if (!VALID_PLANS.includes(upperPlan as PlanType)) {
+      return NextResponse.json({ error: '유효하지 않은 플랜입니다' }, { status: 400 });
+    }
+
     const updatedUser = await prisma.user.update({
       where: { id },
-      data: { plan: plan.toUpperCase() as any },
+      data: { plan: upperPlan as PlanType },
     });
 
     return NextResponse.json({ user: updatedUser });
   } catch (error) {
-    console.error('Error updating user plan:', error);
+    console.error('사용자 플랜 업데이트 오류:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

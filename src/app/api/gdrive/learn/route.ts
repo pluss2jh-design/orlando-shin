@@ -6,7 +6,7 @@ export async function GET() {
     const summary = await StockService.getActiveKnowledgeSummary();
     return NextResponse.json(summary);
   } catch (error) {
-    console.error('Check knowledge failed:', error);
+    console.error('지식 확인 실패:', error);
     return NextResponse.json({ exists: false, error: 'Check failed' }, { status: 500 });
   }
 }
@@ -29,7 +29,7 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : '학습 실패';
-    console.error('Learning pipeline error:', error);
+    console.error('학습 파이프라인 오류:', error);
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

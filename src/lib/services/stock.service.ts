@@ -7,17 +7,41 @@ import {
 } from '@/lib/stock-analysis/ai-learning';
 import type { 
   InvestmentStyle, 
-  LearnedKnowledge 
+  LearnedKnowledge,
+  RecommendationResult,
+  LearnedInvestmentCriteria
 } from '@/types/stock-analysis';
 
 // 분석 작업 상태 관리를 위한 인메모리 맵
-export const userAnalysisJobs = (global as any).userAnalysisJobs || new Map<string, {
+interface AnalysisJobStatus {
   status: 'processing' | 'completed' | 'error';
-  result?: any;
+  result?: RecommendationResult;
   error?: string;
   startedAt: Date;
-}>();
-(global as any).userAnalysisJobs = userAnalysisJobs;
+}
+
+declare global {
+  // eslint-disable-next-line no-var
+  var userAnalysisJobs: Map<string, AnalysisJobStatus> | undefined;
+}
+
+export const userAnalysisJobs = globalThis.userAnalysisJobs || new Map<string, AnalysisJobStatus>();
+globalThis.userAnalysisJobs = userAnalysisJobs;
+
+/** Prisma JSON 필드에서 조회한 지식 콘텐츠 구조 */
+interface KnowledgeContentShape {
+  fileAnalyses?: { fileName: string; keyConditions: string[] }[];
+  criteria?: {
+    goodCompanyRules?: unknown[];
+    technicalRules?: unknown[];
+    marketSizeRules?: unknown[];
+    unitEconomicsRules?: unknown[];
+    lifecycleRules?: unknown[];
+    buyTimingRules?: unknown[];
+  };
+  strategy?: unknown;
+  learnedAt?: Date;
+}
 
 const planLimits: Record<string, { weeklyAnalysisLimit: number }> = {
   FREE: { weeklyAnalysisLimit: 1 },
@@ -47,7 +71,7 @@ export class StockService {
 
     if (!user) throw new Error('사용자를 찾을 수 없습니다.');
 
-    const isMaster = user.email === 'pluss2.jh@gmail.com';
+    const isMaster = user.email === process.env.ADMIN_EMAIL;
     const effectivePlan = isMaster ? 'MASTER' : user.plan;
     const planConfig = planLimits[effectivePlan] || planLimits.FREE;
 
@@ -95,38 +119,42 @@ export class StockService {
       startedAt: new Date()
     });
 
-    // 4. 백그라운드 엔진 실행 (비동기)
-    runAnalysisEngine(
-      { 
-        amount: 0, 
-        periodMonths: options.conditions?.periodMonths || 12, 
-        sector: options.conditions?.sector, 
-        strategyType: options.conditions?.strategyType 
-      },
-      knowledge,
-      options.style || 'moderate',
-      options.conditions?.companyCount || 5,
-      options.conditions?.companyAiModel,
-      options.conditions?.companyApiKey,
-      options.conditions?.newsAiModel,
-      options.conditions?.newsApiKey
-    ).then(async (result) => {
-      // 성공 시 사용량 카운트 업
-      await this.incrementAnalysisUsage(userId);
-      
-      userAnalysisJobs.set(userId, {
-        status: 'completed',
-        result,
-        startedAt: new Date()
-      });
-    }).catch((error) => {
-      console.error('Service analysis error:', error);
-      userAnalysisJobs.set(userId, {
-        status: 'error',
-        error: error instanceof Error ? error.message : '분석 중 오류가 발생했습니다.',
-        startedAt: new Date()
-      });
-    });
+    // 4. 백그라운드 엔진 실행 (비동기 - fire & forget)
+    (async () => {
+      try {
+        const result = await runAnalysisEngine(
+          { 
+            amount: 0, 
+            periodMonths: options.conditions?.periodMonths || 12, 
+            sector: options.conditions?.sector, 
+            strategyType: options.conditions?.strategyType 
+          },
+          knowledge,
+          options.style || 'moderate',
+          options.conditions?.companyCount || 5,
+          options.conditions?.companyAiModel,
+          options.conditions?.companyApiKey,
+          options.conditions?.newsAiModel,
+          options.conditions?.newsApiKey
+        );
+
+        // 성공 시 사용량 카운트 업
+        await StockService.incrementAnalysisUsage(userId);
+        
+        userAnalysisJobs.set(userId, {
+          status: 'completed',
+          result,
+          startedAt: new Date()
+        });
+      } catch (error) {
+        console.error('분석 엔진 오류:', error);
+        userAnalysisJobs.set(userId, {
+          status: 'error',
+          error: error instanceof Error ? error.message : '분석 중 오류가 발생했습니다.',
+          startedAt: new Date()
+        });
+      }
+    })();
 
     return { status: 'started' };
   }
@@ -171,7 +199,7 @@ export class StockService {
     });
 
     if (activeKnowledge) {
-      const content = activeKnowledge.content as any;
+      const content = activeKnowledge.content as KnowledgeContentShape;
       return {
         exists: true,
         title: activeKnowledge.title,
@@ -181,7 +209,7 @@ export class StockService {
       };
     }
 
-    // Fallback to local
+    // 로컬 데이터 폴백
     const localKnowledge = await getLearnedKnowledge();
     if (localKnowledge) {
       return {
@@ -196,7 +224,7 @@ export class StockService {
     return { exists: false };
   }
 
-  private static countTotalRules(knowledge: any) {
+  private static countTotalRules(knowledge: KnowledgeContentShape | LearnedKnowledge) {
     const criteria = knowledge.criteria;
     if (!criteria) return 0;
     return (

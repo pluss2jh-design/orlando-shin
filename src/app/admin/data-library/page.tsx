@@ -45,17 +45,46 @@ interface DriveFile {
     learnStatus: 'completed' | 'pending' | 'processing';
 }
 
+/** Prisma JSON 필드에서 조회한 지식 콘텐츠 구조 */
+interface KnowledgeContent {
+  fileAnalyses?: { fileName: string; keyConditions: string[] }[];
+  criteria?: {
+    goodCompanyRules?: unknown[];
+    technicalRules?: unknown[];
+    marketSizeRules?: unknown[];
+    unitEconomicsRules?: unknown[];
+    lifecycleRules?: unknown[];
+    buyTimingRules?: unknown[];
+  };
+}
+
+/** AI 모델 정보 */
+interface AIModel {
+  value: string;
+  label: string;
+  reqKey: string;
+}
+
+/** API 키 정보 */
+interface APIKeys {
+  GEMINI_API_KEY?: string;
+  OPENAI_API_KEY?: string;
+  CLAUDE_API_KEY?: string;
+}
+
 interface LearnedKnowledgeRecord {
     id: string;
     title: string;
     isActive: boolean;
     createdAt: string;
     files: string[];
-    content: any;
+    content: KnowledgeContent;
 }
 
-// Optimized Model Selector Component
-const ModelSelector = ({ ext, currentModel, models, keys, onSelect }: { ext: string, currentModel: string, models: any[], keys: any, onSelect: (val: string) => void }) => {
+/** 상태 폴링 주기 (밀리초) */
+const POLLING_INTERVAL_MS = 5000;
+// AI 모델 선택 컴포넌트
+const ModelSelector = ({ ext, currentModel, models, keys, onSelect }: { ext: string; currentModel: string; models: AIModel[]; keys: APIKeys | null; onSelect: (val: string) => void }) => {
     return (
         <Select value={currentModel} onValueChange={onSelect}>
             <SelectTrigger className="w-full sm:w-[250px] bg-gray-950 border-gray-800 text-white font-bold h-9 text-xs">
@@ -78,7 +107,7 @@ const ModelSelector = ({ ext, currentModel, models, keys, onSelect }: { ext: str
     );
 };
 
-// Optimized Title Input Component
+// 제목 입력 컴포넌트
 const TitleInput = ({ initialValue, onSave }: { initialValue: string, onSave: (val: string) => void }) => {
     const [val, setVal] = useState(initialValue);
     useEffect(() => { setVal(initialValue); }, [initialValue]);
@@ -104,11 +133,11 @@ export default function DataLibraryPage() {
     const [syncing, setSyncing] = useState(false);
     const [learning, setLearning] = useState(false);
 
-    // Knowledge Edit State
+    // 지식 수정 상태
     const [editingKnowledgeId, setEditingKnowledgeId] = useState<string | null>(null);
     const [editKnowledgeTitle, setEditKnowledgeTitle] = useState('');
 
-    // UI State
+    // UI 상태
     const [selectedFileIds, setSelectedFileIds] = useState<Set<string>>(new Set());
     const [title, setTitle] = useState('');
     const [aiModels, setAiModels] = useState<Record<string, string>>({});
@@ -124,12 +153,12 @@ export default function DataLibraryPage() {
         if (syncing) {
             interval = setInterval(() => {
                 fetchFiles();
-            }, 5000);
+            }, POLLING_INTERVAL_MS);
         }
         return () => { if (interval) clearInterval(interval); };
     }, [syncing]);
 
-    // Polling learning status if learning is true
+    // 학습 중일 때 상태 폴링
     useEffect(() => {
         let statusInterval: NodeJS.Timeout;
         if (learning) {
@@ -143,8 +172,8 @@ export default function DataLibraryPage() {
                             fetchInitialData();
                         }
                     }
-                } catch (e) { }
-            }, 5000);
+                } catch { /* 학습 상태 폴링 실패 무시 - 다음 폴링에서 재시도 */ }
+            }, POLLING_INTERVAL_MS);
         }
         return () => { if (statusInterval) clearInterval(statusInterval); };
     }, [learning]);
@@ -163,7 +192,7 @@ export default function DataLibraryPage() {
                 if (data.isLearning) setLearning(true);
             }
         } catch (error) {
-            console.error('Failed to fetch learning status:', error);
+            console.error('학습 상태 조회 실패:', error);
         }
     };
 
@@ -175,7 +204,7 @@ export default function DataLibraryPage() {
                 setAvailableModels(data.models || []);
             }
         } catch (error) {
-            console.error('Failed to fetch models:', error);
+            console.error('모델 목록 조회 실패:', error);
         }
     };
 
@@ -187,7 +216,7 @@ export default function DataLibraryPage() {
                 setKeys(data.keys || {});
             }
         } catch (error) {
-            console.error('Failed to fetch keys:', error);
+            console.error('API 키 조회 실패:', error);
         }
     };
 
@@ -200,7 +229,7 @@ export default function DataLibraryPage() {
                 setSyncing(data.isSyncing || false);
             }
         } catch (error) {
-            console.error('Failed to fetch files:', error);
+            console.error('파일 목록 조회 실패:', error);
         }
     };
 
@@ -212,7 +241,7 @@ export default function DataLibraryPage() {
                 setKnowledgeList(data.knowledgeList || []);
             }
         } catch (error) {
-            console.error('Failed to fetch knowledge:', error);
+            console.error('지식 목록 조회 실패:', error);
         }
     };
 
@@ -225,12 +254,16 @@ export default function DataLibraryPage() {
     };
 
     const handleSync = async () => {
-        if (!confirm('구글 드라이브 동기화를 시작하시겠습니까?\n이 작업은 백그라운드에서 진행됩니다.')) return;
+if (!confirm('구글 드라이브 동기화를 시작하시겠습니까?\n이 작업은 백그라운드에서 진행됩니다.')) return;
         try {
             setSyncing(true);
-            fetch('/api/gdrive/sync', { method: 'POST' }).catch(e => console.error(e));
+            const response = await fetch('/api/gdrive/sync', { method: 'POST' });
+            if (!response.ok) {
+                console.error('동기화 실패:', await response.text());
+                setSyncing(false);
+            }
         } catch (error) {
-            console.error('Sync failed:', error);
+            console.error('동기화 실패:', error);
             setSyncing(false);
         }
     };
@@ -260,36 +293,37 @@ export default function DataLibraryPage() {
         });
     };
 
-    const handleRunLearning = () => {
+    const handleRunLearning = async () => {
         if (selectedFileIds.size === 0) {
             alert('학습할 파일을 선택해주세요.');
             return;
         }
         const fileIdsArray = Array.from(selectedFileIds);
-        alert('백그라운드에서 AI 학습이 시작되었습니다.\n다른 메뉴로 이동하셔도 로직 처리는 계속 진행됩니다.\n완료 시 시스템에서 알려드립니다.');
+alert('백그라운드에서 AI 학습이 시작되었습니다.\n다른 메뉴로 이동하셔도 로직 처리는 계속 진행됩니다.\n완료 시 시스템에서 알려드립니다.');
         setLearning(true);
         setSelectedFileIds(new Set());
         const currentTitle = title;
         setTitle('');
 
-        fetch('/api/gdrive/learn', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ fileIds: fileIdsArray, aiModels: aiModels, title: currentTitle }),
-        }).then(async (response) => {
+        try {
+            const response = await fetch('/api/gdrive/learn', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ fileIds: fileIdsArray, aiModels: aiModels, title: currentTitle }),
+            });
             if (response.ok) {
                 alert('AI 엔진 학습이 완료되었습니다!');
                 await fetchInitialData();
             } else {
-                const error = await response.json();
-                alert(`학습 실패: ${error.error}`);
+                const errorData = await response.json();
+                alert(`학습 실패: ${errorData.error}`);
                 setLearning(false);
             }
-        }).catch(error => {
-            console.error('Learning failed:', error);
+        } catch (error) {
+            console.error('학습 실패:', error);
             alert('학습 엔진 실행 중 오류가 발생했습니다.');
             setLearning(false);
-        });
+        }
     };
 
     const handleCancelLearning = async () => {
@@ -304,7 +338,7 @@ export default function DataLibraryPage() {
                 alert(`중지 요청 실패: ${err.error}`);
             }
         } catch (error) {
-            console.error('Cancel failed:', error);
+            console.error('중지 실패:', error);
             alert('중지 요청 중 오류가 발생했습니다.');
         }
     };
@@ -317,7 +351,7 @@ export default function DataLibraryPage() {
                 body: JSON.stringify({ id, isActive: active }),
             });
             if (response.ok) await fetchKnowledge();
-        } catch (error) { console.error('Activation failed:', error); }
+        } catch (error) { console.error('활성화 실패:', error); }
     };
 
     const handleUpdateKnowledgeTitle = async (id: string) => {
@@ -331,7 +365,7 @@ export default function DataLibraryPage() {
                 await fetchKnowledge();
                 setEditingKnowledgeId(null);
             }
-        } catch (error) { console.error('Update title failed:', error); }
+        } catch (error) { console.error('제목 수정 실패:', error); }
     };
 
     const handleDeleteKnowledge = async (id: string) => {
@@ -339,7 +373,7 @@ export default function DataLibraryPage() {
         try {
             const response = await fetch(`/api/admin/knowledge?id=${id}`, { method: 'DELETE' });
             if (response.ok) await fetchKnowledge();
-        } catch (error) { console.error('Deletion failed:', error); }
+        } catch (error) { console.error('삭제 실패:', error); }
     };
 
     const getFileIcon = (mimeType: string) => {

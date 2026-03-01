@@ -3,7 +3,7 @@ export interface User {
   name: string;
   email: string;
   image?: string;
-  plan: "free" | "pro" | "enterprise";
+  plan: "FREE" | "STANDARD" | "PREMIUM" | "MASTER";
   createdAt: Date;
 }
 

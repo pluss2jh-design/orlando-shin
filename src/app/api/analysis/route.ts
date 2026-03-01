@@ -55,7 +55,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ status: 'started' });
   } catch (error) {
     const message = error instanceof Error ? error.message : '알 수 없는 오류가 발생했습니다.';
-    console.error('Analysis API error:', error);
+    console.error('분석 API 오류:', error);
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

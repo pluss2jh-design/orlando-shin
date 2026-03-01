@@ -1,4 +1,6 @@
 import NextAuth from "next-auth";
+import type { Session } from "next-auth";
+import type { JWT } from "next-auth/jwt";
 import { prisma } from "@/lib/db";
 import GoogleProvider from "next-auth/providers/google";
 import KakaoProvider from "next-auth/providers/kakao";
@@ -100,7 +102,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
             if (dbUser.suspendedUntil && new Date(dbUser.suspendedUntil) > new Date()) {
               token.role = 'SUSPENDED';
-            } else if (dbUser.provider === 'google' && dbUser.email === 'pluss2.jh@gmail.com') {
+            } else if (dbUser.provider === 'google' && dbUser.email === process.env.ADMIN_EMAIL) {
               token.role = 'ADMIN';
               token.plan = 'MASTER';
             } else {
@@ -109,12 +111,12 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             }
           }
         } catch (error) {
-          console.error('Error fetching user for JWT:', error);
+          console.error('JWT 사용자 조회 오류:', error);
         }
       }
 
-      // Assign features based on Plan enum
-      const currentPlan = (token.plan as string || 'FREE').toUpperCase();
+      // Plan enum 기반 기능 할당
+      const currentPlan = (token.plan || 'FREE').toUpperCase();
       let limit = 3;
       let email = false;
 
@@ -136,7 +138,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
       return token;
     },
-    async session({ session, token }: { session: any; token: any }) {
+    async session({ session, token }: { session: Session; token: JWT }) {
       if (session.user) {
         session.user.id = token.sub;
         session.user.role = token.role;
@@ -145,8 +147,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         session.user.email = token.email || session.user.email;
         session.user.name = token.name || session.user.name;
         session.user.image = token.picture || session.user.image;
-        (session.user as any).provider = token.provider;
-        (session.user as any).providerAccountId = token.providerAccountId;
+        session.user.provider = token.provider;
+        session.user.providerAccountId = token.providerAccountId;
       }
       return session;
     },
@@ -154,5 +156,5 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   session: {
     strategy: "jwt",
   },
-  debug: true,
+  debug: process.env.NODE_ENV === 'development',
 });

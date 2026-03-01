@@ -32,7 +32,7 @@ export async function GET(
       },
     });
   } catch (error) {
-    console.error('Frame serving error:', error);
+    console.error('프레임 서빙 오류:', error);
     return NextResponse.json(
       { error: 'Frame not found' },
       { status: 404 }

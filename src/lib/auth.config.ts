@@ -1,4 +1,6 @@
 import type { NextAuthConfig } from "next-auth";
+import type { Session } from "next-auth";
+import type { JWT } from "next-auth/jwt";
 import GoogleProvider from "next-auth/providers/google";
 import KakaoProvider from "next-auth/providers/kakao";
 import NaverProvider from "next-auth/providers/naver";
@@ -27,12 +29,12 @@ export const authConfig = {
         async jwt({ token, user }) {
             if (user) {
                 token.sub = user.id;
-                token.role = (user as any).role;
-                token.plan = (user as any).plan || 'free';
+                token.role = user.role;
+                token.plan = user.plan || 'free';
             }
             return token;
         },
-        async session({ session, token }: { session: any; token: any }) {
+        async session({ session, token }: { session: Session; token: JWT }) {
             if (session.user) {
                 session.user.id = token.sub;
                 session.user.role = token.role;
