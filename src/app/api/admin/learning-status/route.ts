@@ -14,7 +14,9 @@ export async function GET() {
 
         return NextResponse.json({
             isLearning: learningStatus.isLearning,
-            startTime: learningStatus.startTime
+            startTime: learningStatus.startTime,
+            totalFiles: learningStatus.totalFiles,
+            completedFiles: learningStatus.completedFiles,
         });
     } catch (error) {
         return NextResponse.json({ error: '상태 조회 실패' }, { status: 500 });

@@ -24,6 +24,8 @@ export const learningStatus = {
   isLearning: false,
   isCancelled: false,
   startTime: null as Date | null,
+  totalFiles: 0,
+  completedFiles: 0,
 };
 
 export function cancelLearningPipeline() {
@@ -146,6 +148,10 @@ export async function runLearningPipeline(
     }
 
     const fileAnalyses: FileAnalysis[] = [];
+
+    // 진행률 추적 시작
+    learningStatus.totalFiles = targetFiles.length;
+    learningStatus.completedFiles = 0;
 
     for (const file of targetFiles) {
       if (learningStatus.isCancelled) {
@@ -333,6 +339,7 @@ ${isPDFFile(file) || isVideoFile(file) ? '(첨부된 미디어 파일 참조)' :
         });
 
         console.log(`Successfully analyzed PDF: ${file.name} with conditions:`, analysisResult.keyConditions);
+        learningStatus.completedFiles += 1;
 
       } catch (error) {
         console.error(`파일 분석 실패: ${file.name}`, error);
@@ -602,7 +609,14 @@ ${docConditions.substring(0, 15000)}`;
     learningStatus.isLearning = false;
     learningStatus.isCancelled = false;
     learningStatus.startTime = null;
+    learningStatus.totalFiles = 0;
+    learningStatus.completedFiles = 0;
   }
+    learningStatus.isLearning = false;
+    learningStatus.isCancelled = false;
+    learningStatus.startTime = null;
+    learningStatus.totalFiles = 0;
+    learningStatus.completedFiles = 0;
 }
 
 async function extractFileContent(file: DriveFileInfo): Promise<string> {

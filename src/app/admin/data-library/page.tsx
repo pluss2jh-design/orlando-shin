@@ -559,7 +559,7 @@ alert('백그라운드에서 AI 학습이 시작되었습니다.\n다른 메뉴�
                 </div>
 
                 <div className="space-y-8">
-                    <Card className="bg-gray-900 border-gray-800 shadow-xl lg:sticky lg:top-8">
+                    <Card className="bg-gray-900 border-gray-800 shadow-xl">
                         <CardHeader className="border-b border-gray-800">
                             <CardTitle className="text-white text-xl font-black flex items-center gap-2">
                                 <Brain className="h-5 w-5 text-purple-500" /> 통합 투자 로직 (DB)
@@ -567,8 +567,7 @@ alert('백그라운드에서 AI 학습이 시작되었습니다.\n다른 메뉴�
                             <CardDescription className="text-gray-400">시스템이 사용할 활성 지식 베이스를 선택하세요</CardDescription>
                         </CardHeader>
                         <CardContent className="p-0">
-                            <ScrollArea className="h-[750px]">
-                                <div className="p-4 space-y-4">
+                            <div className="p-4 space-y-4">
                                     {knowledgeList.map((kb) => (
                                         <div key={kb.id} className={`p-5 rounded-xl border transition-all ${kb.isActive ? 'bg-blue-600/10 border-blue-500 shadow-blue-500/10' : 'bg-gray-950 border-gray-800 hover:border-gray-700'}`}>
                                             <div className="flex items-start justify-between gap-3 mb-4">
@@ -638,9 +637,17 @@ alert('백그라운드에서 AI 학습이 시작되었습니다.\n다른 메뉴�
                                                                                 <Badge variant="secondary" className="text-[10px] bg-gray-800 text-gray-400">{ruleArr.length}개</Badge>
                                                                             </div>
                                                                             <ul className="space-y-0.5">
-                                                                                {ruleArr.slice(0, 5).map((rule, rIdx) => (
-                                                                                    <li key={rIdx} className="text-[11px] text-gray-500 truncate">• {typeof rule === 'string' ? rule : JSON.stringify(rule)}</li>
-                                                                                ))}
+                                                                                {ruleArr.slice(0, 5).map((rule, rIdx) => {
+                                                                                    const ruleText = typeof rule === 'string'
+                                                                                        ? rule
+                                                                                        : (rule as Record<string, unknown>)?.rule
+                                                                                            ? String((rule as Record<string, unknown>).rule)
+                                                                                            : null;
+                                                                                    if (!ruleText) return null;
+                                                                                    return <li key={rIdx} className="text-[11px] text-gray-500">• {ruleText}</li>;
+                                                                                })}
+
+
                                                                                 {ruleArr.length > 5 && <li className="text-[10px] text-gray-600">... 외 {ruleArr.length - 5}개</li>}
                                                                             </ul>
                                                                         </div>
@@ -649,25 +656,7 @@ alert('백그라운드에서 AI 학습이 시작되었습니다.\n다른 메뉴�
                                                             </div>
                                                         </div>
                                                     )}
-                                                    {/* 파일별 분석 결과 */}
-                                                    {kb.content?.fileAnalyses && kb.content.fileAnalyses.length > 0 && (
-                                                        <div>
-                                                            <h5 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-2">파일별 핵심 조건</h5>
-                                                            <div className="space-y-2">
-                                                                {kb.content.fileAnalyses.map((fa, fIdx) => (
-                                                                    <div key={fIdx} className="bg-gray-950 rounded-lg p-3">
-                                                                        <p className="text-xs font-bold text-gray-300 mb-1 truncate">{fa.fileName}</p>
-                                                                        <ul className="space-y-0.5">
-                                                                            {fa.keyConditions?.slice(0, 3).map((cond, cIdx) => (
-                                                                                <li key={cIdx} className="text-[11px] text-gray-500 truncate">• {cond}</li>
-                                                                            ))}
-                                                                            {(fa.keyConditions?.length || 0) > 3 && <li className="text-[10px] text-gray-600">... 외 {(fa.keyConditions?.length || 0) - 3}개</li>}
-                                                                        </ul>
-                                                                    </div>
-                                                                ))}
-                                                            </div>
-                                                        </div>
-                                                    )}
+
                                                     {!kb.content?.criteria && !kb.content?.fileAnalyses && (!kb.files || kb.files.length === 0) && (
                                                         <p className="text-xs text-gray-600 text-center py-4">상세 데이터가 없습니다.</p>
                                                     )}
@@ -676,8 +665,7 @@ alert('백그라운드에서 AI 학습이 시작되었습니다.\n다른 메뉴�
                                         </div>
                                     ))}
                                     {knowledgeList.length === 0 && <div className="text-center py-12 border-2 border-dashed border-gray-800 rounded-xl"><Sparkles className="h-8 w-8 text-gray-800 mx-auto mb-3" /><p className="text-gray-500 text-xs font-bold">아직 학습된 데이터가 없습니다.</p></div>}
-                                </div>
-                            </ScrollArea>
+                            </div>
                         </CardContent>
                     </Card>
                 </div>
