@@ -49,14 +49,18 @@ export async function GET() {
                         .filter((m: any) => m.supportedGenerationMethods?.includes('generateContent'))
                         .map((m: any) => {
                             const name = m.name.replace('models/', '').toLowerCase();
-                            const isMultimodal = name.includes('1.5') || name.includes('2.0') || name.includes('2.5');
+                            // 'generateContent'가 가능하면 기본적으로 텍스트/이미지/PDF 등 멀티모달 지원으로 간주 (Gemini 정책)
+                            const isGeminiModel = name.includes('gemini');
+                            const hasGenerateContent = m.supportedGenerationMethods?.includes('generateContent');
                             return {
                                 value: m.name.replace('models/', ''),
                                 label: m.displayName || m.name.replace('models/', ''),
                                 reqKey: 'GEMINI_API_KEY',
                                 provider: 'google',
-                                supportsPDF: isMultimodal,
-                                supportsVideo: isMultimodal && (name.includes('flash') || name.includes('pro')),
+                                // Gemini- 계열 중 generateContent 역량이 있으면 PDF(멀티모달) 지원으로 간주
+                                supportsPDF: isGeminiModel && hasGenerateContent,
+                                // 비디오는 보통 Flash나 Pro 급 이상에서 지원하므로 이름 기반 추론 (버전 숫자 무관)
+                                supportsVideo: isGeminiModel && hasGenerateContent && (name.includes('flash') || name.includes('pro')),
                             };
                         });
                     models.push(...geminiModels);

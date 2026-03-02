@@ -187,7 +187,10 @@ export async function runLearningPipeline(
     }
 
     const docConditions = fileAnalyses.flatMap(fa => fa.keyConditions).join('\n');
-    const strategyModelName = aiModels?.pdf || aiModels?.docx || aiModels?.xlsx || aiModels?.other || aiModels?.mp4 || 'gemini-1.5-pro';
+    const strategyModelName = aiModels?.pdf || aiModels?.docx || aiModels?.xlsx || aiModels?.other || aiModels?.mp4;
+    if (!strategyModelName) {
+      throw new Error('종합 전략 도출을 위한 AI 모델이 선택되지 않았습니다. PDF 또는 문서 모델을 선택해주세요.');
+    }
     const strategyPrompt = `다음 조건들을 종합하여 투자 전략과 규칙을 도출하세요. JSON 형식 {"strategy": {}, "criteria": {}}로 응답하세요.\n\n조건들:\n${docConditions}`;
 
     const strategyResult = await client.models.generateContent({
