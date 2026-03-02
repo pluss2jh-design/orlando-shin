@@ -6,7 +6,7 @@ export async function GET() {
     try {
         const session = await auth();
 
-        if ((session?.user as any)?.role !== 'ADMIN') {
+        if (session?.user?.role !== 'ADMIN') {
             return NextResponse.json({ error: '권한이 없습니다' }, { status: 403 });
         }
 
@@ -23,7 +23,7 @@ export async function GET() {
             return NextResponse.json({ content: '' });
         }
     } catch (error) {
-        console.error('Get investment logic error:', error);
+        console.error('투자 로직 조회 오류:', error);
         return NextResponse.json({ error: '조회 실패' }, { status: 500 });
     }
 }
@@ -32,7 +32,7 @@ export async function POST(request: NextRequest) {
     try {
         const session = await auth();
 
-        if ((session?.user as any)?.role !== 'ADMIN') {
+        if (session?.user?.role !== 'ADMIN') {
             return NextResponse.json({ error: '권한이 없습니다' }, { status: 403 });
         }
 
@@ -63,7 +63,7 @@ export async function POST(request: NextRequest) {
 
         return NextResponse.json({ success: true });
     } catch (error) {
-        console.error('Save investment logic error:', error);
+        console.error('투자 로직 저장 오류:', error);
         return NextResponse.json({ error: '저장 실패' }, { status: 500 });
     }
 }

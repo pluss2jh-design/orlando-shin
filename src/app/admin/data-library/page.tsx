@@ -403,7 +403,7 @@ alert('백그라운드에서 AI 학습이 시작되었습니다.\n다른 메뉴�
             if (selectedFileIds.has(file.id)) selectedExts.add(getFileExt(file.name, file.mimeType));
         }
         for (const ext of selectedExts) {
-            if (ext !== 'mp4' && !aiModels[ext]) return false;
+            if (!aiModels[ext]) return false;
         }
         return true;
     };
@@ -486,19 +486,13 @@ alert('백그라운드에서 AI 학습이 시작되었습니다.\n다른 메뉴�
                                                         <Brain className="h-4 w-4 text-blue-500" />
                                                         <span className="text-xs font-black text-white uppercase">{ext} 분석 AI 모델</span>
                                                     </div>
-                                                    {ext === 'mp4' ? (
-                                                        <Badge className="bg-blue-500/10 text-blue-400 border border-blue-500/20 text-xs py-1 px-3">
-                                                            자동 폴백(Gemini 3.1 Pro ➔ 1.5 Pro) 사용
-                                                        </Badge>
-                                                    ) : (
-                                                        <ModelSelector
-                                                            ext={ext}
-                                                            currentModel={aiModels[ext] || ''}
-                                                            models={availableModels}
-                                                            keys={keys}
-                                                            onSelect={(val) => setAiModels(prev => ({ ...prev, [ext]: val }))}
-                                                        />
-                                                    )}
+                                                    <ModelSelector
+                                                        ext={ext}
+                                                        currentModel={aiModels[ext] || ''}
+                                                        models={availableModels}
+                                                        keys={keys}
+                                                        onSelect={(val) => setAiModels(prev => ({ ...prev, [ext]: val }))}
+                                                    />
                                                 </div>
 
                                                 <div className="flex bg-gray-950 px-4 py-2 border-b border-gray-800 justify-between items-center">
@@ -605,6 +599,80 @@ alert('백그라운드에서 AI 학습이 시작되었습니다.\n다른 메뉴�
                                                     <Eye className="h-4 w-4 mr-1" /> {expandedKnowledgeId === kb.id ? '접기' : '상세 보기'}
                                                 </Button>
                                             </div>
+                                            {expandedKnowledgeId === kb.id && (
+                                                <div className="mt-4 space-y-4 border-t border-gray-800 pt-4">
+                                                    {/* 학습 파일 목록 */}
+                                                    {kb.files && kb.files.length > 0 && (
+                                                        <div>
+                                                            <h5 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-2">학습 파일 ({kb.files.length}개)</h5>
+                                                            <div className="space-y-1">
+                                                                {kb.files.map((fileName, idx) => (
+                                                                    <div key={idx} className="flex items-center gap-2 text-xs text-gray-300 bg-gray-950 rounded px-3 py-1.5">
+                                                                        <FileText className="h-3 w-3 text-gray-500 shrink-0" />
+                                                                        <span className="truncate">{fileName}</span>
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+                                                        </div>
+                                                    )}
+                                                    {/* 투자 규칙 요약 */}
+                                                    {kb.content?.criteria && (
+                                                        <div>
+                                                            <h5 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-2">투자 규칙</h5>
+                                                            <div className="space-y-2">
+                                                                {Object.entries(kb.content.criteria).map(([key, rules]) => {
+                                                                    const ruleArr = Array.isArray(rules) ? rules : [];
+                                                                    if (ruleArr.length === 0) return null;
+                                                                    const labelMap: Record<string, string> = {
+                                                                        goodCompanyRules: '좋은 기업 조건',
+                                                                        technicalRules: '기술적 분석',
+                                                                        marketSizeRules: '시장 규모',
+                                                                        unitEconomicsRules: '단위 경제성',
+                                                                        lifecycleRules: '생애주기',
+                                                                        buyTimingRules: '매수 타이밍',
+                                                                    };
+                                                                    return (
+                                                                        <div key={key} className="bg-gray-950 rounded-lg p-3">
+                                                                            <div className="flex items-center justify-between mb-1">
+                                                                                <span className="text-xs font-bold text-gray-300">{labelMap[key] || key}</span>
+                                                                                <Badge variant="secondary" className="text-[10px] bg-gray-800 text-gray-400">{ruleArr.length}개</Badge>
+                                                                            </div>
+                                                                            <ul className="space-y-0.5">
+                                                                                {ruleArr.slice(0, 5).map((rule, rIdx) => (
+                                                                                    <li key={rIdx} className="text-[11px] text-gray-500 truncate">• {typeof rule === 'string' ? rule : JSON.stringify(rule)}</li>
+                                                                                ))}
+                                                                                {ruleArr.length > 5 && <li className="text-[10px] text-gray-600">... 외 {ruleArr.length - 5}개</li>}
+                                                                            </ul>
+                                                                        </div>
+                                                                    );
+                                                                })}
+                                                            </div>
+                                                        </div>
+                                                    )}
+                                                    {/* 파일별 분석 결과 */}
+                                                    {kb.content?.fileAnalyses && kb.content.fileAnalyses.length > 0 && (
+                                                        <div>
+                                                            <h5 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-2">파일별 핵심 조건</h5>
+                                                            <div className="space-y-2">
+                                                                {kb.content.fileAnalyses.map((fa, fIdx) => (
+                                                                    <div key={fIdx} className="bg-gray-950 rounded-lg p-3">
+                                                                        <p className="text-xs font-bold text-gray-300 mb-1 truncate">{fa.fileName}</p>
+                                                                        <ul className="space-y-0.5">
+                                                                            {fa.keyConditions?.slice(0, 3).map((cond, cIdx) => (
+                                                                                <li key={cIdx} className="text-[11px] text-gray-500 truncate">• {cond}</li>
+                                                                            ))}
+                                                                            {(fa.keyConditions?.length || 0) > 3 && <li className="text-[10px] text-gray-600">... 외 {(fa.keyConditions?.length || 0) - 3}개</li>}
+                                                                        </ul>
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+                                                        </div>
+                                                    )}
+                                                    {!kb.content?.criteria && !kb.content?.fileAnalyses && (!kb.files || kb.files.length === 0) && (
+                                                        <p className="text-xs text-gray-600 text-center py-4">상세 데이터가 없습니다.</p>
+                                                    )}
+                                                </div>
+                                            )}
                                         </div>
                                     ))}
                                     {knowledgeList.length === 0 && <div className="text-center py-12 border-2 border-dashed border-gray-800 rounded-xl"><Sparkles className="h-8 w-8 text-gray-800 mx-auto mb-3" /><p className="text-gray-500 text-xs font-bold">아직 학습된 데이터가 없습니다.</p></div>}
