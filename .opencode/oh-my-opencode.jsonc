@@ -1,0 +1,119 @@
+{
+  // =========================================================
+  // oh-my-opencode 메인 설정 파일
+  // 문서: https://github.com/code-yeongyu/oh-my-opencode
+  // =========================================================
+  // ── 멀티 에이전트 오케스트레이션 설정 ──────────────────────
+  // 각 에이전트에 최적화된 AI 모델을 할당합니다.
+  // 사용 가능한 provider: anthropic, openai, google, groq 등
+  "agents": {
+    // Sisyphus: 메인 오케스트레이터 / Tech Lead 역할
+    // - 사용자 요청을 분석하여 다른 에이전트에게 작업을 위임
+    // - 전체 워크플로우를 계획하고 조율
+    // - 추론 능력이 뛰어난 모델 권장
+    "sisyphus": {
+      // "model": "google/gemini-3-pro",
+      // "temperature": 0.3,
+      // "maxTokens": 8192
+    },
+    // Oracle: 아키텍처 설계 & 심층 디버깅 전문가
+    // - 시스템 설계, 기술 스택 선택, 복잡한 버그 분석
+    // - 깊은 추론 능력이 필요하므로 고성능 모델 권장
+    "oracle": {
+      "model": "google/gemini-3-flash",
+      "temperature": 0.1,
+      "maxTokens": 16384
+    },
+    // Prometheus: 전략 기획 & 작업 분해 담당
+    // - 대형 프로젝트를 단계별 작업으로 분해
+    // - 실행 계획 수립 및 우선순위 결정
+    "prometheus": {
+      "model": "google/gemini-3-flash",
+      "temperature": 0.4,
+      "maxTokens": 8192
+    },
+    // Librarian: 문서 & 코드베이스 리서치 담당
+    // - 공식 문서 탐색, 라이브러리 분석, 코드 검색
+    // - 넓은 컨텍스트 윈도우가 필요한 모델 권장
+    "librarian": {
+      "model": "google/gemini-3-flash",
+      "temperature": 0.2,
+      "maxTokens": 32768
+    },
+    // Explore: 코드베이스 구조 탐색 담당
+    // - 디렉토리 스캔, 파일 구조 파악, 의존성 분석
+    // - 빠른 응답이 중요하므로 경량 모델 사용
+    "explore": {
+      "model": "google/gemini-3-flash",
+      "temperature": 0.1,
+      "maxTokens": 4096
+    },
+    // Hephaestus: 코드 작성 & 수정 실행 담당
+    // - 실제 코드 생성, 파일 편집, 리팩토링
+    // - 코딩 특화 모델 권장
+    "hephaestus": {
+      "model": "google/gemini-3-flash",
+      "temperature": 0.2,
+      "maxTokens": 8192
+    },
+    // Metis: 전략 검토 & 계획 평가 담당
+    // - 작성된 계획의 타당성 검토, 위험 요소 식별
+    "metis": {
+      "model": "google/gemini-3-flash",
+      "temperature": 0.3,
+      "maxTokens": 8192
+    },
+    // Momus: 코드 리뷰 & 결과물 비평 담당
+    // - 생성된 코드의 품질 검토, 개선 사항 제안
+    "momus": {
+      "model": "google/gemini-3-flash",
+      "temperature": 0.4,
+      "maxTokens": 8192
+    },
+    // Atlas: 논리 구조 매핑 & 의존성 관리 담당
+    // - 시스템 의존성 그래프 작성, 영향 범위 분석
+    "atlas": {
+      "model": "google/gemini-3-flash",
+      "temperature": 0.2,
+      "maxTokens": 16384
+    },
+    // Multimodal-Looker: 이미지/비전 분석 담당
+    // - 스크린샷 분석, UI 디자인 해석, 다이어그램 이해
+    // - 반드시 멀티모달 지원 모델 사용
+    "multimodal-looker": {
+      "model": "google/gemini-3-pro",
+      "temperature": 0.3,
+      "maxTokens": 8192
+    }
+  },
+  // ── 카테고리별 특수 목적 모델 설정 ──────────────────────────
+  // 특정 역할에 적합한 모델을 카테고리로 정의할 수 있습니다.
+  "categories": {
+    // 초고정밀 추론이 필요한 작업용 (비용 주의)
+    "ultrabrain": "google/gemini-3-pro",
+    // 빠른 응답이 필요한 단순 작업용
+    "quicktask": "google/gemini-3-flash",
+    // 프론트엔드 / UI-UX 작업 특화
+    "visual-engineering": "google/gemini-3-flash",
+    // 대용량 컨텍스트가 필요한 코드베이스 분석용
+    "large-context": "google/gemini-3-flash"
+  },
+  // ── 비활성화할 내장 훅(Hook) 목록 ───────────────────────────
+  // 필요하지 않은 훅은 이 목록에 추가하여 비활성화합니다.
+  "disabled_hooks": [
+    // "git-auto-commit",        // 자동 커밋 비활성화
+    // "comment-checker",        // 주석 자동 검사 비활성화
+    // "context-window-monitor"  // 컨텍스트 윈도우 모니터링 비활성화
+  ],
+  // ── 전역 에이전트 설정 ───────────────────────────────────────
+  "settings": {
+    // hash-anchored edit: 코드 변경 전 검증으로 정확성 향상
+    "hashAnchoredEdits": true,
+    // LSP 서버 지원 활성화
+    "lspEnabled": true,
+    // 병렬 에이전트 실행 최대 수
+    "maxParallelAgents": 3,
+    // 응답 언어 설정 (에이전트 간 소통은 영어 권장)
+    "language": "ko"
+  }
+}

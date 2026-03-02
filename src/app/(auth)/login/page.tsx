@@ -87,7 +87,7 @@ function LoginForm() {
   return (
     <Card className="w-full">
       <CardHeader className="text-center">
-        <CardTitle className="text-2xl font-bold">주식 선생님</CardTitle>
+        <CardTitle className="text-2xl font-bold">선생님</CardTitle>
         <CardDescription>
           소셜 계정으로 간편하게 로그인하세요
         </CardDescription>

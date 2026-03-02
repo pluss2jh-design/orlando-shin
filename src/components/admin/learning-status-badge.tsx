@@ -52,7 +52,7 @@ export function LearningStatusBadge() {
             <RefreshCw className="h-4 w-4 animate-spin" />
             <Brain className="h-4 w-4" />
             <span className="text-sm font-bold tracking-tight">
-                AI 학습 중{progressText} — 화면을 보슬수 없더라도 안전합니다.
+                AI 학습 중{progressText} — 백그라운드에서 학습이 진행됩니다.
             </span>
             {status.totalFiles > 0 && (
                 <div className="w-24 h-1.5 bg-blue-200/30 rounded-full overflow-hidden">

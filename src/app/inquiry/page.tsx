@@ -90,7 +90,7 @@ export default function InquiryListPage() {
           className="text-sm text-muted-foreground hover:text-primary flex items-center gap-1"
         >
           <ArrowLeft className="h-4 w-4" />
-          주식 분석 화면으로 돌아가기
+          분석 화면으로 돌아가기
         </a>
       </div>
 

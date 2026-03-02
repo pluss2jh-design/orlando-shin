@@ -35,9 +35,9 @@ export async function sendAnalysisEmail(
   const html = generateEmailTemplate(results, conditions);
 
   await transporter.sendMail({
-    from: `"주식 선생님" <${FROM_EMAIL}>`,
+    from: `"선생님" <${FROM_EMAIL}>`,
     to,
-    subject: `[주식 선생님] AI 추천 TOP 5 기업 분석 결과`,
+    subject: `[선생님] AI 분석 결과`,
     html,
   });
 }
@@ -97,8 +97,8 @@ function generateEmailTemplate(
           border-radius: 12px;
           font-size: 12px;
           font-weight: bold;
-          ${result.riskLevel === 'low' ? 'background: #dcfce7; color: #16a34a;' : 
-            result.riskLevel === 'medium' ? 'background: #fef9c3; color: #ca8a04;' : 
+          ${result.riskLevel === 'low' ? 'background: #dcfce7; color: #16a34a;' :
+          result.riskLevel === 'medium' ? 'background: #fef9c3; color: #ca8a04;' :
             'background: #fee2e2; color: #dc2626;'}
         ">
           ${result.riskLevel === 'low' ? '낮은 위험' : result.riskLevel === 'medium' ? '중간 위험' : '높은 위험'}
@@ -120,7 +120,7 @@ function generateEmailTemplate(
     <head>
       <meta charset="UTF-8">
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <title>주식 선생님 - AI 분석 결과</title>
+      <title>선생님 - AI 분석 결과</title>
     </head>
     <body style="
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -143,7 +143,7 @@ function generateEmailTemplate(
           text-align: center;
         ">
           <h1 style="margin: 0; font-size: 28px; font-weight: bold;">AI 추천 TOP 5 기업</h1>
-          <p style="margin: 8px 0 0 0; opacity: 0.9;">주식 선생님 AI 분석 결과</p>
+          <p style="margin: 8px 0 0 0; opacity: 0.9;">선생님 AI 분석 결과</p>
           <p style="margin: 4px 0 0 0; font-size: 14px; opacity: 0.8;">${currentDate}</p>
         </div>
         
@@ -192,7 +192,7 @@ function generateEmailTemplate(
             color: #94a3b8;
             font-size: 12px;
           ">
-            <p style="margin: 0;">주식 선생님 | AI 기반 주식 분석 서비스</p>
+            <p style="margin: 0;">선생님 | AI 기반 분석 서비스</p>
             <p style="margin: 4px 0 0 0;">본 분석 결과는 투자 참고 자료이며, 투자 책임은 본인에게 있습니다.</p>
           </div>
         </div>

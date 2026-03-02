@@ -27,7 +27,7 @@ export default function Home() {
         <div className="container mx-auto px-4 h-16 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2">
             <Brain className="h-6 w-6 text-black" />
-            <span className="font-bold text-lg text-black">주식 선생님</span>
+            <span className="font-bold text-lg text-black">선생님</span>
           </Link>
 
           <div className="flex items-center gap-3">
@@ -52,7 +52,7 @@ export default function Home() {
 
       <footer className="border-t border-gray-200 py-8 px-4 bg-white">
         <div className="container mx-auto max-w-7xl text-center text-sm text-gray-400 font-medium">
-          <p>© 2026 주식 선생님. All rights reserved.</p>
+          <p>© 2026 선생님. All rights reserved.</p>
           <p className="mt-1">AI Powered Stock Investment System</p>
         </div>
       </footer>

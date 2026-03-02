@@ -1,12 +1,12 @@
 import { prisma } from '@/lib/db';
 import { runAnalysisEngine } from '@/lib/stock-analysis/analysis-engine';
-import { 
-  runLearningPipeline, 
-  getLearnedKnowledge, 
-  saveKnowledgeToDB 
+import {
+  runLearningPipeline,
+  getLearnedKnowledge,
+  saveKnowledgeToDB
 } from '@/lib/stock-analysis/ai-learning';
-import type { 
-  InvestmentStyle, 
+import type {
+  InvestmentStyle,
   LearnedKnowledge,
   RecommendationResult,
   LearnedInvestmentCriteria
@@ -84,10 +84,10 @@ export class StockService {
 
     const currentCount = usage?.count || 0;
     if (currentCount >= planConfig.weeklyAnalysisLimit) {
-      return { 
-        allowed: false, 
-        limit: planConfig.weeklyAnalysisLimit, 
-        used: currentCount 
+      return {
+        allowed: false,
+        limit: planConfig.weeklyAnalysisLimit,
+        used: currentCount
       };
     }
 
@@ -95,7 +95,7 @@ export class StockService {
   }
 
   /**
-   * 주식 분석을 시작합니다 (백그라운드 실행).
+   * 분석을 시작합니다 (백그라운드 실행).
    */
   static async startAnalysis(userId: string, options: {
     conditions?: { periodMonths?: number; companyCount?: number; companyAiModel?: string; companyApiKey?: string; newsAiModel?: string; newsApiKey?: string; sector?: string; strategyType?: 'growth' | 'value' | 'all' };
@@ -123,11 +123,11 @@ export class StockService {
     (async () => {
       try {
         const result = await runAnalysisEngine(
-          { 
-            amount: 0, 
-            periodMonths: options.conditions?.periodMonths || 12, 
-            sector: options.conditions?.sector, 
-            strategyType: options.conditions?.strategyType 
+          {
+            amount: 0,
+            periodMonths: options.conditions?.periodMonths || 12,
+            sector: options.conditions?.sector,
+            strategyType: options.conditions?.strategyType
           },
           knowledge,
           options.style || 'moderate',
@@ -140,7 +140,7 @@ export class StockService {
 
         // 성공 시 사용량 카운트 업
         await StockService.incrementAnalysisUsage(userId);
-        
+
         userAnalysisJobs.set(userId, {
           status: 'completed',
           result,
@@ -181,7 +181,7 @@ export class StockService {
   }) {
     const knowledge = await runLearningPipeline(options.fileIds, options.aiModels);
     const knowledgeId = await saveKnowledgeToDB(knowledge, options.title);
-    
+
     return {
       id: knowledgeId,
       knowledge,

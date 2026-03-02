@@ -292,7 +292,7 @@ export default function StockAnalysisPage() {
           </CardHeader>
           <CardContent className="space-y-4">
             <p className="text-center text-muted-foreground">
-              주식 분석 기능을 이용하려면 로그인이 필요합니다.
+              분석 기능을 이용하려면 로그인이 필요합니다.
             </p>
             <Button
               className="w-full"

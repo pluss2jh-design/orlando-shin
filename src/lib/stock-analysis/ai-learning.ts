@@ -438,165 +438,80 @@ ${docConditions.substring(0, 15000)}`;
     { principle: '강세장/약세장 시장 상황 반영 및 거시 경제 지표 고려', category: 'general' as const, source: defaultSource },
   ];
 
-  const hasValidStrategy = strategyData.strategy?.shortTermConditions?.length > 0 ||
-    strategyData.strategy?.longTermConditions?.length > 0;
-
-  const hasValidCriteria = strategyData.criteria?.goodCompanyRules?.length > 0;
-
-  let usingFallbackRules = false;
-
-  if (!hasValidCriteria) {
-    console.log('⚠️ 규칙 생성 실패: 기본 규칙 7개를 적용합니다.');
-    usingFallbackRules = true;
-  }
-
   const strategy: InvestmentStrategy = {
-    shortTermConditions: hasValidStrategy ? strategyData.strategy.shortTermConditions : ['거래량 급증 동반 상승', '전고점 돌파 패턴'],
-    longTermConditions: hasValidStrategy ? strategyData.strategy.longTermConditions : ['독보적인 시장 점유율', '강력한 현금 흐름'],
-    winningPatterns: hasValidStrategy ? strategyData.strategy.winningPatterns : ['실적 발표 후 갭상승 유지', '이동평균선 정배열'],
-    riskManagementRules: hasValidStrategy ? strategyData.strategy.riskManagementRules : ['투자금의 10% 손절 기준 준수', '섹터 분산 투자'],
+    shortTermConditions: strategyData.strategy?.shortTermConditions || [],
+    longTermConditions: strategyData.strategy?.longTermConditions || [],
+    winningPatterns: strategyData.strategy?.winningPatterns || [],
+    riskManagementRules: strategyData.strategy?.riskManagementRules || [],
   };
-
-  const fallbackSource: SourceReference = {
-    fileName: '기본 투자 규칙 (AI 분석 실패 시 적용)',
-    type: 'pdf',
-    pageOrTimestamp: '-',
-    content: usingFallbackRules
-      ? 'AI 분석에서 규칙 생성에 실패하여 기본 규칙 7개가 적용되었습니다.'
-      : 'PDF 자료를 종합하여 도출된 투자 전략입니다.',
-  };
-
-  const defaultTechnicalRules = [
-    { indicator: '스토캐스틱', rule: '스토캐스틱 %K가 %D를 상향 돌파하고 20 이하에서 상승할 때 매수', weight: 0.8 },
-    { indicator: 'RSI', rule: 'RSI가 30 이하 과매도 구간에서 반등 시작 시 매수', weight: 0.7 },
-    { indicator: 'MACD', rule: 'MACD가 시그널 선을 상향 돌파할 때 매수', weight: 0.7 },
-    { indicator: '이동평균선', rule: '단기 이동평균선(5일, 20일)이 장기 이동평균선(60일) 위에 정배열', weight: 0.8 },
-    { indicator: '거래량', rule: '주가 상승 시 거래량 동반 증가 확인', weight: 0.7 },
-  ];
-
-  const defaultMarketSizeRules = [
-    { rule: 'TAM(전체시장)이 100억 달러 이상이며 연평균 성장률 10% 이상', weight: 0.7 },
-    { rule: 'SAM(목표시장) 내 시장점유율 10% 이상이거나 증가 추세', weight: 0.6 },
-    { rule: 'SOM(획득가능시장) 대비 매출 성장률이 시장 성장률보다 높음', weight: 0.6 },
-  ];
-
-  const defaultUnitEconomicsRules = [
-    { metric: 'LTV/CAC', rule: 'LTV/CAC 비율이 3:1 이상이면 건전한 단위경제', weight: 0.8 },
-    { metric: 'CAC', rule: 'CAC(고객획득비용)가 LTV의 30% 이하', weight: 0.7 },
-    { metric: '공헌이익률', rule: '공헌이익률이 30% 이상이며 증가 추세', weight: 0.7 },
-    { metric: '매출채권회전율', rule: '매출채권회전율이 업종 평균 이상', weight: 0.6 },
-  ];
-
-  const defaultLifecycleRules = [
-    { stage: 'growth' as const, rule: '성장기 기업은 매출 성장률 20% 이상, 시장점유율 확대 중', weight: 0.8 },
-    { stage: 'maturity' as const, rule: '성숙기 기업은 안정적 현금흐름, 높은 배당수익률', weight: 0.7 },
-    { stage: 'introduction' as const, rule: '도입기 기업은 혁신적 제품, 높은 R&D 투자, 장기적 관점 필요', weight: 0.6 },
-  ];
-
-  const defaultBuyTimingRules = [
-    { rule: '스토캐스틱이 과매도 구간(20 이하)에서 상향 반전', weight: 0.8, conditions: ['%K > %D', '%K < 20에서 상승'] },
-    { rule: 'RSI가 30 이하 과매도 구간에서 반등 시작', weight: 0.7, conditions: ['RSI < 30', '상승 반전 확인'] },
-    { rule: 'MACD 골든크로스 발생 (MACD 선이 시그널 선 상향 돌파)', weight: 0.7, conditions: ['MACD > Signal', '히스토그램 양전환'] },
-    { rule: '주가가 20일 이동평균선을 상향 돌파', weight: 0.6, conditions: ['주가 > 20일 MA', '거래량 동반 증가'] },
-    { rule: '실적 발표 후 주가 조정 완료 및 재상승 시작', weight: 0.7, conditions: ['실적 양호', '주가 조정 후 반등'] },
-    { rule: '대형 기관의 순매수 전환 및 보유 비중 증가', weight: 0.6, conditions: ['기관 순매수', '보유 비중 증가'] },
-  ];
 
   const criteria: LearnedInvestmentCriteria = {
-    goodCompanyRules: hasValidCriteria
-      ? strategyData.criteria.goodCompanyRules.map((r: any) => ({
-        rule: r.rule,
-        weight: r.weight || 0.5,
-        source: fallbackSource,
-        category: r.category || 'fundamental',
-      }))
-      : defaultRules.map(r => ({ ...r, category: 'fundamental' as const, source: fallbackSource })),
-    idealMetricRanges: hasValidCriteria
-      ? (strategyData.criteria.idealMetricRanges || []).map((r: any) => ({
-        metric: r.metric,
-        min: r.min,
-        max: r.max,
-        description: r.description || '',
-        source: fallbackSource,
-      }))
-      : defaultMetricRanges.map(r => ({ ...r, source: fallbackSource })),
-    principles: hasValidCriteria
-      ? (strategyData.criteria.principles || []).map((p: any) => ({
-        principle: p.principle,
-        category: p.category || 'general',
-        source: fallbackSource,
-      }))
-      : defaultPrinciples.map(p => ({ ...p, source: fallbackSource })),
-    technicalRules: hasValidCriteria && strategyData.criteria?.technicalRules?.length > 0
-      ? strategyData.criteria.technicalRules.map((r: any) => ({
-        indicator: r.indicator,
-        rule: r.rule,
-        weight: r.weight || 0.5,
-        source: fallbackSource,
-      }))
-      : defaultTechnicalRules.map(r => ({ ...r, source: fallbackSource })),
-    marketSizeRules: hasValidCriteria && strategyData.criteria?.marketSizeRules?.length > 0
-      ? strategyData.criteria.marketSizeRules.map((r: any) => ({
-        rule: r.rule,
-        weight: r.weight || 0.5,
-        source: fallbackSource,
-      }))
-      : defaultMarketSizeRules.map(r => ({ ...r, source: fallbackSource })),
-    unitEconomicsRules: hasValidCriteria && strategyData.criteria?.unitEconomicsRules?.length > 0
-      ? strategyData.criteria.unitEconomicsRules.map((r: any) => ({
-        metric: r.metric,
-        rule: r.rule,
-        weight: r.weight || 0.5,
-        source: fallbackSource,
-      }))
-      : defaultUnitEconomicsRules.map(r => ({ ...r, source: fallbackSource })),
-    lifecycleRules: hasValidCriteria && strategyData.criteria?.lifecycleRules?.length > 0
-      ? strategyData.criteria.lifecycleRules.map((r: any) => ({
-        stage: r.stage || 'growth',
-        rule: r.rule,
-        weight: r.weight || 0.5,
-        source: fallbackSource,
-      }))
-      : defaultLifecycleRules.map(r => ({ ...r, source: fallbackSource })),
-    buyTimingRules: hasValidCriteria && strategyData.criteria?.buyTimingRules?.length > 0
-      ? strategyData.criteria.buyTimingRules.map((r: any) => ({
-        rule: r.rule,
-        weight: r.weight || 0.5,
-        conditions: r.conditions || [],
-        source: fallbackSource,
-      }))
-      : defaultBuyTimingRules.map(r => ({ ...r, source: fallbackSource })),
+    goodCompanyRules: (strategyData.criteria?.goodCompanyRules || []).map((r: any) => ({
+      rule: r.rule,
+      weight: r.weight || 0.5,
+      source: defaultSource,
+      category: r.category || 'fundamental',
+    })),
+    idealMetricRanges: (strategyData.criteria?.idealMetricRanges || []).map((r: any) => ({
+      metric: r.metric,
+      min: r.min,
+      max: r.max,
+      description: r.description || '',
+      source: defaultSource,
+    })),
+    principles: (strategyData.criteria?.principles || []).map((p: any) => ({
+      principle: p.principle,
+      category: p.category || 'general',
+      source: defaultSource,
+    })),
+    technicalRules: (strategyData.criteria?.technicalRules || []).map((r: any) => ({
+      indicator: r.indicator,
+      rule: r.rule,
+      weight: r.weight || 0.5,
+      source: defaultSource,
+    })),
+    marketSizeRules: (strategyData.criteria?.marketSizeRules || []).map((r: any) => ({
+      rule: r.rule,
+      weight: r.weight || 0.5,
+      source: defaultSource,
+    })),
+    unitEconomicsRules: (strategyData.criteria?.unitEconomicsRules || []).map((r: any) => ({
+      metric: r.metric,
+      rule: r.rule,
+      weight: r.weight || 0.5,
+      source: defaultSource,
+    })),
+    lifecycleRules: (strategyData.criteria?.lifecycleRules || []).map((r: any) => ({
+      stage: r.stage || 'growth',
+      rule: r.rule,
+      weight: r.weight || 0.5,
+      source: defaultSource,
+    })),
+    buyTimingRules: (strategyData.criteria?.buyTimingRules || []).map((r: any) => ({
+      rule: r.rule,
+      weight: r.weight || 0.5,
+      conditions: r.conditions || [],
+      source: defaultSource,
+    })),
   };
-
-  console.log(`Final criteria: ${criteria.goodCompanyRules.length} fundamental rules, ${criteria.technicalRules.length} technical rules, ${criteria.marketSizeRules.length} market rules, ${criteria.unitEconomicsRules.length} unit economics rules, ${criteria.lifecycleRules.length} lifecycle rules, ${criteria.buyTimingRules.length} buy timing rules`);
-  if (usingFallbackRules) {
-    console.log('✅ 기본 규칙 30+개가 성공적으로 적용되었습니다.');
-  }
 
   const knowledge: LearnedKnowledge = {
     fileAnalyses,
     criteria,
     strategy,
-    rawSummaries: files.map(f => ({ fileName: f.name, summary: '학습 완료된 자료' })),
+    rawSummaries: targetFiles.map(f => ({ fileName: f.name, summary: '학습 완료된 자료' })),
     learnedAt: new Date(),
-    sourceFiles: files.map((f) => f.name),
+    sourceFiles: targetFiles.map((f) => f.name),
   };
 
-
-
   return knowledge;
-} finally {
-  learningStatus.isLearning = false;
-  learningStatus.isCancelled = false;
-  learningStatus.startTime = null;
-  learningStatus.totalFiles = 0;
-  learningStatus.completedFiles = 0;
-}
-learningStatus.isLearning = false;
-learningStatus.isCancelled = false;
-learningStatus.startTime = null;
-learningStatus.totalFiles = 0;
-learningStatus.completedFiles = 0;
+  } finally {
+    learningStatus.isLearning = false;
+    learningStatus.isCancelled = false;
+    learningStatus.startTime = null;
+    learningStatus.totalFiles = 0;
+    learningStatus.completedFiles = 0;
+  }
 }
 
 async function extractFileContent(file: DriveFileInfo): Promise<string> {
