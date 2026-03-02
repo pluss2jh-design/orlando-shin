@@ -1,3 +1,4 @@
+import { withRetry } from '@/lib/utils/retry';
 import { promises as fs } from 'fs';
 import path from 'path';
 import { GoogleGenAI } from '@google/genai';
@@ -146,27 +147,34 @@ export async function runLearningPipeline(
         let responseText = '';
 
         if (chosenModelGrp.startsWith('gpt')) {
-          const openai = getOpenAIClient();
-          const res = await openai.chat.completions.create({
-            model: chosenModelGrp,
-            messages: [{ role: 'user', content: promptText }]
+          responseText = await withRetry(async () => {
+            const openai = getOpenAIClient();
+            const res = await openai.chat.completions.create({
+              model: chosenModelGrp,
+              messages: [{ role: 'user', content: promptText }]
+            });
+            return res.choices[0].message.content || '';
           });
-          responseText = res.choices[0].message.content || '';
         } else if (chosenModelGrp.startsWith('claude')) {
-          const anthropic = getAnthropicClient();
-          const res = await anthropic.messages.create({
-            model: chosenModelGrp as any,
-            max_tokens: 4096,
-            messages: [{ role: 'user', content: promptText }]
+          responseText = await withRetry(async () => {
+            const anthropic = getAnthropicClient();
+            const res = await anthropic.messages.create({
+              model: chosenModelGrp as any,
+              max_tokens: 4096,
+              messages: [{ role: 'user', content: promptText }]
+            });
+            return (res.content[0] as any).text || '';
           });
-          responseText = (res.content[0] as any).text || '';
         } else {
-          const contents = inlineDataPart ? [promptText, inlineDataPart] : [promptText];
-          const result = await client.models.generateContent({
-            model: chosenModelGrp,
-            contents: contents as any
+          responseText = await withRetry(async () => {
+            const client = getGeminiClient();
+            const contents = inlineDataPart ? [promptText, inlineDataPart] : [promptText];
+            const result = await client.models.generateContent({
+              model: chosenModelGrp,
+              contents: contents as any
+            });
+            return result.text || '';
           });
-          responseText = result.text || '';
         }
 
         const jsonMatch = responseText.match(/\{[\s\S]*\}/);
@@ -193,11 +201,14 @@ export async function runLearningPipeline(
     }
     const strategyPrompt = `다음 조건들을 종합하여 투자 전략과 규칙을 도출하세요. JSON 형식 {"strategy": {}, "criteria": {}}로 응답하세요.\n\n조건들:\n${docConditions}`;
 
-    const strategyResult = await client.models.generateContent({
-      model: strategyModelName,
-      contents: [strategyPrompt]
+    const strategyText = await withRetry(async () => {
+      const strategyResult = await client.models.generateContent({
+        model: strategyModelName,
+        contents: [strategyPrompt]
+      });
+      return strategyResult.text || '';
     });
-    const strategyText = strategyResult.text || '';
+
     const strategyJsonMatch = strategyText.match(/\{[\s\S]*\}/);
     const strategyData = strategyJsonMatch ? JSON.parse(strategyJsonMatch[0]) : {};
 
