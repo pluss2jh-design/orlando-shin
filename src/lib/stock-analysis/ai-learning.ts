@@ -1,6 +1,6 @@
 import { promises as fs } from 'fs';
 import path from 'path';
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { GoogleGenAI } from '@google/genai';
 import OpenAI from 'openai';
 import Anthropic from '@anthropic-ai/sdk';
 import { prisma } from '@/lib/db';
@@ -17,8 +17,6 @@ import {
   downloadDriveFile,
   type DriveFileInfo,
 } from '@/lib/google-drive';
-
-
 
 export const learningStatus = {
   isLearning: false,
@@ -39,7 +37,7 @@ function getGeminiClient(customApiKey?: string) {
   if (!apiKey) {
     throw new Error('GEMINI_API_KEY가 설정되지 않았습니다.');
   }
-  return new GoogleGenerativeAI(apiKey);
+  return new GoogleGenAI({ apiKey });
 }
 
 function getOpenAIClient() {
@@ -78,24 +76,6 @@ function isTextOrDocumentFile(file: DriveFileInfo): boolean {
     file.mimeType?.includes('spreadsheet') || false;
 }
 
-function hasActualAnalysis(keyConditions: string[]): boolean {
-  if (!keyConditions || keyConditions.length === 0) return false;
-
-  const placeholderPatterns = [
-    '제공된 비디오 파일의 내용을 분석할 수 없어',
-    '비디오 파일의 내용을 직접 분석할 수 없',
-    '영상의 내용을 분석할 수 없',
-    '파일의 내용을 분석할 수 없',
-    '내용을 분석할 수 없어',
-    '요약본을 제공해 주셔야',
-    '파악할 수 없습',
-  ];
-
-  return !keyConditions.some(condition =>
-    placeholderPatterns.some(pattern => condition.includes(pattern))
-  );
-}
-
 export async function runLearningPipeline(
   targetFileIds?: string[],
   aiModels?: Record<string, string>
@@ -117,57 +97,30 @@ export async function runLearningPipeline(
       : allFiles;
 
     if (files.length === 0) {
-      throw new Error('Google Drive 폴터에 파일이 없습니다.');
+      throw new Error('Google Drive 폴더에 파일이 없습니다.');
     }
 
-    console.log('All files from Google Drive:', files.map(f => ({ name: f.name, mimeType: f.mimeType })));
-
-    let existingKnowledge: LearnedKnowledge | null = null;
-    try {
-      const activeKnowledge = await getActiveKnowledgeFromDB();
-      if (activeKnowledge) {
-        existingKnowledge = activeKnowledge;
-        console.log('Loaded existing knowledge from DB with', existingKnowledge?.fileAnalyses?.length || 0, 'analyses');
-      }
-    } catch {
-      console.log('No existing knowledge found in DB');
-    }
-
-    const targetFiles = files
-      .filter(f => {
-        const isSupported = isPDFFile(f) || isVideoFile(f) || isTextOrDocumentFile(f);
-        console.log(`File: ${f.name}, mimeType: ${f.mimeType}, supported: ${isSupported}`);
-        return isSupported;
-      });
-
-    console.log(`Filtered ${targetFiles.length} files for processing`);
-
+    const targetFiles = files.filter(f => isPDFFile(f) || isVideoFile(f) || isTextOrDocumentFile(f));
     if (targetFiles.length === 0) {
-      const fileList = files.map(f => `${f.name} (${f.mimeType})`).join(', ');
-      throw new Error(`지원되는 파일 형식이 없습니다. 발견된 파일들: ${fileList}`);
+      throw new Error('지원되는 파일 형식이 없습니다.');
     }
 
     const fileAnalyses: FileAnalysis[] = [];
-
-    // 진행률 추적 시작
     learningStatus.totalFiles = targetFiles.length;
     learningStatus.completedFiles = 0;
 
+    const client = getGeminiClient();
+
     for (const file of targetFiles) {
       if (learningStatus.isCancelled) {
-        throw new Error('학습이 관리자에 의해 강제 중지되었습니다. 처리되던 데이터는 모두 폐기됩니다.');
+        throw new Error('학습이 강제 중지되었습니다.');
       }
-      try {
-        if (!isPDFFile(file) && !isVideoFile(file) && !isTextOrDocumentFile(file)) {
-          console.log(`Skipping unsupported file: ${file.name}`);
-          continue;
-        }
 
+      try {
         let content = '';
         let inlineDataPart: any = null;
 
         if (isPDFFile(file) || isVideoFile(file)) {
-          console.log(`Downloading file directly: ${file.name}`);
           const fileBuffer = await downloadDriveFile(file.id, file.name);
           const mimeType = isVideoFile(file) ? 'video/mp4' : 'application/pdf';
           inlineDataPart = {
@@ -176,58 +129,23 @@ export async function runLearningPipeline(
               mimeType: mimeType
             }
           };
-          content = `[${mimeType.toUpperCase()} CONTENTS PASSED AS INLINE DATA]`;
-        } else if (isTextOrDocumentFile(file)) {
+          content = `[MEDIA_CONTENT]`;
+        } else {
           content = await extractFileContent(file);
-          console.log(`Extracted file content length: ${content.length} chars`);
         }
 
-        if (!content || content.trim().length === 0) {
-          console.log(`Skipping file ${file.name}: empty content`);
-          continue;
-        }
-
-        console.log(`Processing file: ${file.name}`);
+        if (!content || content.trim().length === 0) continue;
 
         const ext = getFileExt(file.name, file.mimeType);
-        let chosenModelGrp = aiModels?.[ext];
+        const chosenModelGrp = aiModels?.[ext];
         if (!chosenModelGrp) {
-          throw new Error(`${ext.toUpperCase()} 파일 학습을 위한 AI 모델이 선택되지 않았습니다.`);
+          throw new Error(`${ext.toUpperCase()} 모델이 선택되지 않았습니다.`);
         }
-        if (!chosenModelGrp || chosenModelGrp === 'gemini') chosenModelGrp = 'gemini-1.5-pro';
 
-        const promptText = `당신은 전문 주식 투자 분석가입니다. 제공된 자료(PDF 또는 텍스트)에서 주가 상승 및 기업 분석에 핵심적인 "모든" 규칙과 지표를 최대한 많이 추출하세요.
-
-특히 다음 요소들을 반드시 포함하여 상세하게 추출해 주세요:
-1. 재무지표: ROE, PER, PBR, EPS 성장률, EV/EBITDA, 부채비율, FCF 등
-2. 기술적 지표: 스토캐스틱(Stochastic), RSI, MACD, 이동평균선, 골든크로스 등
-3. 시장 분석: TAM(전체시장), SAM(목표시장), SOM(수익시장) 규모 및 성장성
-4. 수익성 지표: CAC(고객획득비용), LTV(고객생애가치), 공헌이익률 등
-5. 기업 생애주기: 도입기, 성장기, 성숙기, 쇠퇴기 중 현재 단계 및 특징
-6. 매수/매도 타이밍: 지금 매수해도 되는 구체적인 기술적/기본적 근거
-
-중요: 자료에 언급된 수치나 구체적인 논리가 있다면 하나도 빠짐없이 "keyConditions" 배열에 담아주세요. 최소 10개 이상의 풍부한 조건을 추출하는 것이 목표입니다.
-
-다음 형식의 JSON으로 응답하세요:
-{
-  "keyConditions": [
-    "조건1: 구체적인 수치와 기준",
-    "조건2: 구체적인 지표와 분석 기법",
-    "..."
-  ]
-}
-
-파일명: ${file.name}
-
-내용:
-${isPDFFile(file) || isVideoFile(file) ? '(첨부된 미디어 파일 참조)' : content.substring(0, 12000)}`;
-
+        const promptText = `주식 투자 분석가로서 다음 파일의 핵심 조건을 추출하세요: ${file.name}. JSON 형식 {"keyConditions": []}로 응답하세요.`;
         let responseText = '';
 
         if (chosenModelGrp.startsWith('gpt')) {
-          if (isPDFFile(file) || isVideoFile(file)) {
-            throw new Error(`GPT 모델은 미디어 직접 분석을 완벽하게 지원하지 않아 텍스트 관리기를 사용해야 합니다. (선택된 파일: ${file.name})`);
-          }
           const openai = getOpenAIClient();
           const res = await openai.chat.completions.create({
             model: chosenModelGrp,
@@ -236,276 +154,80 @@ ${isPDFFile(file) || isVideoFile(file) ? '(첨부된 미디어 파일 참조)' :
           responseText = res.choices[0].message.content || '';
         } else if (chosenModelGrp.startsWith('claude')) {
           const anthropic = getAnthropicClient();
-          if (isVideoFile(file)) {
-            throw new Error(`Claude 모델은 비디오 직접 분석을 지원하지 않습니다. (선택된 파일: ${file.name})`);
-          }
-          if (inlineDataPart) {
-            const res = await anthropic.beta.messages.create({
-              model: chosenModelGrp as any,
-              betas: ["pdfs-2024-09-25"] as any,
-              max_tokens: 4096,
-              messages: [{
-                role: 'user',
-                content: [
-                  { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: inlineDataPart.inlineData.data } } as any,
-                  { type: 'text', text: promptText }
-                ]
-              }]
-            });
-            responseText = (res.content[0] as any).text || '';
-          } else {
-            const res = await anthropic.messages.create({
-              model: chosenModelGrp as any,
-              max_tokens: 4096,
-              messages: [{ role: 'user', content: promptText }]
-            });
-            responseText = (res.content[0] as any).text || '';
-          }
+          const res = await anthropic.messages.create({
+            model: chosenModelGrp as any,
+            max_tokens: 4096,
+            messages: [{ role: 'user', content: promptText }]
+          });
+          responseText = (res.content[0] as any).text || '';
         } else {
-          const genAI = getGeminiClient();
-          const promptParts = inlineDataPart ? [promptText, inlineDataPart] : promptText;
-          const model = genAI.getGenerativeModel({ model: chosenModelGrp });
-          const result = await model.generateContent(promptParts);
-          responseText = result.response.text();
+          const contents = inlineDataPart ? [promptText, inlineDataPart] : [promptText];
+          const result = await client.models.generateContent({
+            model: chosenModelGrp,
+            contents: contents as any
+          });
+          responseText = result.text || '';
         }
-        let analysisResult: { keyConditions?: string[] } = { keyConditions: [] };
 
-      try {
         const jsonMatch = responseText.match(/\{[\s\S]*\}/);
-        if (jsonMatch) {
-          analysisResult = JSON.parse(jsonMatch[0]);
-        }
-      } catch (parseError) {
-        console.error(`JSON parse error for ${file.name}:`, parseError);
-        analysisResult = {
-          keyConditions: responseText.split('\n').filter(line => line.trim().startsWith('-') || line.trim().match(/^\d+\./)).map(line => line.replace(/^[-\d.\s]+/, '').trim()).slice(0, 7)
-        };
+        const analysisResult = jsonMatch ? JSON.parse(jsonMatch[0]) : { keyConditions: [] };
+
+        fileAnalyses.push({
+          fileName: file.name,
+          fileId: file.id,
+          keyConditions: analysisResult.keyConditions || [],
+          extractedAt: new Date(),
+        });
+
+        learningStatus.completedFiles += 1;
+      } catch (error: any) {
+        console.error(`파일 분석 실패: ${file.name}`, error);
+        throw new Error(`파일(${file.name}) 분석 중 오류: ${error.message}`);
       }
-
-      const unanalyzablePatterns = [
-        '추출하는 것이 불가능합니다',
-        '추출할 수 없습니다',
-        '현재 자료만으로는 파악이 어렵습니다',
-        '분석할 수 없습니다',
-        '제공된 내용만으로는',
-        '명시되어 있지 않습니다',
-        '포함되어 있지 않습니다',
-        '확인할 수 없습니다',
-        '파악이 불가능합니다',
-        '구체적인 수치가 없습니다',
-        '제시되지 않았습니다',
-        '언급되지 않았습니다',
-        '제공되지 않았습니다',
-        '찾을 수 없습니다',
-        '포함되지 않았습니다'
-      ];
-
-      const filteredConditions = (analysisResult.keyConditions || []).filter(condition => {
-        const hasUnanalyzable = unanalyzablePatterns.some(pattern =>
-          condition.includes(pattern)
-        );
-        if (hasUnanalyzable) {
-          console.log(`Filtering out unanalyzable condition from ${file.name}: "${condition.substring(0, 50)}..."`);
-          return false;
-        }
-        return true;
-      });
-
-      fileAnalyses.push({
-        fileName: file.name,
-        fileId: file.id,
-        keyConditions: filteredConditions,
-        extractedAt: new Date(),
-      });
-
-      console.log(`Successfully analyzed PDF: ${file.name} with conditions:`, analysisResult.keyConditions);
-      learningStatus.completedFiles += 1;
-
-    } catch (error) {
-      console.error(`파일 분석 실패: ${file.name}`, error);
     }
-  }
 
-    if (learningStatus.isCancelled) {
-    throw new Error('학습이 관리자에 의해 강제 중지되었습니다. 처리되던 데이터는 모두 폐기됩니다.');
-  }
+    const docConditions = fileAnalyses.flatMap(fa => fa.keyConditions).join('\n');
+    const strategyModelName = aiModels?.pdf || aiModels?.docx || aiModels?.xlsx || aiModels?.other || aiModels?.mp4 || 'gemini-1.5-pro';
+    const strategyPrompt = `다음 조건들을 종합하여 투자 전략과 규칙을 도출하세요. JSON 형식 {"strategy": {}, "criteria": {}}로 응답하세요.\n\n조건들:\n${docConditions}`;
 
-  console.log(`Successfully analyzed ${fileAnalyses.length} files`);
+    const strategyResult = await client.models.generateContent({
+      model: strategyModelName,
+      contents: [strategyPrompt]
+    });
+    const strategyText = strategyResult.text || '';
+    const strategyJsonMatch = strategyText.match(/\{[\s\S]*\}/);
+    const strategyData = strategyJsonMatch ? JSON.parse(strategyJsonMatch[0]) : {};
 
-  if (fileAnalyses.length === 0) {
-    throw new Error('처리할 수 있는 파일이 없습니다. Google Drive에 지원되는 파일(PDF, 텍스트, 문서, MP4 등)이 있는지 확인해주세요.');
-  }
+    const defaultSource: SourceReference = { fileName: '종합 분석', type: 'pdf', pageOrTimestamp: '-', content: '학습 데이터 종합 분석 결과' };
 
-  const documentAnalyses = fileAnalyses.filter(fa =>
-    !isVideoFile({ name: fa.fileName, id: fa.fileId, mimeType: '' } as any)
-  );
-  console.log(`Document analyses count: ${documentAnalyses.length}`);
+    const strategy: InvestmentStrategy = {
+      shortTermConditions: strategyData.strategy?.shortTermConditions || [],
+      longTermConditions: strategyData.strategy?.longTermConditions || [],
+      winningPatterns: strategyData.strategy?.winningPatterns || [],
+      riskManagementRules: strategyData.strategy?.riskManagementRules || [],
+    };
 
-  const docConditions = documentAnalyses
-    .flatMap(fa => fa.keyConditions)
-    .join('\n');
+    const criteria: LearnedInvestmentCriteria = {
+      goodCompanyRules: (strategyData.criteria?.goodCompanyRules || []).map((r: any) => ({ rule: r.rule, weight: r.weight || 0.5, source: defaultSource, category: r.category || 'fundamental' })),
+      idealMetricRanges: (strategyData.criteria?.idealMetricRanges || []).map((r: any) => ({ metric: r.metric, min: r.min, max: r.max, description: r.description || '', source: defaultSource })),
+      principles: (strategyData.criteria?.principles || []).map((p: any) => ({ principle: p.principle, category: p.category || 'general', source: defaultSource })),
+      technicalRules: (strategyData.criteria?.technicalRules || []).map((r: any) => ({ indicator: r.indicator, rule: r.rule, weight: r.weight || 0.5, source: defaultSource })),
+      marketSizeRules: (strategyData.criteria?.marketSizeRules || []).map((r: any) => ({ rule: r.rule, weight: r.weight || 0.5, source: defaultSource })),
+      unitEconomicsRules: (strategyData.criteria?.unitEconomicsRules || []).map((r: any) => ({ metric: r.metric, rule: r.rule, weight: r.weight || 0.5, source: defaultSource })),
+      lifecycleRules: (strategyData.criteria?.lifecycleRules || []).map((r: any) => ({ stage: r.stage || 'growth', rule: r.rule, weight: r.weight || 0.5, source: defaultSource })),
+      buyTimingRules: (strategyData.criteria?.buyTimingRules || []).map((r: any) => ({ rule: r.rule, weight: r.weight || 0.5, conditions: r.conditions || [], source: defaultSource })),
+    };
 
-  console.log(`Total Document conditions length: ${docConditions.length} chars`);
-  console.log(`Document conditions preview: ${docConditions.substring(0, 500)}...`);
+    const knowledge: LearnedKnowledge = {
+      fileAnalyses,
+      criteria,
+      strategy,
+      rawSummaries: targetFiles.map(f => ({ fileName: f.name, summary: '학습 완료' })),
+      learnedAt: new Date(),
+      sourceFiles: targetFiles.map(f => f.name),
+    };
 
-  const genAI = getGeminiClient();
-  const strategyModel = genAI.getGenerativeModel({ model: 'gemini-2.0-pro-exp-02-05' });
-  const strategyPrompt = `전설적인 투자 전략가로서 제공된 자료에서 추출된 핵심 조건들을 종합하여 포괄적인 투자 전략과 기업 선정 규칙을 도출하세요.
-
-추출된 핵심 조건들:
-${docConditions}
-
-위 조건들을 바탕으로 다음 JSON 구조로 정리해 주세요.
-다음 카테고리별로 규칙을 최대한 많이 추출하세요 (각 카테고리당 5~15개 이상):
-
-1. 재무지표 규칙 (goodCompanyRules): ROE, PER, PBR, EPS, EV/EBITDA, 부채비율, FCF 등
-2. 기술적 분석 규칙 (technicalRules): 스토캐스틱, RSI, MACD, 이동평균선, 볼린저밴드, 거래량 등
-3. 시장 규모 규칙 (marketSizeRules): TAM, SAM, SOM, 시장 성장률, 시장 점유율 등
-4. 단위 경제성 규칙 (unitEconomicsRules): CAC(고객획득비용), LTV(고객생애가치), 공헌이익률 등
-5. 기업 생애주기 규칙 (lifecycleRules): 도입기, 성장기, 성숙기, 쇠퇴기별 투자 기준
-6. 매수 타이밍 규칙 (buyTimingRules): 지금 당장 매수하기 좋은 시점 판단 기준
-
-JSON 형식:
-{
-  "strategy": {
-    "shortTermConditions": ["단기 상승 조건1", "..."],
-    "longTermConditions": ["장기 상승 조건1", "..."],
-    "winningPatterns": ["수익 패턴1", "..."],
-    "riskManagementRules": ["리스크 관리1", "..."]
-  },
-  "criteria": {
-    "goodCompanyRules": [{ "rule": "규칙", "weight": 0.1~1.0, "category": "fundamental"|"technical"|"market"|"unit_economics"|"lifecycle"|"timing"|"risk" }],
-    "idealMetricRanges": [{ "metric": "per"|"pbr"|"roe"|"dividendYield", "min": 0, "max": 0, "description": "..." }],
-    "principles": [{ "principle": "원칙", "category": "entry"|"exit"|"risk"|"general" }],
-    "technicalRules": [{ "indicator": "스토캐스틱|RSI|MACD", "rule": "규칙", "weight": 0.1~1.0 }],
-    "marketSizeRules": [{ "rule": "규칙", "weight": 0.1~1.0 }],
-    "unitEconomicsRules": [{ "metric": "CAC|LTV|공헌이익률", "rule": "규칙", "weight": 0.1~1.0 }],
-    "lifecycleRules": [{ "stage": "introduction|growth|maturity|decline", "rule": "규칙", "weight": 0.1~1.0 }],
-    "buyTimingRules": [{ "rule": "규칙", "weight": 0.1~1.0, "conditions": ["조건1", "..."] }]
-  }
-}
-
-PDF 자료에서 추출한 주가 상승 핵심 조건들입니다:
-${docConditions.substring(0, 15000)}`;
-
-  let strategyData: any = {};
-
-  if (docConditions.trim().length > 0) {
-    try {
-      const strategyResult = await strategyModel.generateContent(strategyPrompt);
-      const strategyText = strategyResult.response.text();
-
-      try {
-        const jsonMatch = strategyText.match(/\{[\s\S]*\}/);
-        if (jsonMatch) {
-          strategyData = JSON.parse(jsonMatch[0]);
-        }
-      } catch (parseError) {
-        console.error('Strategy JSON parse error:', parseError);
-      }
-    } catch (error) {
-      console.error('Strategy generation error:', error);
-    }
-  }
-
-  const defaultSource: SourceReference = {
-    fileName: '종합 전략 분석',
-    type: 'pdf',
-    pageOrTimestamp: '-',
-    content: 'PDF 자료를 종합하여 도출된 투자 전략입니다.',
-  };
-
-  const defaultRules = [
-    { rule: 'ROE 15% 이상을 3년 이상 유지하며 일반 기업 평균(8~12%)을 상회하는 수익성 확보', weight: 0.9, category: 'fundamental' as const, source: defaultSource },
-    { rule: 'PER 10~20배 사이의 적정가치 구간에 위치하되, 업종 평균과 비교해 저평가 상태', weight: 0.8, category: 'fundamental' as const, source: defaultSource },
-    { rule: 'PBR 1~2배 범위에서 ROE와 괴리가 없는 건전한 자산 구조', weight: 0.7, category: 'fundamental' as const, source: defaultSource },
-    { rule: 'EV/EBITDA 10배 이하로 부채를 고려한 실제 기업가치가 적정', weight: 0.7, category: 'fundamental' as const, source: defaultSource },
-    { rule: 'EPS 성장률 15% 이상 유지하며 PER 대비 성장성이 우수(PEG 1.5 이하)', weight: 0.8, category: 'fundamental' as const, source: defaultSource },
-    { rule: '부채비율 100% 이하로 재무안정성 확보 및 이자상환능력 우수', weight: 0.6, category: 'fundamental' as const, source: defaultSource },
-    { rule: 'FCF(잉여현금흐름) 양호하여 실제 현금 창출능력 보유', weight: 0.7, category: 'fundamental' as const, source: defaultSource },
-  ];
-
-  const defaultMetricRanges = [
-    { metric: 'roe' as const, min: 15, description: 'ROE 15% 이상 유지 시 우량 기업으로 판단', source: defaultSource },
-    { metric: 'per' as const, min: 10, max: 20, description: 'PER 10~20배 적정 구간, 10 이하 저평가, 30 이상 고평가', source: defaultSource },
-    { metric: 'pbr' as const, min: 1, max: 2, description: 'PBR 1~2배 건전, 1 미만+저ROE 시 주의', source: defaultSource },
-    { metric: 'dividendYield' as const, min: 2, max: 4, description: '배당수익률 2~4% 안정적, 5% 이상 시 주가하락 가능성', source: defaultSource },
-  ];
-
-  const defaultPrinciples = [
-    { principle: '단일 지표가 아닌 ROE, PER, PBR, EV/EBITDA 등 다중 지표 종합 분석', category: 'general' as const, source: defaultSource },
-    { principle: '업종 특성을 고려한 상대적 지표 비교 (업종 평균 대비)', category: 'general' as const, source: defaultSource },
-    { principle: '강세장/약세장 시장 상황 반영 및 거시 경제 지표 고려', category: 'general' as const, source: defaultSource },
-  ];
-
-  const strategy: InvestmentStrategy = {
-    shortTermConditions: strategyData.strategy?.shortTermConditions || [],
-    longTermConditions: strategyData.strategy?.longTermConditions || [],
-    winningPatterns: strategyData.strategy?.winningPatterns || [],
-    riskManagementRules: strategyData.strategy?.riskManagementRules || [],
-  };
-
-  const criteria: LearnedInvestmentCriteria = {
-    goodCompanyRules: (strategyData.criteria?.goodCompanyRules || []).map((r: any) => ({
-      rule: r.rule,
-      weight: r.weight || 0.5,
-      source: defaultSource,
-      category: r.category || 'fundamental',
-    })),
-    idealMetricRanges: (strategyData.criteria?.idealMetricRanges || []).map((r: any) => ({
-      metric: r.metric,
-      min: r.min,
-      max: r.max,
-      description: r.description || '',
-      source: defaultSource,
-    })),
-    principles: (strategyData.criteria?.principles || []).map((p: any) => ({
-      principle: p.principle,
-      category: p.category || 'general',
-      source: defaultSource,
-    })),
-    technicalRules: (strategyData.criteria?.technicalRules || []).map((r: any) => ({
-      indicator: r.indicator,
-      rule: r.rule,
-      weight: r.weight || 0.5,
-      source: defaultSource,
-    })),
-    marketSizeRules: (strategyData.criteria?.marketSizeRules || []).map((r: any) => ({
-      rule: r.rule,
-      weight: r.weight || 0.5,
-      source: defaultSource,
-    })),
-    unitEconomicsRules: (strategyData.criteria?.unitEconomicsRules || []).map((r: any) => ({
-      metric: r.metric,
-      rule: r.rule,
-      weight: r.weight || 0.5,
-      source: defaultSource,
-    })),
-    lifecycleRules: (strategyData.criteria?.lifecycleRules || []).map((r: any) => ({
-      stage: r.stage || 'growth',
-      rule: r.rule,
-      weight: r.weight || 0.5,
-      source: defaultSource,
-    })),
-    buyTimingRules: (strategyData.criteria?.buyTimingRules || []).map((r: any) => ({
-      rule: r.rule,
-      weight: r.weight || 0.5,
-      conditions: r.conditions || [],
-      source: defaultSource,
-    })),
-  };
-
-  const knowledge: LearnedKnowledge = {
-    fileAnalyses,
-    criteria,
-    strategy, // 학습 데이터 요약 포함 확인
-    rawSummaries: targetFiles.map(f => ({ fileName: f.name, summary: '학습 완료된 자료' })),
-
-    learnedAt: new Date(),
-    sourceFiles: targetFiles.map((f) => f.name),
-  };
-
-  return knowledge;
+    return knowledge;
   } finally {
     learningStatus.isLearning = false;
     learningStatus.isCancelled = false;
@@ -517,20 +239,10 @@ ${docConditions.substring(0, 15000)}`;
 
 async function extractFileContent(file: DriveFileInfo): Promise<string> {
   const mimeType = file.mimeType;
-
-  if (
-    mimeType === 'application/vnd.google-apps.document' ||
-    mimeType === 'application/vnd.google-apps.spreadsheet' ||
-    mimeType?.startsWith('text/') ||
-    mimeType?.includes('pdf')
-  ) {
+  if (mimeType === 'application/vnd.google-apps.document' || mimeType === 'application/vnd.google-apps.spreadsheet' || mimeType?.startsWith('text/') || mimeType?.includes('pdf')) {
     return downloadTextContent(file.id);
   }
-
-  if (mimeType?.startsWith('video/')) {
-    return `[비디오 파일: ${file.name}]`;
-  }
-
+  if (mimeType?.startsWith('video/')) return `[비디오 파일: ${file.name}]`;
   return '';
 }
 
@@ -540,7 +252,7 @@ export async function saveKnowledgeToDB(knowledge: LearnedKnowledge, title?: str
       title: title || `Learning Session ${new Date().toLocaleString()}`,
       content: knowledge as any,
       files: knowledge.sourceFiles as any,
-      isActive: false, // 기본적으로는 비활성, 사용자가 나중에 활성화
+      isActive: false,
     }
   });
   return result.id;
@@ -551,15 +263,11 @@ export async function getActiveKnowledgeFromDB(): Promise<LearnedKnowledge | nul
     where: { isActive: true },
     orderBy: { updatedAt: 'desc' }
   });
-
-  if (active) {
-    return active.content as unknown as LearnedKnowledge;
-  }
+  if (active) return active.content as unknown as LearnedKnowledge;
   return null;
 }
 
 export async function getLearnedKnowledge(): Promise<LearnedKnowledge | null> {
-  // DB에서 활성화된 지식만 찾기
   try {
     const activeKnowledge = await getActiveKnowledgeFromDB();
     if (activeKnowledge) return activeKnowledge;
@@ -570,8 +278,6 @@ export async function getLearnedKnowledge(): Promise<LearnedKnowledge | null> {
 }
 
 export async function hasLearnedKnowledge(): Promise<boolean> {
-  const count = await prisma.learnedKnowledge.count({
-    where: { isActive: true }
-  });
+  const count = await prisma.learnedKnowledge.count({ where: { isActive: true } });
   return count > 0;
 }

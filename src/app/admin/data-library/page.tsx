@@ -69,6 +69,8 @@ interface AIModel {
   value: string;
   label: string;
   reqKey: string;
+  supportsPDF: boolean;
+  supportsVideo: boolean;
 }
 
 /** API 키 정보 */
@@ -91,23 +93,33 @@ interface LearnedKnowledgeRecord {
 const POLLING_INTERVAL_MS = 5000;
 // AI 모델 선택 컴포넌트
 const ModelSelector = ({ ext, currentModel, models, keys, onSelect }: { ext: string; currentModel: string; models: AIModel[]; keys: APIKeys | null; onSelect: (val: string) => void }) => {
+    const filteredModels = models.filter(m => {
+        if (ext === 'mp4') return m.supportsVideo;
+        if (ext === 'pdf') return m.supportsPDF;
+        return true; 
+    });
+
     return (
         <Select value={currentModel} onValueChange={onSelect}>
             <SelectTrigger className="w-full sm:w-[250px] bg-gray-950 border-gray-800 text-white font-bold h-9 text-xs">
                 <SelectValue placeholder="모델을 선택하세요" />
             </SelectTrigger>
             <SelectContent className="bg-gray-900 border-gray-800">
-                {models.map(model => {
-                    const hasKey = keys && keys[model.reqKey as keyof typeof keys];
-                    return (
-                        <SelectItem key={model.value} value={model.value} disabled={!hasKey} className="text-white focus:bg-gray-800">
-                            <div className="flex items-center justify-between w-full gap-4">
-                                <span>{model.label}</span>
-                                {!hasKey && <span className="text-[10px] text-rose-500">API 키 미등록</span>}
-                            </div>
-                        </SelectItem>
-                    );
-                })}
+                {filteredModels.length > 0 ? (
+                    filteredModels.map(model => {
+                        const hasKey = keys && keys[model.reqKey as keyof typeof keys];
+                        return (
+                            <SelectItem key={model.value} value={model.value} disabled={!hasKey} className="text-white focus:bg-gray-800">
+                                <div className="flex items-center justify-between w-full gap-4">
+                                    <span>{model.label}</span>
+                                    {!hasKey && <span className="text-[10px] text-rose-500">API 키 미등록</span>}
+                                </div>
+                            </SelectItem>
+                        );
+                    })
+                ) : (
+                    <div className="p-2 text-[10px] text-gray-500 text-center italic">이 파일 형식을 지원하는 모델이 없습니다.</div>
+                )}
             </SelectContent>
         </Select>
     );
@@ -147,7 +159,7 @@ export default function DataLibraryPage() {
     const [selectedFileIds, setSelectedFileIds] = useState<Set<string>>(new Set());
     const [title, setTitle] = useState('');
     const [aiModels, setAiModels] = useState<Record<string, string>>({});
-    const [availableModels, setAvailableModels] = useState<{ value: string, label: string, reqKey: string }[]>([]);
+    const [availableModels, setAvailableModels] = useState<AIModel[]>([]);
     const [keys, setKeys] = useState<{ GEMINI_API_KEY?: string, OPENAI_API_KEY?: string, CLAUDE_API_KEY?: string } | null>(null);
 
     useEffect(() => {
