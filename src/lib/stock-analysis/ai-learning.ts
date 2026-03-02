@@ -191,6 +191,9 @@ export async function runLearningPipeline(
 
         const ext = getFileExt(file.name, file.mimeType);
         let chosenModelGrp = aiModels?.[ext];
+        if (!chosenModelGrp) {
+          throw new Error(`${ext.toUpperCase()} 파일 학습을 위한 AI 모델이 선택되지 않았습니다.`);
+        }
         if (!chosenModelGrp || chosenModelGrp === 'gemini') chosenModelGrp = 'gemini-1.5-pro';
 
         const promptText = `당신은 전문 주식 투자 분석가입니다. 제공된 자료(PDF 또는 텍스트)에서 주가 상승 및 기업 분석에 핵심적인 "모든" 규칙과 지표를 최대한 많이 추출하세요.
@@ -259,118 +262,95 @@ ${isPDFFile(file) || isVideoFile(file) ? '(첨부된 미디어 파일 참조)' :
             responseText = (res.content[0] as any).text || '';
           }
         } else {
-          let activeModel = chosenModelGrp || 'gemini-1.5-pro';
           const genAI = getGeminiClient();
           const promptParts = inlineDataPart ? [promptText, inlineDataPart] : promptText;
-
-          if (ext === 'mp4') {
-            const fallbackModels = ['gemini-3.1-pro', 'gemini-3.0-pro', 'gemini-3-pro', 'gemini-3.0-flash', 'gemini-3-flash', 'gemini-1.5-pro'];
-            let result;
-            let lastError;
-            for (const m of fallbackModels) {
-              try {
-                console.log(`[Video Analysis] Trying model: ${m}`);
-                const model = genAI.getGenerativeModel({ model: m });
-                result = await model.generateContent(promptParts);
-                console.log(`[Video Analysis] Success with model: ${m}`);
-                break;
-              } catch (err: any) {
-                console.log(`[Video Analysis] Model ${m} failed: ${err.message}`);
-                lastError = err;
-              }
-            }
-            if (!result) throw lastError;
-            responseText = result.response.text();
-          } else {
-            const model = genAI.getGenerativeModel({ model: activeModel });
-            const result = await model.generateContent(promptParts);
-            responseText = result.response.text();
-          }
+          const model = genAI.getGenerativeModel({ model: chosenModelGrp });
+          const result = await model.generateContent(promptParts);
+          responseText = result.response.text();
         }
-
         let analysisResult: { keyConditions?: string[] } = { keyConditions: [] };
 
-        try {
-          const jsonMatch = responseText.match(/\{[\s\S]*\}/);
-          if (jsonMatch) {
-            analysisResult = JSON.parse(jsonMatch[0]);
-          }
-        } catch (parseError) {
-          console.error(`JSON parse error for ${file.name}:`, parseError);
-          analysisResult = {
-            keyConditions: responseText.split('\n').filter(line => line.trim().startsWith('-') || line.trim().match(/^\d+\./)).map(line => line.replace(/^[-\d.\s]+/, '').trim()).slice(0, 7)
-          };
+      try {
+        const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          analysisResult = JSON.parse(jsonMatch[0]);
         }
-
-        const unanalyzablePatterns = [
-          '추출하는 것이 불가능합니다',
-          '추출할 수 없습니다',
-          '현재 자료만으로는 파악이 어렵습니다',
-          '분석할 수 없습니다',
-          '제공된 내용만으로는',
-          '명시되어 있지 않습니다',
-          '포함되어 있지 않습니다',
-          '확인할 수 없습니다',
-          '파악이 불가능합니다',
-          '구체적인 수치가 없습니다',
-          '제시되지 않았습니다',
-          '언급되지 않았습니다',
-          '제공되지 않았습니다',
-          '찾을 수 없습니다',
-          '포함되지 않았습니다'
-        ];
-
-        const filteredConditions = (analysisResult.keyConditions || []).filter(condition => {
-          const hasUnanalyzable = unanalyzablePatterns.some(pattern =>
-            condition.includes(pattern)
-          );
-          if (hasUnanalyzable) {
-            console.log(`Filtering out unanalyzable condition from ${file.name}: "${condition.substring(0, 50)}..."`);
-            return false;
-          }
-          return true;
-        });
-
-        fileAnalyses.push({
-          fileName: file.name,
-          fileId: file.id,
-          keyConditions: filteredConditions,
-          extractedAt: new Date(),
-        });
-
-        console.log(`Successfully analyzed PDF: ${file.name} with conditions:`, analysisResult.keyConditions);
-        learningStatus.completedFiles += 1;
-
-      } catch (error) {
-        console.error(`파일 분석 실패: ${file.name}`, error);
+      } catch (parseError) {
+        console.error(`JSON parse error for ${file.name}:`, parseError);
+        analysisResult = {
+          keyConditions: responseText.split('\n').filter(line => line.trim().startsWith('-') || line.trim().match(/^\d+\./)).map(line => line.replace(/^[-\d.\s]+/, '').trim()).slice(0, 7)
+        };
       }
+
+      const unanalyzablePatterns = [
+        '추출하는 것이 불가능합니다',
+        '추출할 수 없습니다',
+        '현재 자료만으로는 파악이 어렵습니다',
+        '분석할 수 없습니다',
+        '제공된 내용만으로는',
+        '명시되어 있지 않습니다',
+        '포함되어 있지 않습니다',
+        '확인할 수 없습니다',
+        '파악이 불가능합니다',
+        '구체적인 수치가 없습니다',
+        '제시되지 않았습니다',
+        '언급되지 않았습니다',
+        '제공되지 않았습니다',
+        '찾을 수 없습니다',
+        '포함되지 않았습니다'
+      ];
+
+      const filteredConditions = (analysisResult.keyConditions || []).filter(condition => {
+        const hasUnanalyzable = unanalyzablePatterns.some(pattern =>
+          condition.includes(pattern)
+        );
+        if (hasUnanalyzable) {
+          console.log(`Filtering out unanalyzable condition from ${file.name}: "${condition.substring(0, 50)}..."`);
+          return false;
+        }
+        return true;
+      });
+
+      fileAnalyses.push({
+        fileName: file.name,
+        fileId: file.id,
+        keyConditions: filteredConditions,
+        extractedAt: new Date(),
+      });
+
+      console.log(`Successfully analyzed PDF: ${file.name} with conditions:`, analysisResult.keyConditions);
+      learningStatus.completedFiles += 1;
+
+    } catch (error) {
+      console.error(`파일 분석 실패: ${file.name}`, error);
     }
+  }
 
     if (learningStatus.isCancelled) {
-      throw new Error('학습이 관리자에 의해 강제 중지되었습니다. 처리되던 데이터는 모두 폐기됩니다.');
-    }
+    throw new Error('학습이 관리자에 의해 강제 중지되었습니다. 처리되던 데이터는 모두 폐기됩니다.');
+  }
 
-    console.log(`Successfully analyzed ${fileAnalyses.length} files`);
+  console.log(`Successfully analyzed ${fileAnalyses.length} files`);
 
-    if (fileAnalyses.length === 0) {
-      throw new Error('처리할 수 있는 파일이 없습니다. Google Drive에 지원되는 파일(PDF, 텍스트, 문서, MP4 등)이 있는지 확인해주세요.');
-    }
+  if (fileAnalyses.length === 0) {
+    throw new Error('처리할 수 있는 파일이 없습니다. Google Drive에 지원되는 파일(PDF, 텍스트, 문서, MP4 등)이 있는지 확인해주세요.');
+  }
 
-    const documentAnalyses = fileAnalyses.filter(fa =>
-      !isVideoFile({ name: fa.fileName, id: fa.fileId, mimeType: '' } as any)
-    );
-    console.log(`Document analyses count: ${documentAnalyses.length}`);
+  const documentAnalyses = fileAnalyses.filter(fa =>
+    !isVideoFile({ name: fa.fileName, id: fa.fileId, mimeType: '' } as any)
+  );
+  console.log(`Document analyses count: ${documentAnalyses.length}`);
 
-    const docConditions = documentAnalyses
-      .flatMap(fa => fa.keyConditions)
-      .join('\n');
+  const docConditions = documentAnalyses
+    .flatMap(fa => fa.keyConditions)
+    .join('\n');
 
-    console.log(`Total Document conditions length: ${docConditions.length} chars`);
-    console.log(`Document conditions preview: ${docConditions.substring(0, 500)}...`);
+  console.log(`Total Document conditions length: ${docConditions.length} chars`);
+  console.log(`Document conditions preview: ${docConditions.substring(0, 500)}...`);
 
-    const genAI = getGeminiClient();
-    const strategyModel = genAI.getGenerativeModel({ model: 'gemini-2.0-pro-exp-02-05' });
-    const strategyPrompt = `전설적인 투자 전략가로서 제공된 자료에서 추출된 핵심 조건들을 종합하여 포괄적인 투자 전략과 기업 선정 규칙을 도출하세요.
+  const genAI = getGeminiClient();
+  const strategyModel = genAI.getGenerativeModel({ model: 'gemini-2.0-pro-exp-02-05' });
+  const strategyPrompt = `전설적인 투자 전략가로서 제공된 자료에서 추출된 핵심 조건들을 종합하여 포괄적인 투자 전략과 기업 선정 규칙을 도출하세요.
 
 추출된 핵심 조건들:
 ${docConditions}
@@ -408,215 +388,215 @@ JSON 형식:
 PDF 자료에서 추출한 주가 상승 핵심 조건들입니다:
 ${docConditions.substring(0, 15000)}`;
 
-    let strategyData: any = {};
+  let strategyData: any = {};
 
-    if (docConditions.trim().length > 0) {
+  if (docConditions.trim().length > 0) {
+    try {
+      const strategyResult = await strategyModel.generateContent(strategyPrompt);
+      const strategyText = strategyResult.response.text();
+
       try {
-        const strategyResult = await strategyModel.generateContent(strategyPrompt);
-        const strategyText = strategyResult.response.text();
-
-        try {
-          const jsonMatch = strategyText.match(/\{[\s\S]*\}/);
-          if (jsonMatch) {
-            strategyData = JSON.parse(jsonMatch[0]);
-          }
-        } catch (parseError) {
-          console.error('Strategy JSON parse error:', parseError);
+        const jsonMatch = strategyText.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          strategyData = JSON.parse(jsonMatch[0]);
         }
-      } catch (error) {
-        console.error('Strategy generation error:', error);
+      } catch (parseError) {
+        console.error('Strategy JSON parse error:', parseError);
       }
+    } catch (error) {
+      console.error('Strategy generation error:', error);
     }
-
-    const defaultSource: SourceReference = {
-      fileName: '종합 전략 분석',
-      type: 'pdf',
-      pageOrTimestamp: '-',
-      content: 'PDF 자료를 종합하여 도출된 투자 전략입니다.',
-    };
-
-    const defaultRules = [
-      { rule: 'ROE 15% 이상을 3년 이상 유지하며 일반 기업 평균(8~12%)을 상회하는 수익성 확보', weight: 0.9, category: 'fundamental' as const, source: defaultSource },
-      { rule: 'PER 10~20배 사이의 적정가치 구간에 위치하되, 업종 평균과 비교해 저평가 상태', weight: 0.8, category: 'fundamental' as const, source: defaultSource },
-      { rule: 'PBR 1~2배 범위에서 ROE와 괴리가 없는 건전한 자산 구조', weight: 0.7, category: 'fundamental' as const, source: defaultSource },
-      { rule: 'EV/EBITDA 10배 이하로 부채를 고려한 실제 기업가치가 적정', weight: 0.7, category: 'fundamental' as const, source: defaultSource },
-      { rule: 'EPS 성장률 15% 이상 유지하며 PER 대비 성장성이 우수(PEG 1.5 이하)', weight: 0.8, category: 'fundamental' as const, source: defaultSource },
-      { rule: '부채비율 100% 이하로 재무안정성 확보 및 이자상환능력 우수', weight: 0.6, category: 'fundamental' as const, source: defaultSource },
-      { rule: 'FCF(잉여현금흐름) 양호하여 실제 현금 창출능력 보유', weight: 0.7, category: 'fundamental' as const, source: defaultSource },
-    ];
-
-    const defaultMetricRanges = [
-      { metric: 'roe' as const, min: 15, description: 'ROE 15% 이상 유지 시 우량 기업으로 판단', source: defaultSource },
-      { metric: 'per' as const, min: 10, max: 20, description: 'PER 10~20배 적정 구간, 10 이하 저평가, 30 이상 고평가', source: defaultSource },
-      { metric: 'pbr' as const, min: 1, max: 2, description: 'PBR 1~2배 건전, 1 미만+저ROE 시 주의', source: defaultSource },
-      { metric: 'dividendYield' as const, min: 2, max: 4, description: '배당수익률 2~4% 안정적, 5% 이상 시 주가하락 가능성', source: defaultSource },
-    ];
-
-    const defaultPrinciples = [
-      { principle: '단일 지표가 아닌 ROE, PER, PBR, EV/EBITDA 등 다중 지표 종합 분석', category: 'general' as const, source: defaultSource },
-      { principle: '업종 특성을 고려한 상대적 지표 비교 (업종 평균 대비)', category: 'general' as const, source: defaultSource },
-      { principle: '강세장/약세장 시장 상황 반영 및 거시 경제 지표 고려', category: 'general' as const, source: defaultSource },
-    ];
-
-    const hasValidStrategy = strategyData.strategy?.shortTermConditions?.length > 0 ||
-      strategyData.strategy?.longTermConditions?.length > 0;
-
-    const hasValidCriteria = strategyData.criteria?.goodCompanyRules?.length > 0;
-
-    let usingFallbackRules = false;
-
-    if (!hasValidCriteria) {
-      console.log('⚠️ 규칙 생성 실패: 기본 규칙 7개를 적용합니다.');
-      usingFallbackRules = true;
-    }
-
-    const strategy: InvestmentStrategy = {
-      shortTermConditions: hasValidStrategy ? strategyData.strategy.shortTermConditions : ['거래량 급증 동반 상승', '전고점 돌파 패턴'],
-      longTermConditions: hasValidStrategy ? strategyData.strategy.longTermConditions : ['독보적인 시장 점유율', '강력한 현금 흐름'],
-      winningPatterns: hasValidStrategy ? strategyData.strategy.winningPatterns : ['실적 발표 후 갭상승 유지', '이동평균선 정배열'],
-      riskManagementRules: hasValidStrategy ? strategyData.strategy.riskManagementRules : ['투자금의 10% 손절 기준 준수', '섹터 분산 투자'],
-    };
-
-    const fallbackSource: SourceReference = {
-      fileName: '기본 투자 규칙 (AI 분석 실패 시 적용)',
-      type: 'pdf',
-      pageOrTimestamp: '-',
-      content: usingFallbackRules
-        ? 'AI 분석에서 규칙 생성에 실패하여 기본 규칙 7개가 적용되었습니다.'
-        : 'PDF 자료를 종합하여 도출된 투자 전략입니다.',
-    };
-
-    const defaultTechnicalRules = [
-      { indicator: '스토캐스틱', rule: '스토캐스틱 %K가 %D를 상향 돌파하고 20 이하에서 상승할 때 매수', weight: 0.8 },
-      { indicator: 'RSI', rule: 'RSI가 30 이하 과매도 구간에서 반등 시작 시 매수', weight: 0.7 },
-      { indicator: 'MACD', rule: 'MACD가 시그널 선을 상향 돌파할 때 매수', weight: 0.7 },
-      { indicator: '이동평균선', rule: '단기 이동평균선(5일, 20일)이 장기 이동평균선(60일) 위에 정배열', weight: 0.8 },
-      { indicator: '거래량', rule: '주가 상승 시 거래량 동반 증가 확인', weight: 0.7 },
-    ];
-
-    const defaultMarketSizeRules = [
-      { rule: 'TAM(전체시장)이 100억 달러 이상이며 연평균 성장률 10% 이상', weight: 0.7 },
-      { rule: 'SAM(목표시장) 내 시장점유율 10% 이상이거나 증가 추세', weight: 0.6 },
-      { rule: 'SOM(획득가능시장) 대비 매출 성장률이 시장 성장률보다 높음', weight: 0.6 },
-    ];
-
-    const defaultUnitEconomicsRules = [
-      { metric: 'LTV/CAC', rule: 'LTV/CAC 비율이 3:1 이상이면 건전한 단위경제', weight: 0.8 },
-      { metric: 'CAC', rule: 'CAC(고객획득비용)가 LTV의 30% 이하', weight: 0.7 },
-      { metric: '공헌이익률', rule: '공헌이익률이 30% 이상이며 증가 추세', weight: 0.7 },
-      { metric: '매출채권회전율', rule: '매출채권회전율이 업종 평균 이상', weight: 0.6 },
-    ];
-
-    const defaultLifecycleRules = [
-      { stage: 'growth' as const, rule: '성장기 기업은 매출 성장률 20% 이상, 시장점유율 확대 중', weight: 0.8 },
-      { stage: 'maturity' as const, rule: '성숙기 기업은 안정적 현금흐름, 높은 배당수익률', weight: 0.7 },
-      { stage: 'introduction' as const, rule: '도입기 기업은 혁신적 제품, 높은 R&D 투자, 장기적 관점 필요', weight: 0.6 },
-    ];
-
-    const defaultBuyTimingRules = [
-      { rule: '스토캐스틱이 과매도 구간(20 이하)에서 상향 반전', weight: 0.8, conditions: ['%K > %D', '%K < 20에서 상승'] },
-      { rule: 'RSI가 30 이하 과매도 구간에서 반등 시작', weight: 0.7, conditions: ['RSI < 30', '상승 반전 확인'] },
-      { rule: 'MACD 골든크로스 발생 (MACD 선이 시그널 선 상향 돌파)', weight: 0.7, conditions: ['MACD > Signal', '히스토그램 양전환'] },
-      { rule: '주가가 20일 이동평균선을 상향 돌파', weight: 0.6, conditions: ['주가 > 20일 MA', '거래량 동반 증가'] },
-      { rule: '실적 발표 후 주가 조정 완료 및 재상승 시작', weight: 0.7, conditions: ['실적 양호', '주가 조정 후 반등'] },
-      { rule: '대형 기관의 순매수 전환 및 보유 비중 증가', weight: 0.6, conditions: ['기관 순매수', '보유 비중 증가'] },
-    ];
-
-    const criteria: LearnedInvestmentCriteria = {
-      goodCompanyRules: hasValidCriteria
-        ? strategyData.criteria.goodCompanyRules.map((r: any) => ({
-          rule: r.rule,
-          weight: r.weight || 0.5,
-          source: fallbackSource,
-          category: r.category || 'fundamental',
-        }))
-        : defaultRules.map(r => ({ ...r, category: 'fundamental' as const, source: fallbackSource })),
-      idealMetricRanges: hasValidCriteria
-        ? (strategyData.criteria.idealMetricRanges || []).map((r: any) => ({
-          metric: r.metric,
-          min: r.min,
-          max: r.max,
-          description: r.description || '',
-          source: fallbackSource,
-        }))
-        : defaultMetricRanges.map(r => ({ ...r, source: fallbackSource })),
-      principles: hasValidCriteria
-        ? (strategyData.criteria.principles || []).map((p: any) => ({
-          principle: p.principle,
-          category: p.category || 'general',
-          source: fallbackSource,
-        }))
-        : defaultPrinciples.map(p => ({ ...p, source: fallbackSource })),
-      technicalRules: hasValidCriteria && strategyData.criteria?.technicalRules?.length > 0
-        ? strategyData.criteria.technicalRules.map((r: any) => ({
-          indicator: r.indicator,
-          rule: r.rule,
-          weight: r.weight || 0.5,
-          source: fallbackSource,
-        }))
-        : defaultTechnicalRules.map(r => ({ ...r, source: fallbackSource })),
-      marketSizeRules: hasValidCriteria && strategyData.criteria?.marketSizeRules?.length > 0
-        ? strategyData.criteria.marketSizeRules.map((r: any) => ({
-          rule: r.rule,
-          weight: r.weight || 0.5,
-          source: fallbackSource,
-        }))
-        : defaultMarketSizeRules.map(r => ({ ...r, source: fallbackSource })),
-      unitEconomicsRules: hasValidCriteria && strategyData.criteria?.unitEconomicsRules?.length > 0
-        ? strategyData.criteria.unitEconomicsRules.map((r: any) => ({
-          metric: r.metric,
-          rule: r.rule,
-          weight: r.weight || 0.5,
-          source: fallbackSource,
-        }))
-        : defaultUnitEconomicsRules.map(r => ({ ...r, source: fallbackSource })),
-      lifecycleRules: hasValidCriteria && strategyData.criteria?.lifecycleRules?.length > 0
-        ? strategyData.criteria.lifecycleRules.map((r: any) => ({
-          stage: r.stage || 'growth',
-          rule: r.rule,
-          weight: r.weight || 0.5,
-          source: fallbackSource,
-        }))
-        : defaultLifecycleRules.map(r => ({ ...r, source: fallbackSource })),
-      buyTimingRules: hasValidCriteria && strategyData.criteria?.buyTimingRules?.length > 0
-        ? strategyData.criteria.buyTimingRules.map((r: any) => ({
-          rule: r.rule,
-          weight: r.weight || 0.5,
-          conditions: r.conditions || [],
-          source: fallbackSource,
-        }))
-        : defaultBuyTimingRules.map(r => ({ ...r, source: fallbackSource })),
-    };
-
-    console.log(`Final criteria: ${criteria.goodCompanyRules.length} fundamental rules, ${criteria.technicalRules.length} technical rules, ${criteria.marketSizeRules.length} market rules, ${criteria.unitEconomicsRules.length} unit economics rules, ${criteria.lifecycleRules.length} lifecycle rules, ${criteria.buyTimingRules.length} buy timing rules`);
-    if (usingFallbackRules) {
-      console.log('✅ 기본 규칙 30+개가 성공적으로 적용되었습니다.');
-    }
-
-    const knowledge: LearnedKnowledge = {
-      fileAnalyses,
-      criteria,
-      strategy,
-      rawSummaries: files.map(f => ({ fileName: f.name, summary: '학습 완료된 자료' })),
-      learnedAt: new Date(),
-      sourceFiles: files.map((f) => f.name),
-    };
-
-
-
-    return knowledge;
-  } finally {
-    learningStatus.isLearning = false;
-    learningStatus.isCancelled = false;
-    learningStatus.startTime = null;
-    learningStatus.totalFiles = 0;
-    learningStatus.completedFiles = 0;
   }
-    learningStatus.isLearning = false;
-    learningStatus.isCancelled = false;
-    learningStatus.startTime = null;
-    learningStatus.totalFiles = 0;
-    learningStatus.completedFiles = 0;
+
+  const defaultSource: SourceReference = {
+    fileName: '종합 전략 분석',
+    type: 'pdf',
+    pageOrTimestamp: '-',
+    content: 'PDF 자료를 종합하여 도출된 투자 전략입니다.',
+  };
+
+  const defaultRules = [
+    { rule: 'ROE 15% 이상을 3년 이상 유지하며 일반 기업 평균(8~12%)을 상회하는 수익성 확보', weight: 0.9, category: 'fundamental' as const, source: defaultSource },
+    { rule: 'PER 10~20배 사이의 적정가치 구간에 위치하되, 업종 평균과 비교해 저평가 상태', weight: 0.8, category: 'fundamental' as const, source: defaultSource },
+    { rule: 'PBR 1~2배 범위에서 ROE와 괴리가 없는 건전한 자산 구조', weight: 0.7, category: 'fundamental' as const, source: defaultSource },
+    { rule: 'EV/EBITDA 10배 이하로 부채를 고려한 실제 기업가치가 적정', weight: 0.7, category: 'fundamental' as const, source: defaultSource },
+    { rule: 'EPS 성장률 15% 이상 유지하며 PER 대비 성장성이 우수(PEG 1.5 이하)', weight: 0.8, category: 'fundamental' as const, source: defaultSource },
+    { rule: '부채비율 100% 이하로 재무안정성 확보 및 이자상환능력 우수', weight: 0.6, category: 'fundamental' as const, source: defaultSource },
+    { rule: 'FCF(잉여현금흐름) 양호하여 실제 현금 창출능력 보유', weight: 0.7, category: 'fundamental' as const, source: defaultSource },
+  ];
+
+  const defaultMetricRanges = [
+    { metric: 'roe' as const, min: 15, description: 'ROE 15% 이상 유지 시 우량 기업으로 판단', source: defaultSource },
+    { metric: 'per' as const, min: 10, max: 20, description: 'PER 10~20배 적정 구간, 10 이하 저평가, 30 이상 고평가', source: defaultSource },
+    { metric: 'pbr' as const, min: 1, max: 2, description: 'PBR 1~2배 건전, 1 미만+저ROE 시 주의', source: defaultSource },
+    { metric: 'dividendYield' as const, min: 2, max: 4, description: '배당수익률 2~4% 안정적, 5% 이상 시 주가하락 가능성', source: defaultSource },
+  ];
+
+  const defaultPrinciples = [
+    { principle: '단일 지표가 아닌 ROE, PER, PBR, EV/EBITDA 등 다중 지표 종합 분석', category: 'general' as const, source: defaultSource },
+    { principle: '업종 특성을 고려한 상대적 지표 비교 (업종 평균 대비)', category: 'general' as const, source: defaultSource },
+    { principle: '강세장/약세장 시장 상황 반영 및 거시 경제 지표 고려', category: 'general' as const, source: defaultSource },
+  ];
+
+  const hasValidStrategy = strategyData.strategy?.shortTermConditions?.length > 0 ||
+    strategyData.strategy?.longTermConditions?.length > 0;
+
+  const hasValidCriteria = strategyData.criteria?.goodCompanyRules?.length > 0;
+
+  let usingFallbackRules = false;
+
+  if (!hasValidCriteria) {
+    console.log('⚠️ 규칙 생성 실패: 기본 규칙 7개를 적용합니다.');
+    usingFallbackRules = true;
+  }
+
+  const strategy: InvestmentStrategy = {
+    shortTermConditions: hasValidStrategy ? strategyData.strategy.shortTermConditions : ['거래량 급증 동반 상승', '전고점 돌파 패턴'],
+    longTermConditions: hasValidStrategy ? strategyData.strategy.longTermConditions : ['독보적인 시장 점유율', '강력한 현금 흐름'],
+    winningPatterns: hasValidStrategy ? strategyData.strategy.winningPatterns : ['실적 발표 후 갭상승 유지', '이동평균선 정배열'],
+    riskManagementRules: hasValidStrategy ? strategyData.strategy.riskManagementRules : ['투자금의 10% 손절 기준 준수', '섹터 분산 투자'],
+  };
+
+  const fallbackSource: SourceReference = {
+    fileName: '기본 투자 규칙 (AI 분석 실패 시 적용)',
+    type: 'pdf',
+    pageOrTimestamp: '-',
+    content: usingFallbackRules
+      ? 'AI 분석에서 규칙 생성에 실패하여 기본 규칙 7개가 적용되었습니다.'
+      : 'PDF 자료를 종합하여 도출된 투자 전략입니다.',
+  };
+
+  const defaultTechnicalRules = [
+    { indicator: '스토캐스틱', rule: '스토캐스틱 %K가 %D를 상향 돌파하고 20 이하에서 상승할 때 매수', weight: 0.8 },
+    { indicator: 'RSI', rule: 'RSI가 30 이하 과매도 구간에서 반등 시작 시 매수', weight: 0.7 },
+    { indicator: 'MACD', rule: 'MACD가 시그널 선을 상향 돌파할 때 매수', weight: 0.7 },
+    { indicator: '이동평균선', rule: '단기 이동평균선(5일, 20일)이 장기 이동평균선(60일) 위에 정배열', weight: 0.8 },
+    { indicator: '거래량', rule: '주가 상승 시 거래량 동반 증가 확인', weight: 0.7 },
+  ];
+
+  const defaultMarketSizeRules = [
+    { rule: 'TAM(전체시장)이 100억 달러 이상이며 연평균 성장률 10% 이상', weight: 0.7 },
+    { rule: 'SAM(목표시장) 내 시장점유율 10% 이상이거나 증가 추세', weight: 0.6 },
+    { rule: 'SOM(획득가능시장) 대비 매출 성장률이 시장 성장률보다 높음', weight: 0.6 },
+  ];
+
+  const defaultUnitEconomicsRules = [
+    { metric: 'LTV/CAC', rule: 'LTV/CAC 비율이 3:1 이상이면 건전한 단위경제', weight: 0.8 },
+    { metric: 'CAC', rule: 'CAC(고객획득비용)가 LTV의 30% 이하', weight: 0.7 },
+    { metric: '공헌이익률', rule: '공헌이익률이 30% 이상이며 증가 추세', weight: 0.7 },
+    { metric: '매출채권회전율', rule: '매출채권회전율이 업종 평균 이상', weight: 0.6 },
+  ];
+
+  const defaultLifecycleRules = [
+    { stage: 'growth' as const, rule: '성장기 기업은 매출 성장률 20% 이상, 시장점유율 확대 중', weight: 0.8 },
+    { stage: 'maturity' as const, rule: '성숙기 기업은 안정적 현금흐름, 높은 배당수익률', weight: 0.7 },
+    { stage: 'introduction' as const, rule: '도입기 기업은 혁신적 제품, 높은 R&D 투자, 장기적 관점 필요', weight: 0.6 },
+  ];
+
+  const defaultBuyTimingRules = [
+    { rule: '스토캐스틱이 과매도 구간(20 이하)에서 상향 반전', weight: 0.8, conditions: ['%K > %D', '%K < 20에서 상승'] },
+    { rule: 'RSI가 30 이하 과매도 구간에서 반등 시작', weight: 0.7, conditions: ['RSI < 30', '상승 반전 확인'] },
+    { rule: 'MACD 골든크로스 발생 (MACD 선이 시그널 선 상향 돌파)', weight: 0.7, conditions: ['MACD > Signal', '히스토그램 양전환'] },
+    { rule: '주가가 20일 이동평균선을 상향 돌파', weight: 0.6, conditions: ['주가 > 20일 MA', '거래량 동반 증가'] },
+    { rule: '실적 발표 후 주가 조정 완료 및 재상승 시작', weight: 0.7, conditions: ['실적 양호', '주가 조정 후 반등'] },
+    { rule: '대형 기관의 순매수 전환 및 보유 비중 증가', weight: 0.6, conditions: ['기관 순매수', '보유 비중 증가'] },
+  ];
+
+  const criteria: LearnedInvestmentCriteria = {
+    goodCompanyRules: hasValidCriteria
+      ? strategyData.criteria.goodCompanyRules.map((r: any) => ({
+        rule: r.rule,
+        weight: r.weight || 0.5,
+        source: fallbackSource,
+        category: r.category || 'fundamental',
+      }))
+      : defaultRules.map(r => ({ ...r, category: 'fundamental' as const, source: fallbackSource })),
+    idealMetricRanges: hasValidCriteria
+      ? (strategyData.criteria.idealMetricRanges || []).map((r: any) => ({
+        metric: r.metric,
+        min: r.min,
+        max: r.max,
+        description: r.description || '',
+        source: fallbackSource,
+      }))
+      : defaultMetricRanges.map(r => ({ ...r, source: fallbackSource })),
+    principles: hasValidCriteria
+      ? (strategyData.criteria.principles || []).map((p: any) => ({
+        principle: p.principle,
+        category: p.category || 'general',
+        source: fallbackSource,
+      }))
+      : defaultPrinciples.map(p => ({ ...p, source: fallbackSource })),
+    technicalRules: hasValidCriteria && strategyData.criteria?.technicalRules?.length > 0
+      ? strategyData.criteria.technicalRules.map((r: any) => ({
+        indicator: r.indicator,
+        rule: r.rule,
+        weight: r.weight || 0.5,
+        source: fallbackSource,
+      }))
+      : defaultTechnicalRules.map(r => ({ ...r, source: fallbackSource })),
+    marketSizeRules: hasValidCriteria && strategyData.criteria?.marketSizeRules?.length > 0
+      ? strategyData.criteria.marketSizeRules.map((r: any) => ({
+        rule: r.rule,
+        weight: r.weight || 0.5,
+        source: fallbackSource,
+      }))
+      : defaultMarketSizeRules.map(r => ({ ...r, source: fallbackSource })),
+    unitEconomicsRules: hasValidCriteria && strategyData.criteria?.unitEconomicsRules?.length > 0
+      ? strategyData.criteria.unitEconomicsRules.map((r: any) => ({
+        metric: r.metric,
+        rule: r.rule,
+        weight: r.weight || 0.5,
+        source: fallbackSource,
+      }))
+      : defaultUnitEconomicsRules.map(r => ({ ...r, source: fallbackSource })),
+    lifecycleRules: hasValidCriteria && strategyData.criteria?.lifecycleRules?.length > 0
+      ? strategyData.criteria.lifecycleRules.map((r: any) => ({
+        stage: r.stage || 'growth',
+        rule: r.rule,
+        weight: r.weight || 0.5,
+        source: fallbackSource,
+      }))
+      : defaultLifecycleRules.map(r => ({ ...r, source: fallbackSource })),
+    buyTimingRules: hasValidCriteria && strategyData.criteria?.buyTimingRules?.length > 0
+      ? strategyData.criteria.buyTimingRules.map((r: any) => ({
+        rule: r.rule,
+        weight: r.weight || 0.5,
+        conditions: r.conditions || [],
+        source: fallbackSource,
+      }))
+      : defaultBuyTimingRules.map(r => ({ ...r, source: fallbackSource })),
+  };
+
+  console.log(`Final criteria: ${criteria.goodCompanyRules.length} fundamental rules, ${criteria.technicalRules.length} technical rules, ${criteria.marketSizeRules.length} market rules, ${criteria.unitEconomicsRules.length} unit economics rules, ${criteria.lifecycleRules.length} lifecycle rules, ${criteria.buyTimingRules.length} buy timing rules`);
+  if (usingFallbackRules) {
+    console.log('✅ 기본 규칙 30+개가 성공적으로 적용되었습니다.');
+  }
+
+  const knowledge: LearnedKnowledge = {
+    fileAnalyses,
+    criteria,
+    strategy,
+    rawSummaries: files.map(f => ({ fileName: f.name, summary: '학습 완료된 자료' })),
+    learnedAt: new Date(),
+    sourceFiles: files.map((f) => f.name),
+  };
+
+
+
+  return knowledge;
+} finally {
+  learningStatus.isLearning = false;
+  learningStatus.isCancelled = false;
+  learningStatus.startTime = null;
+  learningStatus.totalFiles = 0;
+  learningStatus.completedFiles = 0;
+}
+learningStatus.isLearning = false;
+learningStatus.isCancelled = false;
+learningStatus.startTime = null;
+learningStatus.totalFiles = 0;
+learningStatus.completedFiles = 0;
 }
 
 async function extractFileContent(file: DriveFileInfo): Promise<string> {
