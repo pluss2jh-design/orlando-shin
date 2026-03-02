@@ -498,8 +498,9 @@ ${docConditions.substring(0, 15000)}`;
   const knowledge: LearnedKnowledge = {
     fileAnalyses,
     criteria,
-    strategy,
+    strategy, // 학습 데이터 요약 포함 확인
     rawSummaries: targetFiles.map(f => ({ fileName: f.name, summary: '학습 완료된 자료' })),
+
     learnedAt: new Date(),
     sourceFiles: targetFiles.map((f) => f.name),
   };

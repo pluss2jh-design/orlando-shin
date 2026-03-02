@@ -352,6 +352,9 @@ export function AnalysisOutput({ results, conditions, isLoading, onSendEmail }: 
                                   rule.score >= 8 ? "bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30" :
                                     rule.score >= 5 ? "bg-amber-500/20 text-amber-400 hover:bg-amber-500/30" : "bg-rose-500/20 text-rose-400 hover:bg-rose-500/30"
                                 )}>
+                                  <div className="flex-1 max-w-[200px] hidden sm:block">
+                                    <Progress value={rule.score * 10} className="h-1.5" />
+                                  </div>
                                   Score: {rule.score}
                                 </Badge>
                               </div>

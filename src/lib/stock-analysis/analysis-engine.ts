@@ -47,6 +47,10 @@ export async function runAnalysisEngine(
     ...(criteria.unitEconomicsRules || []).map(r => ({ ...r, category: 'unit_economics' })),
     ...(criteria.lifecycleRules || []).map(r => ({ ...r, category: 'lifecycle' })),
     ...(criteria.buyTimingRules || []).map(r => ({ ...r, category: 'timing' })),
+    // 전략 조건들 추가 (InvestmentStrategy)
+    ...(knowledge.strategy?.shortTermConditions || []).map(s => ({ rule: s, category: 'strategy', weight: 0.8, source: { fileName: '전략' } as any })),
+    ...(knowledge.strategy?.longTermConditions || []).map(s => ({ rule: s, category: 'strategy', weight: 0.9, source: { fileName: '전략' } as any })),
+    ...(knowledge.strategy?.winningPatterns || []).map(s => ({ rule: s, category: 'strategy', weight: 0.7, source: { fileName: '전략' } as any })),
   ];
 
   console.log(`Evaluating ${allRules.length} rules for each company.`);
@@ -304,7 +308,18 @@ function calculateRuleScore(rule: string, data: YahooFinanceData, company: Extra
     if (growth > 0.25) return { rule, score: 10, reason: `매출성장률 ${(growth * 100).toFixed(1)}% (폭발적 성장)` };
     if (growth > 0.1) return { rule, score: 8, reason: `매출성장률 ${(growth * 100).toFixed(1)}% (양호한 성장)` };
     if (growth > 0) return { rule, score: 6, reason: `매출성장률 ${(growth * 100).toFixed(1)}% (안정적 성장)` };
-    return { rule, score: 3, reason: '성장 정체 또는 데이터 부재' };
+  // 전략 및 문장형 규칙 평가 (InvestmentStrategy 등)
+  if (ruleLower.length > 20 || ruleLower.includes('패턴') || ruleLower.includes('상승') || ruleLower.includes('조건')) {
+    // Yahoo Finance 데이터에 기반한 간단한 텍스트 기반 추론 (예시)
+    if (ruleLower.includes('상승') && data.currentPrice > data.previousClose) return { rule, score: 8, reason: '단기 상승 추세 확인됨' };
+    if (ruleLower.includes('거래량') && data.priceHistory && data.priceHistory.length > 0) {
+      const lastVol = data.priceHistory[data.priceHistory.length - 1].volume;
+      if (lastVol > 1000000) return { rule, score: 9, reason: '대량 거래량 동반' };
+    }
+    return { rule, score: 7, reason: '학습된 전략 패턴 부합 (기본 점수)' };
+  }
+
+  // 현금 흐름 및 재무 안정성
   }
 
   // 현금 흐름 및 재무 안정성
