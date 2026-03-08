@@ -41,19 +41,12 @@ export const RUSSELL1000_TICKERS = [
   'URI', 'BK', 'EA', 'MET', 'RCL', 'GPN', 'EXC', 'STT', 'VICI', 'SYY'
 ];
 
-// 전체 유니버스: S&P500 + Dow Jones + Russell 1000
+// 전체 유니버스: S&P500 만 사용
 export function getStockUniverse(): string[] {
-  const combined = new Set([
-    ...SP500_TICKERS,
-    ...DOW_JONES_TICKERS,
-    ...RUSSELL1000_TICKERS,
-  ]);
-  return Array.from(combined);
+  return Array.from(new Set(SP500_TICKERS));
 }
 
-// 시가총액 기준 상위 300개 기업 (각 인덱스별 상위 100개씩)
+// 시가총액 기준 상위 기업
 export function getTop300ByMarketCap(): string[] {
-  // 실제 구현에서는 Yahoo Finance에서 시가총액 데이터를 받아와야 함
-  // 여기서는 미리 정의된 리스트에서 중복 제거하여 반환
   return getStockUniverse();
 }

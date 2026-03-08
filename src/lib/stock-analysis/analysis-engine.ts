@@ -9,6 +9,7 @@ import type {
   InvestmentStrategy,
   YahooFinanceData,
   RuleScore,
+  LearnedKnowledge,
 } from '@/types/stock-analysis';
 import { fetchExchangeRate } from './currency';
 import {
@@ -24,7 +25,7 @@ import { getStockUniverse } from './universe';
  */
 export async function runAnalysisEngine(
   conditions: InvestmentConditions,
-  knowledge: { criteria: LearnedInvestmentCriteria; strategy: InvestmentStrategy; fileAnalyses: { fileName: string; keyConditions: string[] }[] },
+  knowledge: LearnedKnowledge,
   style: InvestmentStyle = 'moderate',
   companyCount: number = 5,
   companyAiModel?: string,

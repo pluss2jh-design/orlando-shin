@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Brain, Sparkles, User, MessageSquare, Lock } from 'lucide-react';
 import { useSession, signOut } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
@@ -42,6 +42,7 @@ export default function StockAnalysisPage() {
   const [queriedTickers, setQueriedTickers] = useState<string[]>([]);
   const [userPlan, setUserPlan] = useState<string>('FREE');
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+  const analysisAlerted = useRef(false);
 
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -95,13 +96,11 @@ export default function StockAnalysisPage() {
             if (!interval) interval = setInterval(pollStatus, 5000);
           } else if (data.status === 'completed' && data.result) {
             if (interval) { clearInterval(interval); interval = null; }
-            setAnalysisState(prev => {
-              // Only trigger processAnalysisData if we haven't loaded it yet
-              if (!(prev.results.length > 0 && !prev.isAnalyzing)) {
-                setTimeout(() => processAnalysisData(data.result), 0);
-              }
-              return prev;
-            });
+            if (!analysisAlerted.current) {
+              analysisAlerted.current = true;
+              alert('기업 분석이 완료되었습니다!');
+              processAnalysisData(data.result);
+            }
           } else if (data.status === 'error') {
             if (interval) { clearInterval(interval); interval = null; }
             setAnalysisState(prev => ({ ...prev, isAnalyzing: false, error: data.error }));
@@ -215,6 +214,7 @@ export default function StockAnalysisPage() {
 
   const handleAnalyze = async (newConditions: InvestmentConditions & { companyAiModel?: string; companyApiKey?: string; newsAiModel?: string; newsApiKey?: string; companyCount?: number }) => {
     console.log('Starting analysis with:', newConditions);
+    analysisAlerted.current = false;
     setAnalysisState(prev => ({
       ...prev,
       conditions: newConditions,
@@ -236,6 +236,8 @@ export default function StockAnalysisPage() {
             companyApiKey: newConditions.companyApiKey,
             newsAiModel: newConditions.newsAiModel,
             newsApiKey: newConditions.newsApiKey,
+            sector: newConditions.sector,
+            strategyType: newConditions.strategyType,
           },
         }),
       });
@@ -253,6 +255,7 @@ export default function StockAnalysisPage() {
 
       // Instead of processing result, we just started background execution
       // The useEffect pollStatus will handle the rest!
+      alert('AI 엔진 분석 요청이 접수되었습니다. 백그라운드에서 진행됩니다.');
 
     } catch (error) {
       console.error('Analysis error:', error);

@@ -199,7 +199,33 @@ export async function runLearningPipeline(
     if (!strategyModelName) {
       throw new Error('종합 전략 도출을 위한 AI 모델이 선택되지 않았습니다. PDF 또는 문서 모델을 선택해주세요.');
     }
-    const strategyPrompt = `다음 조건들을 종합하여 투자 전략과 규칙을 도출하세요. JSON 형식 {"strategy": {}, "criteria": {}}로 응답하세요.\n\n조건들:\n${docConditions}`;
+    const strategyPrompt = `당신은 전설적인 투자 전략가입니다. 아래 나열된 여러 투자 관련 문서에서 추출된 핵심 조건들을 바탕으로 다음 작업을 수행하세요.
+추출된 핵심 조건들:
+${docConditions}
+
+작업 1: 위 조건들을 아우르는 종합적인 핵심 투자 원칙 및 시장 분석 요약본(keyConditionsSummary)을 작성하세요. 5~10문장 내외로 상세하게 작성해 주세요.
+작업 2: 요약된 내용을 바탕으로 아래 JSON 구조를 채워주세요. 각 카테고리별 규칙을 최대한 구체적으로(각 카테고리당 5~15개 이상) 추출하세요. 특히 'rule' 필드는 문장 형태로 상세히 작성하세요.
+
+JSON 형식:
+{
+  "keyConditionsSummary": "종합 요약 내용...",
+  "strategy": {
+    "shortTermConditions": ["단기 상승 조건1", "..."],
+    "longTermConditions": ["장기 상승 조건1", "..."],
+    "winningPatterns": ["수익 패턴1", "..."],
+    "riskManagementRules": ["리스크 관리1", "..."]
+  },
+  "criteria": {
+    "goodCompanyRules": [{ "rule": "규칙", "weight": 0.1~1.0, "category": "fundamental"|"technical"|"market"|"unit_economics"|"lifecycle"|"timing"|"risk" }],
+    "idealMetricRanges": [{ "metric": "per"|"pbr"|"roe"|"dividendYield", "min": 0, "max": 0, "description": "..." }],
+    "principles": [{ "principle": "원칙", "category": "entry"|"exit"|"risk"|"general" }],
+    "technicalRules": [{ "indicator": "스토캐스틱|RSI|MACD", "rule": "규칙", "weight": 0.1~1.0 }],
+    "marketSizeRules": [{ "rule": "규칙", "weight": 0.1~1.0 }],
+    "unitEconomicsRules": [{ "metric": "CAC|LTV|공헌이익률", "rule": "규칙", "weight": 0.1~1.0 }],
+    "lifecycleRules": [{ "stage": "introduction|growth|maturity|decline", "rule": "규칙", "weight": 0.1~1.0 }],
+    "buyTimingRules": [{ "rule": "규칙", "weight": 0.1~1.0, "conditions": ["조건1", "..."] }]
+  }
+}`;
 
     const strategyText = await withRetry(async () => {
       const strategyResult = await client.models.generateContent({
@@ -214,12 +240,14 @@ export async function runLearningPipeline(
 
     const defaultSource: SourceReference = { fileName: '종합 분석', type: 'pdf', pageOrTimestamp: '-', content: '학습 데이터 종합 분석 결과' };
 
-    const strategy: InvestmentStrategy = {
-      shortTermConditions: strategyData.strategy?.shortTermConditions || [],
-      longTermConditions: strategyData.strategy?.longTermConditions || [],
-      winningPatterns: strategyData.strategy?.winningPatterns || [],
-      riskManagementRules: strategyData.strategy?.riskManagementRules || [],
+const strategy: InvestmentStrategy = {
+shortTermConditions: strategyData.strategy?.shortTermConditions || [],
+longTermConditions: strategyData.strategy?.longTermConditions || [],
+winningPatterns: strategyData.strategy?.winningPatterns || [],
+riskManagementRules: strategyData.strategy?.riskManagementRules || [],
     };
+
+    const keyConditionsSummary = strategyData.keyConditionsSummary || '학습 데이터 분석을 통해 도출된 핵심 투자 전략 요약본입니다.';
 
     const criteria: LearnedInvestmentCriteria = {
       goodCompanyRules: (strategyData.criteria?.goodCompanyRules || []).map((r: any) => ({ rule: r.rule, weight: r.weight || 0.5, source: defaultSource, category: r.category || 'fundamental' })),
@@ -234,12 +262,13 @@ export async function runLearningPipeline(
 
     const knowledge: LearnedKnowledge = {
       fileAnalyses,
-      criteria,
-      strategy,
-      rawSummaries: targetFiles.map(f => ({ fileName: f.name, summary: '학습 완료' })),
-      learnedAt: new Date(),
-      sourceFiles: targetFiles.map(f => f.name),
-    };
+criteria,
+strategy,
+keyConditionsSummary,
+rawSummaries: targetFiles.map(f => ({ fileName: f.name, summary: '학습 완료' })),
+learnedAt: new Date(),
+sourceFiles: targetFiles.map(f => f.name),
+};
 
     return knowledge;
   } finally {
@@ -265,8 +294,8 @@ export async function saveKnowledgeToDB(knowledge: LearnedKnowledge, title?: str
     data: {
       title: title || `Learning Session ${new Date().toLocaleString()}`,
       content: knowledge as any,
+      keyConditionsSummary: knowledge.keyConditionsSummary,
       files: knowledge.sourceFiles as any,
-      isActive: false,
     }
   });
   return result.id;

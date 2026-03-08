@@ -193,9 +193,11 @@ export interface LearnedKnowledge {
   fileAnalyses: FileAnalysis[];
   criteria: LearnedInvestmentCriteria;
   strategy: InvestmentStrategy;
-  rawSummaries: { fileName: string; summary: string }[];
-  learnedAt: Date;
-  sourceFiles: string[];
+keyConditionsSummary?: string;
+  rawSummaries: { fileName: string;
+  summary: string }[];
+learnedAt: Date;
+sourceFiles: string[];
 }
 
 // ===========================

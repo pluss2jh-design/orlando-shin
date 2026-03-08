@@ -47,37 +47,37 @@ interface DriveFile {
 
 /** Prisma JSON 필드에서 조회한 지식 콘텐츠 구조 */
 interface KnowledgeContent {
-  fileAnalyses?: { fileName: string; keyConditions: string[] }[];
-  strategy?: {
-    shortTermConditions?: string[];
-    longTermConditions?: string[];
-    winningPatterns?: string[];
-    riskManagementRules?: string[];
-  };
-  criteria?: {
-    goodCompanyRules?: unknown[];
-    technicalRules?: unknown[];
-    marketSizeRules?: unknown[];
-    unitEconomicsRules?: unknown[];
-    lifecycleRules?: unknown[];
-    buyTimingRules?: unknown[];
-  };
+    fileAnalyses?: { fileName: string; keyConditions: string[] }[];
+    strategy?: {
+        shortTermConditions?: string[];
+        longTermConditions?: string[];
+        winningPatterns?: string[];
+        riskManagementRules?: string[];
+    };
+    criteria?: {
+        goodCompanyRules?: unknown[];
+        technicalRules?: unknown[];
+        marketSizeRules?: unknown[];
+        unitEconomicsRules?: unknown[];
+        lifecycleRules?: unknown[];
+        buyTimingRules?: unknown[];
+    };
 }
 
 /** AI 모델 정보 */
 interface AIModel {
-  value: string;
-  label: string;
-  reqKey: string;
-  supportsPDF: boolean;
-  supportsVideo: boolean;
+    value: string;
+    label: string;
+    reqKey: string;
+    supportsPDF: boolean;
+    supportsVideo: boolean;
 }
 
 /** API 키 정보 */
 interface APIKeys {
-  GEMINI_API_KEY?: string;
-  OPENAI_API_KEY?: string;
-  CLAUDE_API_KEY?: string;
+    GEMINI_API_KEY?: string;
+    OPENAI_API_KEY?: string;
+    CLAUDE_API_KEY?: string;
 }
 
 interface LearnedKnowledgeRecord {
@@ -87,16 +87,18 @@ interface LearnedKnowledgeRecord {
     createdAt: string;
     files: string[];
     content: KnowledgeContent;
+    keyConditionsSummary?: string;
 }
 
 /** 상태 폴링 주기 (밀리초) */
-const POLLING_INTERVAL_MS = 5000;
+const POLLING_INTERVAL_MS = 2000;
+// 좀 더 기민한 반응을 위해 2초로 단축
 // AI 모델 선택 컴포넌트
 const ModelSelector = ({ ext, currentModel, models, keys, onSelect }: { ext: string; currentModel: string; models: AIModel[]; keys: APIKeys | null; onSelect: (val: string) => void }) => {
     const filteredModels = models.filter(m => {
         if (ext === 'mp4') return m.supportsVideo;
         if (ext === 'pdf') return m.supportsPDF;
-        return true; 
+        return true;
     });
 
     return (
@@ -189,6 +191,7 @@ export default function DataLibraryPage() {
                         if (!data.isLearning) {
                             setLearning(false);
                             fetchInitialData();
+                            alert('AI 엔진 학습이 완료되었습니다!');
                         }
                     }
                 } catch { /* 학습 상태 폴링 실패 무시 - 다음 폴링에서 재시도 */ }
@@ -273,7 +276,7 @@ export default function DataLibraryPage() {
     };
 
     const handleSync = async () => {
-if (!confirm('구글 드라이브 동기화를 시작하시겠습니까?\n이 작업은 백그라운드에서 진행됩니다.')) return;
+        if (!confirm('구글 드라이브 동기화를 시작하시겠습니까?\n이 작업은 백그라운드에서 진행됩니다.')) return;
         try {
             setSyncing(true);
             const response = await fetch('/api/gdrive/sync', { method: 'POST' });
@@ -319,7 +322,7 @@ if (!confirm('구글 드라이브 동기화를 시작하시겠습니까?\n이 �
         }
         const fileIdsArray = Array.from(selectedFileIds);
         const currentTitle = title;
-        
+
         setIsRequesting(true);
         setSelectedFileIds(new Set());
         setTitle('');
@@ -332,6 +335,8 @@ if (!confirm('구글 드라이브 동기화를 시작하시겠습니까?\n이 �
             });
             if (response.ok) {
                 setLearning(true);
+                // Instead of processing result, we just started background execution
+                // The useEffect pollStatus will handle the rest!
                 alert('AI 엔진 학습 요청이 접수되었습니다. 백그라운드에서 진행됩니다.');
                 await fetchInitialData();
             } else {
@@ -434,6 +439,15 @@ if (!confirm('구글 드라이브 동기화를 시작하시겠습니까?\n이 �
 
     return (
         <div className="p-8 space-y-8 animate-in fade-in duration-500">
+            {(isRequesting || learning) && (
+                <div className="bg-blue-600/20 border border-blue-500/50 rounded-xl p-4 flex items-center gap-4 animate-pulse shadow-lg shadow-blue-900/20">
+                    <RefreshCw className="h-6 w-6 text-blue-400 animate-spin" />
+                    <div className="flex-1">
+                        <h3 className="text-white font-bold text-sm tracking-wide">{isRequesting ? 'AI 엔진 학습 요청 중...' : 'AI 엔진 딥러닝 진행 중...'}</h3>
+                        <p className="text-blue-400 text-xs mt-1 font-medium">백그라운드에서 데이터를 분석하고 핵심 투자 로직을 추출하고 있습니다. 잠시만 기다려주세요.</p>
+                    </div>
+                </div>
+            )}
             <div className="flex items-center justify-between">
                 <div>
                     <h1 className="text-4xl font-black text-white mb-2 tracking-tighter">데이터 라이브러리</h1>
@@ -592,131 +606,145 @@ if (!confirm('구글 드라이브 동기화를 시작하시겠습니까?\n이 �
                         </CardHeader>
                         <CardContent className="p-0">
                             <div className="p-4 space-y-4">
-                                    {knowledgeList.map((kb) => (
-                                        <div key={kb.id} className={`p-5 rounded-xl border transition-all ${kb.isActive ? 'bg-blue-600/10 border-blue-500 shadow-blue-500/10' : 'bg-gray-950 border-gray-800 hover:border-gray-700'}`}>
-                                            <div className="flex items-start justify-between gap-3 mb-4">
-                                                <div className="min-w-0 flex-1">
-                                                    {editingKnowledgeId === kb.id ? (
-                                                        <div className="flex items-center gap-2 mb-1">
-                                                            <Input value={editKnowledgeTitle} onChange={(e) => setEditKnowledgeTitle(e.target.value)} className="h-7 text-xs bg-gray-900 border-gray-700 text-white w-full" autoFocus onKeyDown={(e) => e.key === 'Enter' && handleUpdateKnowledgeTitle(kb.id)} />
-                                                            <Button size="icon" variant="ghost" className="h-7 w-7 text-green-500 hover:bg-gray-800" onClick={() => handleUpdateKnowledgeTitle(kb.id)}><CheckCircle className="h-4 w-4" /></Button>
-                                                            <Button size="icon" variant="ghost" className="h-7 w-7 text-gray-500 hover:bg-gray-800" onClick={() => setEditingKnowledgeId(null)}><X className="h-4 w-4" /></Button>
-                                                        </div>
-                                                    ) : (
-                                                        <div className="flex items-center gap-2 mb-1">
-                                                            <h4 className="text-white font-black truncate text-sm">{kb.title || `Session ${kb.id.slice(-4)}`}</h4>
-                                                            <Button size="icon" variant="ghost" className="h-6 w-6 text-gray-400 hover:text-white hover:bg-gray-800" onClick={() => { setEditingKnowledgeId(kb.id); setEditKnowledgeTitle(kb.title || `Session ${kb.id.slice(-4)}`); }}>
-                                                                <Pencil className="h-3 w-3" />
-                                                            </Button>
-                                                        </div>
-                                                    )}
-                                                    <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">CREATED : {new Date(kb.createdAt).toLocaleDateString()}</p>
-                                                </div>
-                                                <Button size="icon" variant="ghost" className="h-8 w-8 text-rose-500 hover:text-rose-400" onClick={() => handleDeleteKnowledge(kb.id)}><Trash2 className="h-4 w-4" /></Button>
+                                {knowledgeList.map((kb) => (
+                                    <div key={kb.id} className={`p-5 rounded-xl border transition-all ${kb.isActive ? 'bg-blue-600/10 border-blue-500 shadow-blue-500/10' : 'bg-gray-950 border-gray-800 hover:border-gray-700'}`}>
+                                        <div className="flex items-start justify-between gap-3 mb-4">
+                                            <div className="min-w-0 flex-1">
+                                                {editingKnowledgeId === kb.id ? (
+                                                    <div className="flex items-center gap-2 mb-1">
+                                                        <Input value={editKnowledgeTitle} onChange={(e) => setEditKnowledgeTitle(e.target.value)} className="h-7 text-xs bg-gray-900 border-gray-700 text-white w-full" autoFocus onKeyDown={(e) => e.key === 'Enter' && handleUpdateKnowledgeTitle(kb.id)} />
+                                                        <Button size="icon" variant="ghost" className="h-7 w-7 text-green-500 hover:bg-gray-800" onClick={() => handleUpdateKnowledgeTitle(kb.id)}><CheckCircle className="h-4 w-4" /></Button>
+                                                        <Button size="icon" variant="ghost" className="h-7 w-7 text-gray-500 hover:bg-gray-800" onClick={() => setEditingKnowledgeId(null)}><X className="h-4 w-4" /></Button>
+                                                    </div>
+                                                ) : (
+                                                    <div className="flex items-center gap-2 mb-1">
+                                                        <h4 className="text-white font-black truncate text-sm">{kb.title || `Session ${kb.id.slice(-4)}`}</h4>
+                                                        <Button size="icon" variant="ghost" className="h-6 w-6 text-gray-400 hover:text-white hover:bg-gray-800" onClick={() => { setEditingKnowledgeId(kb.id); setEditKnowledgeTitle(kb.title || `Session ${kb.id.slice(-4)}`); }}>
+                                                            <Pencil className="h-3 w-3" />
+                                                        </Button>
+                                                    </div>
+                                                )}
+                                                <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">CREATED : {new Date(kb.createdAt).toLocaleDateString()}</p>
                                             </div>
-                                            <div className="grid grid-cols-2 gap-2 mt-4">
-                                                <Button variant={kb.isActive ? "default" : "outline"} className={`h-10 font-black text-xs ${kb.isActive ? "bg-blue-600" : "border-gray-700 text-gray-300"}`} onClick={() => handleActivateKnowledge(kb.id, !kb.isActive)}>
-                                                    {kb.isActive ? '현재 사용 중' : '로직 활성화'}
-                                                </Button>
-                                                <Button variant="outline" className="h-10 border-gray-700 text-gray-300 font-black text-xs" onClick={() => setExpandedKnowledgeId(expandedKnowledgeId === kb.id ? null : kb.id)}>
-                                                    <Eye className="h-4 w-4 mr-1" /> {expandedKnowledgeId === kb.id ? '접기' : '상세 보기'}
-                                                </Button>
-                                            </div>
-                                            {expandedKnowledgeId === kb.id && (
-                                                <div className="mt-4 space-y-4 border-t border-gray-800 pt-4">
-                                                    {/* 학습 파일 목록 */}
-                                                    {kb.files && kb.files.length > 0 && (
-                                                        <div>
-                                                            <h5 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-2">학습 파일 ({kb.files.length}개)</h5>
-                                                            <div className="space-y-1">
-                                                                {kb.files.map((fileName, idx) => (
-                                                                    <div key={idx} className="flex items-center gap-2 text-xs text-gray-300 bg-gray-950 rounded px-3 py-1.5">
-                                                                        <FileText className="h-3 w-3 text-gray-500 shrink-0" />
-                                                                        <span className="truncate">{fileName}</span>
-                                                                    </div>
-                                                                ))}
-                                                            </div>
-                                                        </div>
-                                                    )}
-                                                    {/* 투자 규칙 요약 */}
-                                                    {/* 종합 투자 전략 */}
-                                                    {kb.content?.strategy && (
-                                                        <div>
-                                                            <h5 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-2">종합 투자 전략</h5>
-                                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                                                                {Object.entries(kb.content.strategy).map(([key, items]) => {
-                                                                    const itemArr = Array.isArray(items) ? items : [];
-                                                                    if (itemArr.length === 0) return null;
-                                                                    const labelMap: Record<string, string> = {
-                                                                        shortTermConditions: '단기 상승 조건',
-                                                                        longTermConditions: '장기 상승 조건',
-                                                                        winningPatterns: '수익 패턴',
-                                                                        riskManagementRules: '리스크 관리',
-                                                                    };
-                                                                    return (
-                                                                        <div key={key} className="bg-gray-950 rounded-lg p-3">
-                                                                            <span className="text-[10px] font-black text-blue-400 uppercase tracking-tighter block mb-1">{labelMap[key] || key}</span>
-                                                                            <ul className="space-y-0.5">
-                                                                                {itemArr.slice(0, 5).map((item, iIdx) => (
-                                                                                    <li key={iIdx} className="text-[11px] text-gray-500 truncate">• {String(item)}</li>
-                                                                                ))}
-                                                                            </ul>
-                                                                        </div>
-                                                                    );
-                                                                })}
-                                                            </div>
-                                                        </div>
-                                                    )}
-                                                    {kb.content?.criteria && (
-                                                        <div>
-                                                            <h5 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-2">투자 규칙</h5>
-                                                            <div className="space-y-2">
-                                                                {Object.entries(kb.content.criteria).map(([key, rules]) => {
-                                                                    const ruleArr = Array.isArray(rules) ? rules : [];
-                                                                    if (ruleArr.length === 0) return null;
-                                                                    const labelMap: Record<string, string> = {
-                                                                        goodCompanyRules: '좋은 기업 조건',
-                                                                        technicalRules: '기술적 분석',
-                                                                        marketSizeRules: '시장 규모',
-                                                                        unitEconomicsRules: '단위 경제성',
-                                                                        lifecycleRules: '생애주기',
-                                                                        buyTimingRules: '매수 타이밍',
-                                                                    };
-                                                                    return (
-                                                                        <div key={key} className="bg-gray-950 rounded-lg p-3">
-                                                                            <div className="flex items-center justify-between mb-1">
-                                                                                <span className="text-xs font-bold text-gray-300">{labelMap[key] || key}</span>
-                                                                                <Badge variant="secondary" className="text-[10px] bg-gray-800 text-gray-400">{ruleArr.length}개</Badge>
-                                                                            </div>
-                                                                            <ul className="space-y-0.5">
-                                                                                {ruleArr.slice(0, 5).map((rule, rIdx) => {
-                                                                                    const ruleText = typeof rule === 'string'
-                                                                                        ? rule
-                                                                                        : (rule as Record<string, unknown>)?.rule
-                                                                                            ? String((rule as Record<string, unknown>).rule)
-                                                                                            : null;
-                                                                                    if (!ruleText) return null;
-                                                                                    return <li key={rIdx} className="text-[11px] text-gray-500">• {ruleText}</li>;
-                                                                                })}
-
-
-                                                                                {ruleArr.length > 5 && <li className="text-[10px] text-gray-600">... 외 {ruleArr.length - 5}개</li>}
-                                                                            </ul>
-                                                                        </div>
-                                                                    );
-                                                                })}
-                                                            </div>
-                                                        </div>
-                                                    )}
-
-                                                    {!kb.content?.criteria && !kb.content?.fileAnalyses && (!kb.files || kb.files.length === 0) && (
-                                                        <p className="text-xs text-gray-600 text-center py-4">상세 데이터가 없습니다.</p>
-                                                    )}
-                                                </div>
-                                            )}
+                                            <Button size="icon" variant="ghost" className="h-8 w-8 text-rose-500 hover:text-rose-400" onClick={() => handleDeleteKnowledge(kb.id)}><Trash2 className="h-4 w-4" /></Button>
                                         </div>
-                                    ))}
-                                    {knowledgeList.length === 0 && <div className="text-center py-12 border-2 border-dashed border-gray-800 rounded-xl"><Sparkles className="h-8 w-8 text-gray-800 mx-auto mb-3" /><p className="text-gray-500 text-xs font-bold">아직 학습된 데이터가 없습니다.</p></div>}
+                                        <div className="grid grid-cols-2 gap-2 mt-4">
+                                            <Button variant={kb.isActive ? "default" : "outline"} className={`h-10 font-black text-xs ${kb.isActive ? "bg-blue-600" : "border-gray-700 text-gray-300"}`} onClick={() => handleActivateKnowledge(kb.id, !kb.isActive)}>
+                                                {kb.isActive ? '현재 사용 중' : '로직 활성화'}
+                                            </Button>
+                                            <Button variant="outline" className="h-10 border-gray-700 text-gray-300 font-black text-xs" onClick={() => setExpandedKnowledgeId(expandedKnowledgeId === kb.id ? null : kb.id)}>
+                                                <Eye className="h-4 w-4 mr-1" /> {expandedKnowledgeId === kb.id ? '접기' : '상세 보기'}
+                                            </Button>
+                                        </div>
+                                        {expandedKnowledgeId === kb.id && (
+                                            <div className="mt-4 space-y-6 border-t border-gray-800 pt-6 animate-in fade-in slide-in-from-top-2 duration-300">
+                                                {/* 핵심 요약본 */}
+                                                {kb.keyConditionsSummary && (
+                                                    <div className="bg-blue-600/5 border border-blue-500/20 rounded-xl p-5">
+                                                        <h5 className="text-xs font-black text-blue-400 uppercase tracking-widest mb-3 flex items-center gap-2">
+                                                            <Sparkles className="h-3 w-3" /> 핵심 투자 전략 요약
+                                                        </h5>
+                                                        <p className="text-sm text-gray-300 leading-relaxed whitespace-pre-wrap">
+                                                            {kb.keyConditionsSummary}
+                                                        </p>
+                                                    </div>
+                                                )}
+
+                                                {/* 종합 투자 전략 */}
+                                                {kb.content?.strategy && (
+                                                    <div className="space-y-3">
+                                                        <h5 className="text-xs font-black text-gray-400 uppercase tracking-widest px-1">종합 투자 전략</h5>
+                                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                                            {Object.entries(kb.content.strategy).map(([key, items]) => {
+                                                                const itemArr = Array.isArray(items) ? items : [];
+                                                                if (itemArr.length === 0) return null;
+                                                                const labelMap: Record<string, string> = {
+                                                                    shortTermConditions: '단기 상승 조건',
+                                                                    longTermConditions: '장기 상승 조건',
+                                                                    winningPatterns: '수익 패턴',
+                                                                    riskManagementRules: '리스크 관리',
+                                                                };
+                                                                return (
+                                                                    <div key={key} className="bg-gray-950 border border-gray-800 rounded-xl p-4 hover:border-gray-700 transition-colors">
+                                                                        <span className="text-[10px] font-black text-blue-400 uppercase tracking-tighter block mb-2">{labelMap[key] || key}</span>
+                                                                        <ul className="space-y-1.5">
+                                                                            {itemArr.slice(0, 5).map((item, iIdx) => (
+                                                                                <li key={iIdx} className="text-xs text-gray-400 flex items-start gap-2">
+                                                                                    <span className="text-blue-500 mt-1">•</span>
+                                                                                    <span>{String(item)}</span>
+                                                                                </li>
+                                                                            ))}
+                                                                        </ul>
+                                                                    </div>
+                                                                );
+                                                            })}
+                                                        </div>
+                                                    </div>
+                                                )}
+
+                                                {/* 투자 규칙 상세 */}
+                                                {kb.content?.criteria && (
+                                                    <div className="space-y-3">
+                                                        <h5 className="text-xs font-black text-gray-400 uppercase tracking-widest px-1">상세 투자 규칙</h5>
+                                                        <div className="grid grid-cols-1 gap-3">
+                                                            {Object.entries(kb.content.criteria).map(([key, rules]) => {
+                                                                const ruleArr = Array.isArray(rules) ? rules : [];
+                                                                if (ruleArr.length === 0) return null;
+                                                                const labelMap: Record<string, string> = {
+                                                                    goodCompanyRules: '재무 및 기업 건전성',
+                                                                    technicalRules: '기술적 분석 지표',
+                                                                    marketSizeRules: '시장 규모 및 성장성',
+                                                                    unitEconomicsRules: '단위 경제성 지표',
+                                                                    lifecycleRules: '기업 생애주기 단계',
+                                                                    buyTimingRules: '매수 타이밍 판단',
+                                                                    principles: '투자 원칙',
+                                                                    idealMetricRanges: '권장 지표 범위'
+                                                                };
+                                                                return (
+                                                                    <div key={key} className="bg-gray-950 border border-gray-800 rounded-xl p-4">
+                                                                        <div className="flex items-center justify-between mb-3">
+                                                                            <span className="text-xs font-bold text-gray-300">{labelMap[key] || key}</span>
+                                                                            <Badge variant="secondary" className="text-[10px] bg-gray-800 text-gray-400 border-none">{ruleArr.length}개 규칙</Badge>
+                                                                        </div>
+                                                                        <ul className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-2">
+                                                                            {ruleArr.map((rule: any, rIdx: number) => {
+                                                                                const ruleText = typeof rule === 'string'
+                                                                                    ? rule
+                                                                                    : rule?.rule || rule?.principle || rule?.description || JSON.stringify(rule);
+                                                                                return (
+                                                                                    <li key={rIdx} className="text-[11px] text-gray-500 flex items-start gap-2">
+                                                                                        <CheckCircle className="h-3 w-3 text-emerald-500/50 mt-0.5 shrink-0" />
+                                                                                        <span className="leading-relaxed">{ruleText}</span>
+                                                                                    </li>
+                                                                                );
+                                                                            })}
+                                                                        </ul>
+                                                                    </div>
+                                                                );
+                                                            })}
+                                                        </div>
+                                                    </div>
+                                                )}
+
+                                                {/* 학습 파일 목록 */}
+                                                {kb.files && (kb.files as any[]).length > 0 && (
+                                                    <div className="border-t border-gray-800 pt-6">
+                                                        <h5 className="text-xs font-black text-gray-500 uppercase tracking-widest mb-3 px-1">학습에 사용된 원천 데이터 ({(kb.files as any[]).length})</h5>
+                                                        <div className="flex flex-wrap gap-2">
+                                                            {(kb.files as any[]).map((fileName, idx) => (
+                                                                <div key={idx} className="flex items-center gap-2 text-[10px] text-gray-400 bg-gray-900 border border-gray-800 rounded-full px-3 py-1">
+                                                                    <FileText className="h-2.5 w-2.5 text-gray-600" />
+                                                                    <span className="truncate max-w-[200px]">{fileName}</span>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )}
+                                    </div>
+                                ))}
+                                {knowledgeList.length === 0 && <div className="text-center py-12 border-2 border-dashed border-gray-800 rounded-xl"><Sparkles className="h-8 w-8 text-gray-800 mx-auto mb-3" /><p className="text-gray-500 text-xs font-bold">아직 학습된 데이터가 없습니다.</p></div>}
                             </div>
                         </CardContent>
                     </Card>

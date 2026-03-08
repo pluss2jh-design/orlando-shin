@@ -1,8 +1,49 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { NewsItem, NewsSummary } from '@/types/stock-analysis';
+import { GoogleGenAI } from '@google/genai';
 
 const NEWS_CACHE = new Map<string, { data: NewsItem[]; timestamp: number }>();
 const CACHE_TTL = 5 * 60 * 1000;
+
+async function translateNewsToKorean(newsItems: NewsItem[]): Promise<NewsItem[]> {
+  try {
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey) return newsItems;
+
+    const client = new GoogleGenAI({ apiKey });
+
+    const prompt = `Translate the following news titles and summaries into professional Korean. Return ONLY the translated results as a JSON array of objects, with each object having 'title' and 'summary' keys corresponding exactly to the original items in order. Do not include any markdown formatting or extra text.
+    
+Original:
+${newsItems.map((n, i) => `[${i}] Title: ${n.title}\nSummary: ${n.summary}`).join('\n\n')}
+
+Required JSON Format:
+[
+  { "title": "한국어 번역 제목", "summary": "한국어 번역 요약" }
+]
+`;
+
+    const response = await client.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: [prompt],
+    });
+
+    const text = response.text || '';
+    const jsonMatch = text.match(/\[[\s\S]*\]/);
+    if (jsonMatch) {
+      const translations = JSON.parse(jsonMatch[0]);
+      return newsItems.map((item, index) => ({
+        ...item,
+        title: translations[index]?.title || item.title,
+        content: translations[index]?.summary || item.content,
+        summary: translations[index]?.summary || item.summary,
+      }));
+    }
+  } catch (error) {
+    console.error('Failed to translate news:', error);
+  }
+  return newsItems;
+}
 
 async function fetchNewsFromYahoo(ticker: string): Promise<NewsItem[]> {
   try {
@@ -22,7 +63,7 @@ async function fetchNewsFromYahoo(ticker: string): Promise<NewsItem[]> {
     const data = await response.json();
     const news = data.news || [];
 
-    return news.map((item: any, index: number) => ({
+    const rawNews = news.map((item: any, index: number) => ({
       id: `${ticker}-${index}-${Date.now()}`,
       ticker,
       title: item.title || '제목 없음',
@@ -33,6 +74,8 @@ async function fetchNewsFromYahoo(ticker: string): Promise<NewsItem[]> {
       url: item.link || '',
       sentiment: analyzeSentiment(item.title + ' ' + (item.summary || '')),
     }));
+
+    return await translateNewsToKorean(rawNews);
   } catch (error) {
     console.error(`Failed to fetch news for ${ticker}:`, error);
     return generateMockNews(ticker);
@@ -42,19 +85,19 @@ async function fetchNewsFromYahoo(ticker: string): Promise<NewsItem[]> {
 function analyzeSentiment(text: string): 'positive' | 'neutral' | 'negative' {
   const positiveWords = ['growth', 'profit', 'rise', 'gain', 'up', 'strong', 'bullish', 'success', 'breakthrough', 'record', 'high', 'surge', 'soar', 'rally', 'boost'];
   const negativeWords = ['loss', 'fall', 'drop', 'down', 'weak', 'bearish', 'decline', 'crash', 'plunge', 'tumble', 'slump', 'crisis', 'risk', 'concern', 'warning'];
-  
+
   const lowerText = text.toLowerCase();
   let positiveCount = 0;
   let negativeCount = 0;
-  
+
   positiveWords.forEach(word => {
     if (lowerText.includes(word)) positiveCount++;
   });
-  
+
   negativeWords.forEach(word => {
     if (lowerText.includes(word)) negativeCount++;
   });
-  
+
   if (positiveCount > negativeCount) return 'positive';
   if (negativeCount > positiveCount) return 'negative';
   return 'neutral';
@@ -102,15 +145,15 @@ function generateMockNews(ticker: string): NewsItem[] {
 async function generateAISummary(news: NewsItem[], ticker: string): Promise<NewsSummary> {
   const positiveCount = news.filter(n => n.sentiment === 'positive').length;
   const negativeCount = news.filter(n => n.sentiment === 'negative').length;
-  
+
   let overallSentiment: 'positive' | 'neutral' | 'negative' = 'neutral';
   if (positiveCount > negativeCount) overallSentiment = 'positive';
   else if (negativeCount > positiveCount) overallSentiment = 'negative';
-  
+
   const keyHighlights = news
     .slice(0, 3)
     .map(n => n.summary || n.title);
-  
+
   return {
     ticker,
     companyName: ticker,
@@ -137,7 +180,7 @@ export async function POST(request: NextRequest) {
     const confirmed = request.headers.get('X-Confirmed');
     if (confirmed !== 'true') {
       return NextResponse.json(
-        { 
+        {
           error: 'API 비용 발생 알림 필요',
           message: '뉴스 조회 시 API 비용이 발생할 수 있습니다. 계속하시겠습니까?'
         },
@@ -146,11 +189,11 @@ export async function POST(request: NextRequest) {
     }
 
     const results: NewsSummary[] = [];
-    
+
     for (const ticker of tickers) {
       const cacheKey = `${ticker}-news`;
       const cached = NEWS_CACHE.get(cacheKey);
-      
+
       let news: NewsItem[];
       if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
         news = cached.data;
@@ -158,12 +201,12 @@ export async function POST(request: NextRequest) {
         news = await fetchNewsFromYahoo(ticker);
         NEWS_CACHE.set(cacheKey, { data: news, timestamp: Date.now() });
       }
-      
+
       const summary = await generateAISummary(news, ticker);
       results.push(summary);
     }
 
-    return NextResponse.json({ 
+    return NextResponse.json({
       results,
       success: true,
       fetchedAt: new Date().toISOString(),
