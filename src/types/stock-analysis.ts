@@ -35,6 +35,13 @@ export interface AnalysisResult {
   ruleScores?: RuleScore[];
   totalRuleScore?: number;
   maxPossibleScore?: number;
+  financialHistory?: FinancialRecord[];
+  returnRates?: {
+    oneYear?: number;
+    sixMonths?: number;
+    threeMonths?: number;
+    oneMonth?: number;
+  };
 }
 
 export interface FilteredCandidate {
@@ -193,11 +200,13 @@ export interface LearnedKnowledge {
   fileAnalyses: FileAnalysis[];
   criteria: LearnedInvestmentCriteria;
   strategy: InvestmentStrategy;
-keyConditionsSummary?: string;
-  rawSummaries: { fileName: string;
-  summary: string }[];
-learnedAt: Date;
-sourceFiles: string[];
+  keyConditionsSummary?: string;
+  rawSummaries: {
+    fileName: string;
+    summary: string
+  }[];
+  learnedAt: Date;
+  sourceFiles: string[];
 }
 
 // ===========================
@@ -228,8 +237,24 @@ export interface YahooFinanceData {
   revenueGrowth?: number;
 
   priceHistory: PriceHistoryEntry[];
+  financialHistory?: FinancialRecord[];
+  returnRates?: {
+    oneYear?: number;
+    sixMonths?: number;
+    threeMonths?: number;
+    oneMonth?: number;
+  };
 
   fetchedAt: Date;
+}
+
+export interface FinancialRecord {
+  date: string;
+  revenue: number;
+  operatingIncome: number;
+  operatingMargin: number;
+  revenueGrowth?: number;
+  operatingIncomeGrowth?: number;
 }
 
 export interface PriceHistoryEntry {

@@ -186,6 +186,8 @@ export default function StockAnalysisPage() {
         ruleScores: pick.ruleScores,
         totalRuleScore: pick.totalRuleScore,
         maxPossibleScore: pick.maxPossibleScore,
+        financialHistory: pick.yahooData?.financialHistory,
+        returnRates: pick.yahooData?.returnRates,
       }));
 
       setAnalysisState(prev => ({

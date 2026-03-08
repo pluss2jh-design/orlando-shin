@@ -120,7 +120,7 @@ export async function fetchYahooFinanceData(
 
   try {
     summaryResult = await yahooFinance.quoteSummary(ticker, {
-      modules: ['financialData', 'price', 'defaultKeyStatistics', 'summaryDetail', 'assetProfile'],
+      modules: ['financialData', 'price', 'defaultKeyStatistics', 'summaryDetail', 'assetProfile', 'incomeStatementHistory'],
     });
   } catch (error) {
     console.warn(`Quote summary failed for ${ticker}, attempting basic quote:`, error);
@@ -165,6 +165,59 @@ export async function fetchYahooFinanceData(
     volume: entry.volume ?? 0,
   }));
 
+  // 수익률 계산 (1년, 6개월, 3개월, 1개월)
+  const returnRates: any = {};
+  const now = new Date();
+  const intervals = [
+    { label: 'oneYear', months: 12 },
+    { label: 'sixMonths', months: 6 },
+    { label: 'threeMonths', months: 3 },
+    { label: 'oneMonth', months: 1 },
+  ];
+
+  const currentPrice = price?.regularMarketPrice ?? financial?.currentPrice ?? 0;
+
+  if (priceHistory.length > 0 && currentPrice > 0) {
+    intervals.forEach(({ label, months }) => {
+      const targetDate = new Date();
+      targetDate.setMonth(now.getMonth() - months);
+      // 가장 가까운 과거 데이터 찾기
+      const pastEntry = priceHistory
+        .filter(h => h.date <= targetDate)
+        .sort((a, b) => b.date.getTime() - a.date.getTime())[0];
+
+      if (pastEntry && pastEntry.close > 0) {
+        returnRates[label] = ((currentPrice - pastEntry.close) / pastEntry.close) * 100;
+      }
+    });
+  }
+
+  // 재무 정보 추출 (최근 4분기/년)
+  const incomeStatementHistory = summaryResult.incomeStatementHistory?.incomeStatementHistory || [];
+  const financialHistory = incomeStatementHistory.map((item: any, index: number) => {
+    const rev = item.totalRevenue;
+    const opInc = item.operatingIncome;
+    const margin = rev > 0 ? opInc / rev : 0;
+
+    let revGrowth = 0;
+    let opGrowth = 0;
+
+    if (index < incomeStatementHistory.length - 1) {
+      const nextItem = incomeStatementHistory[index + 1];
+      if (nextItem.totalRevenue > 0) revGrowth = (rev - nextItem.totalRevenue) / nextItem.totalRevenue;
+      if (nextItem.operatingIncome > 0) opGrowth = (opInc - nextItem.operatingIncome) / nextItem.operatingIncome;
+    }
+
+    return {
+      date: item.endDate ? new Date(item.endDate).toLocaleDateString() : 'N/A',
+      revenue: rev,
+      operatingIncome: opInc,
+      operatingMargin: margin,
+      revenueGrowth: revGrowth * 100,
+      operatingIncomeGrowth: opGrowth * 100,
+    };
+  }).reverse(); // 최근 데이터가 뒤로 가게 정렬
+
   return {
     ticker,
     currency,
@@ -189,6 +242,8 @@ export async function fetchYahooFinanceData(
     revenueGrowth: financial?.revenueGrowth,
 
     priceHistory,
+    financialHistory,
+    returnRates,
     fetchedAt: new Date(),
   };
 }

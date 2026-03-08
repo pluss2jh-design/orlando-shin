@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { AnalysisResult, InvestmentConditions } from '@/types/stock-analysis';
 import { cn } from '@/lib/utils';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, BarChart, Bar, Legend } from 'recharts';
 
 interface AnalysisOutputProps {
   results: AnalysisResult[];
@@ -304,6 +305,52 @@ export function AnalysisOutput({ results, conditions, isLoading, onSendEmail }: 
         <CardContent className="p-8 space-y-8 relative z-10">
           <div className="grid grid-cols-1 lg:grid-cols-1 gap-10">
             <div className="space-y-6">
+
+              {/* 수익률 분석 섹션 */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                {[
+                  { label: '1년 전', value: result.returnRates?.oneYear },
+                  { label: '6개월 전', value: result.returnRates?.sixMonths },
+                  { label: '3개월 전', value: result.returnRates?.threeMonths },
+                  { label: '1개월 전', value: result.returnRates?.oneMonth },
+                ].map((item, i) => (
+                  <div key={i} className="bg-white p-4 rounded-xl border border-gray-200 text-center">
+                    <p className="text-[10px] text-gray-400 font-black uppercase tracking-widest mb-1">{item.label} 매수 시</p>
+                    <p className={cn(
+                      "text-xl font-black font-mono",
+                      (item.value || 0) > 0 ? "text-emerald-500" : (item.value || 0) < 0 ? "text-rose-500" : "text-gray-400"
+                    )}>
+                      {item.value !== undefined ? `${item.value > 0 ? '+' : ''}${item.value.toFixed(1)}%` : 'N/A'}
+                    </p>
+                  </div>
+                ))}
+              </div>
+
+              {/* 지표 선적 그래프 섹션 */}
+              {result.financialHistory && result.financialHistory.length > 0 && (
+                <div className="bg-white p-6 rounded-2xl border border-gray-200">
+                  <h4 className="text-xs font-black text-gray-900 uppercase tracking-widest mb-6 flex items-center gap-2">
+                    <Activity className="h-4 w-4 text-blue-500" /> Financial Performance Trend
+                  </h4>
+                  <div className="h-[300px] w-full">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart data={result.financialHistory}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                        <XAxis dataKey="date" tick={{ fontSize: 10 }} stroke="#999" />
+                        <YAxis yAxisId="left" tick={{ fontSize: 10 }} stroke="#999" />
+                        <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 10 }} stroke="#999" />
+                        <RechartsTooltip
+                          contentStyle={{ backgroundColor: '#fff', border: '1px solid #eee', fontSize: '12px' }}
+                        />
+                        <Legend wrapperStyle={{ fontSize: '10px', fontWeight: 'bold' }} />
+                        <Line yAxisId="left" type="monotone" dataKey="revenue" name="매출액" stroke="#3b82f6" strokeWidth={3} dot={{ r: 4 }} activeDot={{ r: 6 }} />
+                        <Line yAxisId="left" type="monotone" dataKey="operatingIncome" name="영업이익" stroke="#10b981" strokeWidth={3} dot={{ r: 4 }} activeDot={{ r: 6 }} />
+                        <Line yAxisId="right" type="monotone" dataKey="operatingMargin" name="영업이익률(%)" stroke="#f59e0b" strokeWidth={2} strokeDasharray="5 5" dot={false} />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+              )}
 
               <div className="p-8 rounded-2xl bg-gray-50/80 border border-gray-200 relative overflow-hidden group">
                 <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-blue-600 to-transparent" />

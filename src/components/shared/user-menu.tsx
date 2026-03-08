@@ -91,6 +91,10 @@ export function UserMenu() {
             </>
           ) : (
             <>
+              <DropdownMenuItem onClick={() => router.push('/stock-analysis')}>
+                <Laptop className="mr-2 h-4 w-4" />
+                <span>기업 분석</span>
+              </DropdownMenuItem>
               <DropdownMenuItem onClick={() => router.push('/pricing')}>
                 <LayoutDashboard className="mr-2 h-4 w-4 text-blue-500" />
                 <span className="text-blue-500 font-semibold">플랜 업그레이드</span>
@@ -130,6 +134,6 @@ export function UserMenu() {
           <span>로그아웃</span>
         </DropdownMenuItem>
       </DropdownMenuContent>
-    </DropdownMenu>
+    </DropdownMenu >
   );
 }

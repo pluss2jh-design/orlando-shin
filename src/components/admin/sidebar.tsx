@@ -13,13 +13,15 @@ import {
     Users,
     ChevronLeft,
     ChevronRight,
-    Menu
+    Menu,
+    CreditCard
 } from 'lucide-react';
 import { signOut } from 'next-auth/react';
 
 const menuItems = [
     { href: '/admin/dashboard', label: '통합 대시보드', icon: LayoutDashboard },
     { href: '/admin/data-library', label: '데이터 라이브러리', icon: Database },
+    { href: '/admin/payments', label: '결제 관리', icon: CreditCard },
     { href: '/admin/plans', label: '플랜 관리', icon: Settings },
     { href: '/admin/users', label: '사용자 관리', icon: Users },
     { href: '/admin/settings', label: '시스템 설정', icon: Settings },
@@ -42,7 +44,7 @@ export function AdminSidebar() {
                     <FileText className="h-6 w-6 text-black shrink-0" />
                     {!isCollapsed && <h1 className="text-xl font-black text-gray-900 tracking-tight whitespace-nowrap">관리자 대시보드</h1>}
                 </div>
-                <button 
+                <button
                     onClick={() => setIsCollapsed(!isCollapsed)}
                     className="p-1 hover:bg-gray-100 rounded-md transition-colors"
                     title={isCollapsed ? "메뉴 펼치기" : "메뉴 접기"}

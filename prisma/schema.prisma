@@ -29,6 +29,7 @@ model User {
   sessions        Session[]
   inquiries       Inquiry[]
   analysisUsages  AnalysisUsage[]
+  payments        Payment[]
 
   @@unique([provider, providerAccountId, email])
 }
@@ -136,4 +137,32 @@ model LearnedKnowledge {
   isActive    Boolean  @default(false)
   createdAt   DateTime @default(now()) @db.Timestamptz(3)
   updatedAt   DateTime @updatedAt @db.Timestamptz(3)
+}
+
+model Payment {
+  id            String   @id @default(cuid())
+  userId        String
+  paymentId     String   @unique
+  merchantUid   String?
+  amount        Int
+  planId        String
+  status        String
+  pgProvider    String?
+  payMethod     String?
+  cancelReason  String?
+  paidAt        DateTime @default(now()) @db.Timestamptz(3)
+  createdAt     DateTime @default(now()) @db.Timestamptz(3)
+
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model MembershipPlan {
+  id                  String   @id // 'FREE', 'STANDARD', 'PREMIUM', 'MASTER'
+  name                String
+  price               Int
+  weeklyAnalysisLimit Int      @default(0)
+  canSendEmail        Boolean  @default(false)
+  isPopular           Boolean  @default(false)
+  description         String?
+  updatedAt           DateTime @updatedAt @db.Timestamptz(3)
 }

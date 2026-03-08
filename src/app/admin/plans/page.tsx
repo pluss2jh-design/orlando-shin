@@ -98,8 +98,8 @@ export default function PlanPage() {
                 </Alert>
             )}
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                {plans.map((plan) => (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {plans.filter(p => p.id.toUpperCase() !== 'MASTER').map((plan) => (
                     <Card key={plan.id} className="bg-gray-900 border-gray-800">
                         <CardHeader>
                             <CardTitle className="text-white flex items-center justify-between">
