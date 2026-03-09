@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { TrendingUp, AlertCircle, FileText, Video, CheckCircle, ChevronDown, ChevronUp, Mail, Newspaper, Lock, Sparkles, ArrowLeft, ArrowRight, Activity } from 'lucide-react';
+import { TrendingUp, AlertCircle, FileText, Video, CheckCircle, ChevronDown, ChevronUp, Mail, Lock, Sparkles, ArrowLeft, ArrowRight, Activity, TrendingDown, Target, Zap } from 'lucide-react';
 import { useSession } from 'next-auth/react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -9,9 +9,82 @@ import { Progress } from '@/components/ui/progress';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { AnalysisResult, InvestmentConditions } from '@/types/stock-analysis';
+import { AnalysisResult, InvestmentConditions, TenbaggerScoreResult, TenbaggerStepResult } from '@/types/stock-analysis';
 import { cn } from '@/lib/utils';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, BarChart, Bar, Legend } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, Legend } from 'recharts';
+
+const STEP_ICONS = [Target, TrendingUp, Activity, CheckCircle, Zap, TrendingDown, Sparkles];
+
+function TenbaggerPipeline({ score }: { score: TenbaggerScoreResult }) {
+  const stageBg = {
+    watch: 'from-gray-500/10 to-gray-400/5 border-gray-500/30',
+    scout: 'from-sky-500/10 to-sky-400/5 border-sky-500/30',
+    expand1: 'from-amber-500/10 to-amber-400/5 border-amber-500/30',
+    expand2: 'from-orange-500/10 to-orange-400/5 border-orange-500/30',
+    full: 'from-emerald-500/10 to-emerald-400/5 border-emerald-500/30',
+  };
+  const stageText = {
+    watch: 'text-gray-400',
+    scout: 'text-sky-400',
+    expand1: 'text-amber-400',
+    expand2: 'text-orange-400',
+    full: 'text-emerald-400',
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className={cn('p-5 rounded-2xl border bg-gradient-to-br flex flex-col sm:flex-row sm:items-center justify-between gap-4', stageBg[score.investmentStage])}>
+        <div>
+          <p className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-1">Ten-bagger Pipeline Score</p>
+          <div className="flex items-baseline gap-2">
+            <span className={cn('text-5xl font-black font-mono', stageText[score.investmentStage])}>{score.percentage}%</span>
+            <span className="text-gray-500 text-sm">{score.totalScore} / {score.maxScore}점</span>
+          </div>
+          <p className={cn('text-sm font-black mt-1', stageText[score.investmentStage])}>{score.allocationLabel}</p>
+        </div>
+        <div className="text-right">
+          <p className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-2">통과 단계</p>
+          <div className="flex gap-1.5 justify-end">
+            {score.steps.map((s, i) => (
+              <div key={i} className={cn('w-6 h-6 rounded-full flex items-center justify-center text-[9px] font-black border', s.passed ? 'bg-emerald-500 border-emerald-400 text-white' : 'bg-gray-800 border-gray-700 text-gray-500')}>{i + 1}</div>
+            ))}
+          </div>
+          <p className="text-[10px] text-gray-500 mt-1">{score.steps.filter(s => s.passed).length} / 7단계 통과</p>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 gap-2">
+        {score.steps.map((step, i) => {
+          const Icon = STEP_ICONS[i] || CheckCircle;
+          return (
+            <div key={i} className={cn('p-4 rounded-xl border transition-all', step.passed ? 'bg-emerald-500/5 border-emerald-500/20' : 'bg-gray-900/30 border-gray-800')}>
+              <div className="flex items-start gap-3">
+                <div className={cn('flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center mt-0.5', step.passed ? 'bg-emerald-500/20' : 'bg-gray-800')}>
+                  <Icon className={cn('h-3.5 w-3.5', step.passed ? 'text-emerald-400' : 'text-gray-500')} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between gap-2 mb-1">
+                    <div className="flex items-center gap-2">
+                      <span className="text-[9px] font-black text-gray-600">STEP {step.step}</span>
+                      <span className={cn('text-xs font-black', step.passed ? 'text-white' : 'text-gray-400')}>{step.stepName}</span>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span className={cn('text-xs font-black font-mono', step.score >= 8 ? 'text-emerald-400' : step.score >= 5 ? 'text-amber-400' : 'text-rose-400')}>{step.score}/10</span>
+                      <Badge className={cn('text-[9px] font-black shrink-0', step.passed ? 'bg-emerald-500/20 text-emerald-400 border-none' : 'bg-gray-800 text-gray-500 border-none')}>{step.passed ? 'PASS' : 'HOLD'}</Badge>
+                    </div>
+                  </div>
+                  <Progress value={step.score * 10} className="h-1 mb-2" />
+                  <p className="text-[11px] text-gray-500 leading-relaxed">{step.detail}</p>
+                  <p className={cn('text-[11px] font-bold mt-1', step.passed ? 'text-emerald-400' : 'text-amber-400')}>→ {step.recommendation}</p>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
 
 interface AnalysisOutputProps {
   results: AnalysisResult[];
@@ -191,10 +264,19 @@ export function AnalysisOutput({ results, conditions, isLoading, onSendEmail }: 
 
                 <div className="flex items-end justify-between mt-4 pt-4 border-t border-gray-100">
                   <div>
-                    <p className="text-[10px] text-gray-400 uppercase font-black tracking-widest mb-1">Total Score</p>
-                    <p className="text-2xl font-black text-gray-900 font-mono leading-none">
-                      {result.totalRuleScore}<span className="text-sm text-gray-400 font-medium">/{result.maxPossibleScore}</span>
-                    </p>
+                    <p className="text-[10px] text-gray-400 uppercase font-black tracking-widest mb-1">Ten-bagger Score</p>
+                    {result.tenbaggerScore ? (
+                      <div className="flex items-baseline gap-1">
+                        <p className={cn('text-2xl font-black font-mono leading-none',
+                          result.tenbaggerScore.percentage >= 70 ? 'text-emerald-500' :
+                            result.tenbaggerScore.percentage >= 50 ? 'text-amber-500' : 'text-rose-400'
+                        )}>{result.tenbaggerScore.percentage}%</p>
+                        <span className="text-xs text-gray-400">{result.tenbaggerScore.steps.filter(s => s.passed).length}/7단계</span>
+                      </div>
+                    ) : (
+                      <p className="text-2xl font-black text-gray-900 font-mono leading-none">{result.totalRuleScore}<span className="text-sm text-gray-400 font-medium">/{result.maxPossibleScore}</span></p>
+                    )}
+                    {result.tenbaggerScore && <p className="text-[10px] font-bold text-blue-500 mt-0.5">{result.tenbaggerScore.allocationLabel}</p>}
                   </div>
                   <div className="w-8 h-8 rounded-full bg-gray-50 group-hover:bg-blue-50 flex items-center justify-center transition-colors shadow-sm border border-gray-100 group-hover:border-blue-100">
                     <ArrowRight className="h-4 w-4 text-gray-400 group-hover:text-blue-500 transition-colors" />
@@ -349,6 +431,16 @@ export function AnalysisOutput({ results, conditions, isLoading, onSendEmail }: 
                       </LineChart>
                     </ResponsiveContainer>
                   </div>
+                </div>
+              )}
+
+              {/* 텐배거 7단계 파이프라인 */}
+              {result.tenbaggerScore && (
+                <div className="bg-[#080b10] p-6 rounded-2xl border border-gray-800">
+                  <h4 className="text-xs font-black text-blue-400 uppercase tracking-[0.2em] mb-5 flex items-center gap-2">
+                    <Sparkles className="h-4 w-4" /> Ten-Bagger Pipeline (7-Step Analysis)
+                  </h4>
+                  <TenbaggerPipeline score={result.tenbaggerScore} />
                 </div>
               )}
 

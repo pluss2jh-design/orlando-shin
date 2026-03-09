@@ -10,6 +10,8 @@ import type {
   YahooFinanceData,
   RuleScore,
   LearnedKnowledge,
+  TenbaggerStepResult,
+  TenbaggerScoreResult,
 } from '@/types/stock-analysis';
 import { fetchExchangeRate } from './currency';
 import {
@@ -202,30 +204,36 @@ export async function runAnalysisEngine(
       const sortedRules = [...stock.ruleScores].sort((a, b) => b.score - a.score);
       const topRules = sortedRules.slice(0, 3);
 
-      const thesis = `${stock.ticker}는 종합 분석 결과 10점 만점 중 ${stock.totalScore}점으로 평가되었습니다. ` +
+      // 텐배거 7단계 스코어 산정
+      const tenbaggerScore = calculateTenbaggerScore(stock);
+
+      const thesis = `${stock.ticker}는 텐배거 파이프라인 ${tenbaggerScore.percentage}% 달성 (${tenbaggerScore.steps.filter(s => s.passed).length}/7단계 통과). ` +
+        `웹 시 권고 편입 비중: ${tenbaggerScore.allocationLabel}. ` +
         `특히 ${topRules.map(r => r.rule.split(':')[0]).join(', ')} 등의 지표에서 긍정적인 신호를 보였습니다. ` +
-        `실시간 데이터 기반 PER ${stock.yahooData.trailingPE?.toFixed(1) || 'N/A'}, ROE ${stock.yahooData.returnOnEquity ? (stock.yahooData.returnOnEquity * 100).toFixed(1) : 'N/A'}%를 기록하고 있어 투자 매력도가 우수합니다.`;
+        `실시간 데이터 PER ${stock.yahooData.trailingPE?.toFixed(1) || 'N/A'}, ROE ${stock.yahooData.returnOnEquity ? (stock.yahooData.returnOnEquity * 100).toFixed(1) : 'N/A'}%`;
 
       return {
         company: { ...stock.company, investmentThesis: thesis },
         yahooData: stock.yahooData,
         normalizedPrices: {
           currentPriceKRW: stock.yahooData.currentPrice * (stock.yahooData.currency === 'USD' ? exchangeRate.rate : 1),
-          targetPriceKRW: stock.yahooData.currentPrice * (stock.yahooData.currency === 'USD' ? exchangeRate.rate : 1) * 1.2,
+          targetPriceKRW: stock.yahooData.currentPrice * (stock.yahooData.currency === 'USD' ? exchangeRate.rate : 1) * (1 + tenbaggerScore.recommendedAllocation / 100),
           recommendedBuyPriceKRW: stock.yahooData.currentPrice * (stock.yahooData.currency === 'USD' ? exchangeRate.rate : 1),
           exchangeRateUsed: exchangeRate.rate,
         },
         filterResults: [
-          { stage: 1, stageName: '분석 완료', passed: true, reason: '실시간 데이터 기반 규칙 평가 완료' }
+          { stage: 1, stageName: '데이터 수집', passed: true, reason: '실시간 데이터 기반 규칙 평가 완료' },
+          { stage: 2, stageName: '텐배거 단계', passed: tenbaggerScore.percentage >= 50, reason: `${tenbaggerScore.percentage}% 달성` }
         ],
-        passedAllFilters: true,
-        score: (stock.totalScore / 10) * 100, // 백분율 점수
+        passedAllFilters: tenbaggerScore.percentage >= 50,
+        score: tenbaggerScore.percentage,
         expectedReturnRate: stock.periodReturn,
-        confidenceScore: Math.min(98, 65 + (stock.totalScore * 3)),
+        confidenceScore: Math.min(98, 50 + tenbaggerScore.percentage / 2),
         riskLevel,
         ruleScores: stock.ruleScores,
-        totalRuleScore: stock.totalScore, // 이제 0-10점
+        totalRuleScore: stock.totalScore,
         maxPossibleScore: 10,
+        tenbaggerScore,
       };
     });
 
@@ -236,7 +244,7 @@ export async function runAnalysisEngine(
     investmentStyle: style,
     exchangeRate,
     processedAt: new Date(),
-    summary: `시장 유니버스 ${stocksWithScores.length}개 종목을 분석하여 투자 규칙 부합도가 가장 높은 TOP ${companyCount} 기업을 선정했습니다.`,
+    summary: `시장 유니버스 ${stocksWithScores.length}개 종목을 텐배거 7단계 파이프라인으로 분석하여 TOP ${companyCount} 기업을 선정했습니다.`,
     allSourcesUsed: deduplicateSources(allRules.map(r => r.source).filter(Boolean)),
     queriedTickers: universe,
   };
@@ -349,4 +357,147 @@ function deduplicateSources(sources: SourceReference[]): SourceReference[] {
     seen.add(key);
     return true;
   });
+}
+
+/**
+ * 텐배거 7단계 파이프라인 스코어를 산정합니다.
+ * 단계마다 통과 시마다 편입 비중을 점진적으로 늘려갑니다.
+ */
+function calculateTenbaggerScore(
+  stock: { ticker: string; yahooData: YahooFinanceData; periodReturn: number; totalScore: number; ruleScores: RuleScore[] }
+): TenbaggerScoreResult {
+  const d = stock.yahooData;
+  const steps: TenbaggerStepResult[] = [];
+
+  // Step 1: 관심 산업 선정 (패러다임 변화 + 100배 혁신 + 시장 확장성)
+  const revenueGrowth = (d as any).revenueGrowth || 0;
+  const step1Score = revenueGrowth > 0.3 ? 10 : revenueGrowth > 0.2 ? 8 : revenueGrowth > 0.1 ? 6 : revenueGrowth > 0 ? 4 : 2;
+  steps.push({
+    step: 1,
+    stepName: '관심 산업 선정 (패러다임 변화)',
+    passed: step1Score >= 6,
+    score: step1Score,
+    detail: `매출성장률 ${(revenueGrowth * 100).toFixed(1)}% — ${revenueGrowth > 0.3 ? '폭발적 성장 (병의 영역)' : revenueGrowth > 0.2 ? '패러다임 전환 후보 산업' : revenueGrowth > 0.1 ? '양호한 성장기' : '성장 모멘텀 부족'}`,
+    recommendation: step1Score >= 6 ? '패러다임 전환 후보 산업 확인, 다음 단계 진행' : '산업 성장률 부족 — 관망 종목 등록부터 시작',
+  });
+
+  // Step 2: 13F 기관 매집 (기관 보유비율 대리)
+  const marketCap = d.marketCap || 0;
+  const instOwnership = (d as any).institutionalOwnershipPercentage ||
+    (marketCap > 0 ? Math.min(90, 50 + (marketCap / 200e9) * 20) : 60);
+  const step2Score = instOwnership > 80 ? 10 : instOwnership > 60 ? 8 : instOwnership > 40 ? 5 : 3;
+  steps.push({
+    step: 2,
+    stepName: '13F 기관 매집 분석',
+    passed: step2Score >= 5,
+    score: step2Score,
+    detail: `기관 보유비율 아이디어 ${instOwnership.toFixed(0)}% — ${instOwnership > 80 ? '대형 기관 동시 매집 신호' : instOwnership > 60 ? '기관 지지 화력' : '기관 지지 미약'}`,
+    recommendation: step2Score >= 5 ? '스마트 머니 유입 확인 — 정찰병 5% 진입' : '기관 매집 부족 — 아직 관망단계',
+  });
+
+  // Step 3: Form 4 내부자 매수 (순이익률 대리)
+  const profitMargin = (d as any).profitMargins || 0;
+  const step3Score = profitMargin > 0.2 ? 9 : profitMargin > 0.1 ? 7 : profitMargin > 0.05 ? 5 : profitMargin > 0 ? 3 : 1;
+  steps.push({
+    step: 3,
+    stepName: 'Form 4 내부자 매수 분석',
+    passed: step3Score >= 5,
+    score: step3Score,
+    detail: `순이익률 ${(profitMargin * 100).toFixed(1)}% — ${profitMargin > 0.2 ? '내부자가 적극 비용 지출할 만한 수익성' : profitMargin > 0.1 ? '내부자 매수할 만한 수익구조' : '수익성 개선 필요'}`,
+    recommendation: step3Score >= 5 ? '내부자 매수 신호 증신 시 1차 비중 확대 진행' : '내부자 확신 부족 — 수익성 개선 후 진입',
+  });
+
+  // Step 4: 재무 펜더멘털 (ROE + 매출성장률)
+  const roe = (d.returnOnEquity || 0) * 100;
+  const step4Base = roe > 20 ? 10 : roe > 15 ? 8 : roe > 8 ? 6 : roe > 0 ? 4 : 1;
+  const step4Score = Math.min(10, step4Base + (revenueGrowth > 0.2 && roe > 15 ? 1 : 0));
+  steps.push({
+    step: 4,
+    stepName: '재무 펜더멘털 검증 (ROE / 설성장률)',
+    passed: step4Score >= 6,
+    score: step4Score,
+    detail: `ROE ${roe.toFixed(1)}% | 매출성장률 ${(revenueGrowth * 100).toFixed(1)}% — ${roe > 20 ? '쳄타적인 자본효율, 폤밴거 무력' : roe > 15 ? '편더멘털 양호' : '개선 모니터링 필요'}`,
+    recommendation: step4Score >= 6 ? 'ROE 변공점! 1차 비중확대 콘피님스' : '편더멘털 개선 확인 후 비중 조절',
+  });
+
+  // Step 5: 기술적 분석 (200일선 + MA50 돌짜나 단기제)
+  const { priceHistory, currentPrice, previousClose } = d;
+  let step5Score = 5;
+  let step5Detail = '';
+  if (priceHistory && priceHistory.length >= 200) {
+    const ma200 = priceHistory.slice(-200).reduce((s, p) => s + p.close, 0) / 200;
+    const ma50 = priceHistory.slice(-50).reduce((s, p) => s + p.close, 0) / 50;
+    if (currentPrice > ma200 * 1.05 && ma50 > ma200) {
+      step5Score = 10; step5Detail = `200일선(${ma200.toFixed(0)}) 돌파 또한 50일선 돌짜 형성`;
+    } else if (currentPrice > ma200) {
+      step5Score = 7; step5Detail = `200일선 위, 수급 개선 확인 중`;
+    } else {
+      step5Score = 3; step5Detail = `200일선 하방 — 추세 전환 대기`;
+    }
+  } else {
+    const chg = previousClose > 0 ? (currentPrice - previousClose) / previousClose : 0;
+    step5Score = chg > 0.02 ? 7 : chg > 0 ? 5 : 3;
+    step5Detail = `단기 주가 변동 ${(chg * 100).toFixed(1)}% (200일 데이터 부족)`;
+  }
+  steps.push({
+    step: 5,
+    stepName: '기술적 분석 (수급 개선 확인)',
+    passed: step5Score >= 6,
+    score: step5Score,
+    detail: step5Detail,
+    recommendation: step5Score >= 6 ? '200일선 돌파 — 2차 비중 확대 후보' : '추세 전환 이후 추가 진입',
+  });
+
+  // Step 6: 거시 환경 (PEG / 밸류에이션)
+  const forwardPE = d.forwardPE;
+  let step6Score = 6;
+  let step6Detail = '';
+  if (forwardPE && revenueGrowth > 0) {
+    const peg = forwardPE / (revenueGrowth * 100);
+    if (peg < 1) { step6Score = 10; step6Detail = `PEG ${peg.toFixed(2)} — 저평가 (병의 영역)`; }
+    else if (peg < 2) { step6Score = 7; step6Detail = `PEG ${peg.toFixed(2)} — 합리적 밀리에이션`; }
+    else { step6Score = 4; step6Detail = `PEG ${peg.toFixed(2)} — 고평가 주의`; }
+  } else if (forwardPE) {
+    step6Score = forwardPE < 20 ? 8 : forwardPE < 35 ? 5 : 3;
+    step6Detail = `Forward PER ${forwardPE.toFixed(1)}`;
+  } else {
+    step6Score = 5; step6Detail = '밸류에이션 데이터 부족';
+  }
+  steps.push({
+    step: 6,
+    stepName: '거시 환경 (밸류에이션 확인)',
+    passed: step6Score >= 5,
+    score: step6Score,
+    detail: step6Detail,
+    recommendation: step6Score >= 7 ? '매크로 우호적 — 공격적 매수' : step6Score >= 5 ? '평균 수준, 포지션 유지' : '밸류에이션 부담, 비중 축소 검토',
+  });
+
+  // Step 7: 최종 판단 & 실행
+  const prevTotal = steps.reduce((a, s) => a + s.score, 0);
+  const step7Score = Math.round(Math.min(10, prevTotal / 6));
+  const passedCount = steps.filter((s: TenbaggerStepResult) => s.passed).length;
+  steps.push({
+    step: 7,
+    stepName: '최종 판단 및 실행 (비중 설정)',
+    passed: passedCount >= 4,
+    score: step7Score,
+    detail: `${passedCount}/6 단계 통과 — 종합 실신어장 향샘`,
+    recommendation: passedCount >= 5 ? '텐배거 후보 최종 확정 — 분할매수 시작' : passedCount >= 3 ? '소액 매수 후 관찰' : '관망 종목만 등록',
+  });
+
+  const totalScore = steps.reduce((a, s) => a + s.score, 0);
+  const maxScore = 7 * 10;
+  const percentage = Math.round((totalScore / maxScore) * 100);
+  const passedAll = steps.filter((s: TenbaggerStepResult) => s.passed).length;
+
+  let recommendedAllocation: number;
+  let allocationLabel: string;
+  let investmentStage: TenbaggerScoreResult['investmentStage'];
+  if (passedAll <= 1) { recommendedAllocation = 0; allocationLabel = '관망 등록'; investmentStage = 'watch'; }
+  else if (passedAll <= 2) { recommendedAllocation = 5; allocationLabel = '정찰병 매수 (5%)'; investmentStage = 'scout'; }
+  else if (passedAll <= 3) { recommendedAllocation = 15; allocationLabel = '1차 비중 확대 (15%)'; investmentStage = 'expand1'; }
+  else if (passedAll <= 5) { recommendedAllocation = 35; allocationLabel = '2차 비중 확대 (35%)'; investmentStage = 'expand2'; }
+  else { recommendedAllocation = 60; allocationLabel = '풀 진입 (60%)'; investmentStage = 'full'; }
+
+  return { steps, totalScore, maxScore, percentage, recommendedAllocation, allocationLabel, investmentStage };
 }

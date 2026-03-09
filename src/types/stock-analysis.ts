@@ -19,6 +19,25 @@ export interface InvestmentConditions {
   strategyType?: 'growth' | 'value' | 'all';
 }
 
+export interface TenbaggerStepResult {
+  step: number;
+  stepName: string;
+  passed: boolean;
+  score: number; // 0~10
+  detail: string;
+  recommendation: string; // 이 단계 통과 시 조언
+}
+
+export interface TenbaggerScoreResult {
+  steps: TenbaggerStepResult[];
+  totalScore: number;     // 7단계 합산 0~70
+  maxScore: number;       // 70
+  percentage: number;     // 0~100%
+  recommendedAllocation: number; // 권고 편입 비중 (0~100%)
+  allocationLabel: string;       // '정찰병 매수' | '1차 비중 확대' | '풀 매수' 등
+  investmentStage: 'watch' | 'scout' | 'expand1' | 'expand2' | 'full';
+}
+
 export interface AnalysisResult {
   companyName: string;
   ticker?: string;
@@ -42,6 +61,7 @@ export interface AnalysisResult {
     threeMonths?: number;
     oneMonth?: number;
   };
+  tenbaggerScore?: TenbaggerScoreResult;
 }
 
 export interface FilteredCandidate {
@@ -316,6 +336,7 @@ export interface FilteredCandidate {
   ruleScores?: RuleScore[];
   totalRuleScore?: number;
   maxPossibleScore?: number;
+  tenbaggerScore?: TenbaggerScoreResult;
 }
 
 // ===========================

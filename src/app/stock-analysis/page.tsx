@@ -198,6 +198,7 @@ export default function StockAnalysisPage() {
         maxPossibleScore: pick.maxPossibleScore,
         financialHistory: pick.yahooData?.financialHistory,
         returnRates: pick.yahooData?.returnRates,
+        tenbaggerScore: pick.tenbaggerScore,
       }));
 
       setAnalysisState(prev => ({
