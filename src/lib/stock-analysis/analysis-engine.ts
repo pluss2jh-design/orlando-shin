@@ -31,10 +31,12 @@ export async function runAnalysisEngine(
   companyAiModel?: string,
   companyApiKey?: string,
   newsAiModel?: string,
-  newsApiKey?: string
+  newsApiKey?: string,
+  onProgress?: (progress: number, message: string) => void
 ): Promise<RecommendationResult> {
   console.log(`Starting analysis engine with universe screening...`);
 
+  if (onProgress) onProgress(5, '시장 유니버스 구성 및 환율 정보 수집 중...');
   const exchangeRate = await fetchExchangeRate();
   const universe = getStockUniverse();
   console.log(`Universe size: ${universe.length} tickers`);
@@ -61,6 +63,7 @@ export async function runAnalysisEngine(
   const allYahooData: YahooFinanceData[] = [];
 
   for (let i = 0; i < universe.length; i += batchSize) {
+    if (onProgress) onProgress(10 + Math.floor((i / universe.length) * 20), `기초 데이터 수집 중... (${i}/${universe.length})`);
     const batch = universe.slice(i, i + batchSize);
     try {
       const quotes = await fetchBatchQuotes(batch);
@@ -92,6 +95,7 @@ export async function runAnalysisEngine(
   // 상세 데이터 조회 및 규칙 점수 산정 (청크 병렬 처리)
   const chunkSize = 10;
   for (let i = 0; i < validStocks.length; i += chunkSize) {
+    if (onProgress) onProgress(30 + Math.floor((i / validStocks.length) * 60), `기업 상세 재무 데이터 수집 및 분석 중... (${i}/${validStocks.length})`);
     const chunk = validStocks.slice(i, i + chunkSize);
     await Promise.all(chunk.map(async (stock) => {
       try {
@@ -100,7 +104,7 @@ export async function runAnalysisEngine(
         if (conditions.sector && conditions.sector !== 'ALL') {
           const stockSector = (fullData.sector || (stock as any).sector || '').toLowerCase().trim();
           const targetSector = conditions.sector.toLowerCase().trim();
-          
+
           // 섹터 문자열이 포함되어 있는지 확인 (예: 'Technology' vs 'tech')
           if (!stockSector.includes(targetSector) && !targetSector.includes(stockSector)) {
             console.log(`Skipping ${stock.ticker}: Sector mismatch (${stockSector} vs ${targetSector})`);
@@ -187,6 +191,8 @@ export async function runAnalysisEngine(
     }));
     await new Promise(resolve => setTimeout(resolve, 500));
   }
+
+  if (onProgress) onProgress(95, '분석 완료! 수익률 및 점수 기반 결과 정렬 중...');
 
   const topPicks: FilteredCandidate[] = stocksWithScores
     .sort((a, b) => b.totalScore - a.totalScore || b.periodReturn - a.periodReturn)
@@ -309,18 +315,18 @@ function calculateRuleScore(rule: string, data: YahooFinanceData, company: Extra
     if (growth > 0.25) return { rule, score: 10, reason: `매출성장률 ${(growth * 100).toFixed(1)}% (폭발적 성장)` };
     if (growth > 0.1) return { rule, score: 8, reason: `매출성장률 ${(growth * 100).toFixed(1)}% (양호한 성장)` };
     if (growth > 0) return { rule, score: 6, reason: `매출성장률 ${(growth * 100).toFixed(1)}% (안정적 성장)` };
-  // 전략 및 문장형 규칙 평가 (InvestmentStrategy 등)
-  if (ruleLower.length > 20 || ruleLower.includes('패턴') || ruleLower.includes('상승') || ruleLower.includes('조건')) {
-    // Yahoo Finance 데이터에 기반한 간단한 텍스트 기반 추론 (예시)
-    if (ruleLower.includes('상승') && data.currentPrice > data.previousClose) return { rule, score: 8, reason: '단기 상승 추세 확인됨' };
-    if (ruleLower.includes('거래량') && data.priceHistory && data.priceHistory.length > 0) {
-      const lastVol = data.priceHistory[data.priceHistory.length - 1].volume;
-      if (lastVol > 1000000) return { rule, score: 9, reason: '대량 거래량 동반' };
+    // 전략 및 문장형 규칙 평가 (InvestmentStrategy 등)
+    if (ruleLower.length > 20 || ruleLower.includes('패턴') || ruleLower.includes('상승') || ruleLower.includes('조건')) {
+      // Yahoo Finance 데이터에 기반한 간단한 텍스트 기반 추론 (예시)
+      if (ruleLower.includes('상승') && data.currentPrice > data.previousClose) return { rule, score: 8, reason: '단기 상승 추세 확인됨' };
+      if (ruleLower.includes('거래량') && data.priceHistory && data.priceHistory.length > 0) {
+        const lastVol = data.priceHistory[data.priceHistory.length - 1].volume;
+        if (lastVol > 1000000) return { rule, score: 9, reason: '대량 거래량 동반' };
+      }
+      return { rule, score: 7, reason: '학습된 전략 패턴 부합 (기본 점수)' };
     }
-    return { rule, score: 7, reason: '학습된 전략 패턴 부합 (기본 점수)' };
-  }
 
-  // 현금 흐름 및 재무 안정성
+    // 현금 흐름 및 재무 안정성
   }
 
   // 현금 흐름 및 재무 안정성

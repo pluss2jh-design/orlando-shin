@@ -146,6 +146,7 @@ export async function fetchYahooFinanceData(
   try {
     historicalResult = await yahooFinance.historical(ticker, {
       period1: period1.toISOString().split('T')[0],
+      period2: new Date().toISOString().split('T')[0],
     });
   } catch (error) {
     console.warn(`Historical data failed for ${ticker}:`, error);

@@ -25,11 +25,15 @@ export default function StockAnalysisPage() {
     results: AnalysisResult[];
     isAnalyzing: boolean;
     error: string | null;
+    progress: number;
+    progressMessage: string;
   }>({
     conditions: null,
     results: [],
     isAnalyzing: false,
     error: null,
+    progress: 0,
+    progressMessage: ''
   });
   const [newsState, setNewsState] = useState<{
     summaries: NewsSummary[];
@@ -92,8 +96,14 @@ export default function StockAnalysisPage() {
         if (response.ok) {
           const data = await response.json();
           if (data.status === 'processing') {
-            setAnalysisState(prev => prev.isAnalyzing ? prev : { ...prev, isAnalyzing: true, error: null });
-            if (!interval) interval = setInterval(pollStatus, 5000);
+            setAnalysisState(prev => ({
+              ...prev,
+              isAnalyzing: true,
+              error: null,
+              progress: data.progress || 0,
+              progressMessage: data.progressMessage || '분석 중...'
+            }));
+            if (!interval) interval = setInterval(pollStatus, 1500);
           } else if (data.status === 'completed' && data.result) {
             if (interval) { clearInterval(interval); interval = null; }
             if (!analysisAlerted.current) {
@@ -394,11 +404,12 @@ export default function StockAnalysisPage() {
                 <CardContent className="py-20">
                   <div className="text-center">
                     <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-                    <h3 className="text-2xl font-black text-white mb-2 uppercase tracking-tighter">시장 유니버스 분석 중...</h3>
+                    <h3 className="text-2xl font-black text-white mb-2 uppercase tracking-tighter">분석 진행 상태: {analysisState.progress}%</h3>
+                    <div className="w-full bg-gray-200/20 rounded-full h-2.5 max-w-sm mx-auto mb-4 overflow-hidden shadow-inner">
+                      <div className="bg-blue-500 h-2.5 rounded-full transition-all duration-500 ease-out" style={{ width: `${analysisState.progress}%` }}></div>
+                    </div>
                     <p className="text-gray-200 font-bold whitespace-pre-line text-lg leading-relaxed">
-                      {isLearned
-                        ? '학습된 투자 규칙을 바탕으로 S&P 500, Russell 1000, Dow Jones 기업들을 비교 분석하고 있습니다.\n각 기업의 재무 상태와 시장 지표를 추출하는 중입니다.'
-                        : 'Google Drive 자료에서 투자 인사이트를 도출하고 시장 데이터를 수집하고 있습니다.\n잠시만 기다려 주세요.'}
+                      {analysisState.progressMessage || '초기화 중...'}
                     </p>
                   </div>
                 </CardContent>

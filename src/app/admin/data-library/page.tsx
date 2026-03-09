@@ -147,6 +147,7 @@ const TitleInput = ({ initialValue, onSave }: { initialValue: string, onSave: (v
 
 export default function DataLibraryPage() {
     const [files, setFiles] = useState<DriveFile[]>([]);
+    const [searchTerm, setSearchTerm] = useState('');
     const [expandedKnowledgeId, setExpandedKnowledgeId] = useState<string | null>(null);
     const [knowledgeList, setKnowledgeList] = useState<LearnedKnowledgeRecord[]>([]);
     const [loading, setLoading] = useState(true);
@@ -185,7 +186,7 @@ export default function DataLibraryPage() {
         if (learning) {
             statusInterval = setInterval(async () => {
                 try {
-                    const response = await fetch('/api/admin/learning-status');
+                    const response = await fetch('/api/admin/learning-status', { cache: 'no-store' });
                     if (response.ok) {
                         const data = await response.json();
                         if (!data.isLearning) {
@@ -208,7 +209,7 @@ export default function DataLibraryPage() {
 
     const fetchLearningStatus = async () => {
         try {
-            const response = await fetch('/api/admin/learning-status');
+            const response = await fetch('/api/admin/learning-status', { cache: 'no-store' });
             if (response.ok) {
                 const data = await response.json();
                 if (data.isLearning) setLearning(true);
@@ -220,7 +221,7 @@ export default function DataLibraryPage() {
 
     const fetchModels = async () => {
         try {
-            const response = await fetch('/api/admin/models');
+            const response = await fetch('/api/admin/models', { cache: 'no-store' });
             if (response.ok) {
                 const data = await response.json();
                 setAvailableModels(data.models || []);
@@ -232,7 +233,7 @@ export default function DataLibraryPage() {
 
     const fetchKeys = async () => {
         try {
-            const response = await fetch('/api/admin/settings');
+            const response = await fetch('/api/admin/settings', { cache: 'no-store' });
             if (response.ok) {
                 const data = await response.json();
                 setKeys(data.keys || {});
@@ -244,7 +245,7 @@ export default function DataLibraryPage() {
 
     const fetchFiles = async () => {
         try {
-            const response = await fetch('/api/admin/files');
+            const response = await fetch('/api/admin/files', { cache: 'no-store' });
             if (response.ok) {
                 const data = await response.json();
                 setFiles(data.files || []);
@@ -257,7 +258,7 @@ export default function DataLibraryPage() {
 
     const fetchKnowledge = async () => {
         try {
-            const response = await fetch('/api/admin/knowledge');
+            const response = await fetch('/api/admin/knowledge', { cache: 'no-store' });
             if (response.ok) {
                 const data = await response.json();
                 setKnowledgeList(data.knowledgeList || []);
@@ -283,6 +284,10 @@ export default function DataLibraryPage() {
             if (!response.ok) {
                 console.error('동기화 실패:', await response.text());
                 setSyncing(false);
+            } else {
+                setSyncing(false);
+                await fetchFiles();
+                alert('드라이브 동기화가 완료되었습니다.');
             }
         } catch (error) {
             console.error('동기화 실패:', error);
@@ -473,7 +478,11 @@ export default function DataLibraryPage() {
                                     </CardTitle>
                                     <CardDescription className="text-gray-400">학습에 사용할 PDF 및 비디오 파일을 선택하세요</CardDescription>
                                 </div>
-                                <div className="flex items-center gap-4 bg-gray-800/50 p-2 rounded-lg border border-gray-800">
+                                <div className="flex items-center gap-4 bg-gray-800/50 p-2 rounded-lg border border-gray-800 flex-wrap">
+                                    <div className="flex items-center gap-2 bg-gray-900 border border-gray-700 rounded px-2 h-8">
+                                        <Search className="h-3 w-3 text-gray-500" />
+                                        <input value={searchTerm} onChange={e => setSearchTerm(e.target.value)} placeholder="파일명 검색..." className="bg-transparent text-white text-xs border-none outline-none w-32" />
+                                    </div>
                                     <div className="flex items-center gap-2">
                                         <Checkbox id="select-all" checked={selectedFileIds.size === files.length && files.length > 0} onCheckedChange={handleSelectAll} />
                                         <Label htmlFor="select-all" className="text-xs font-bold text-gray-300 cursor-pointer">전체 선택</Label>
@@ -484,14 +493,23 @@ export default function DataLibraryPage() {
                         </CardHeader>
                         <CardContent className="p-0">
                             {(() => {
-                                const groupedFiles = files.reduce((acc, file) => {
+                                const filteredFiles = files.filter(f => f.name.toLowerCase().includes(searchTerm.toLowerCase()));
+                                const groupedFiles = filteredFiles.reduce((acc, file) => {
                                     const ext = getFileExt(file.name, file.mimeType);
                                     if (!acc[ext]) acc[ext] = [];
                                     acc[ext].push(file);
                                     return acc;
                                 }, {} as Record<string, DriveFile[]>);
 
-                                const tabsKeys = Object.keys(groupedFiles);
+                                if (filteredFiles.length > 0) {
+                                    groupedFiles['전체'] = filteredFiles;
+                                }
+
+                                const tabsKeys = Object.keys(groupedFiles).sort((a, b) => {
+                                    if (a === '전체') return -1;
+                                    if (b === '전체') return 1;
+                                    return a.localeCompare(b);
+                                });
                                 if (tabsKeys.length === 0) {
                                     return (
                                         <div className="p-20 text-center">
@@ -520,13 +538,19 @@ export default function DataLibraryPage() {
                                                         <Brain className="h-4 w-4 text-blue-500" />
                                                         <span className="text-xs font-black text-white uppercase">{ext} 분석 AI 모델</span>
                                                     </div>
-                                                    <ModelSelector
-                                                        ext={ext}
-                                                        currentModel={aiModels[ext] || ''}
-                                                        models={availableModels}
-                                                        keys={keys}
-                                                        onSelect={(val) => setAiModels(prev => ({ ...prev, [ext]: val }))}
-                                                    />
+                                                    {ext === '전체' ? (
+                                                        <div className="text-xs text-blue-400 font-medium bg-blue-500/10 px-3 py-1.5 rounded-md border border-blue-500/20">
+                                                            팁: 각 파일 형식 탭(MP4, PDF 등)에서 모델을 먼저 선택해주세요.
+                                                        </div>
+                                                    ) : (
+                                                        <ModelSelector
+                                                            ext={ext}
+                                                            currentModel={aiModels[ext] || ''}
+                                                            models={availableModels}
+                                                            keys={keys}
+                                                            onSelect={(val) => setAiModels(prev => ({ ...prev, [ext]: val }))}
+                                                        />
+                                                    )}
                                                 </div>
 
                                                 <div className="flex bg-gray-950 px-4 py-2 border-b border-gray-800 justify-between items-center">

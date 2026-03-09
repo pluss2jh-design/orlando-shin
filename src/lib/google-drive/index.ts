@@ -101,7 +101,7 @@ export async function listDriveFiles(
     };
   } catch (error) {
     console.error(`Error listing files for folder ${folderId}:`, error);
-    return { files: [], totalCount: 0, syncedAt: new Date() };
+    throw error;
   }
 }
 
@@ -171,10 +171,16 @@ export async function downloadTextContent(fileId: string): Promise<string> {
   return '';
 }
 
-export const driveStatus = {
+const globalForDrive = globalThis as unknown as {
+  driveStatus?: { isSyncing: boolean; cache: SyncResult | null };
+};
+
+export const driveStatus = globalForDrive.driveStatus || {
   isSyncing: false,
   cache: null as SyncResult | null,
 };
+
+if (process.env.NODE_ENV !== 'production') globalForDrive.driveStatus = driveStatus;
 
 export async function syncAllFiles(): Promise<SyncResult> {
   if (driveStatus.isSyncing) {

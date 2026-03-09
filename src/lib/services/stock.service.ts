@@ -12,12 +12,13 @@ import type {
   LearnedInvestmentCriteria
 } from '@/types/stock-analysis';
 
-// 분석 작업 상태 관리를 위한 인메모리 맵
 interface AnalysisJobStatus {
   status: 'processing' | 'completed' | 'error';
   result?: RecommendationResult;
   error?: string;
   startedAt: Date;
+  progress?: number;
+  progressMessage?: string;
 }
 
 declare global {
@@ -116,7 +117,9 @@ export class StockService {
     // 3. 작업 상태 등록
     userAnalysisJobs.set(userId, {
       status: 'processing',
-      startedAt: new Date()
+      startedAt: new Date(),
+      progress: 0,
+      progressMessage: '분석 준비 중...'
     });
 
     // 4. 백그라운드 엔진 실행 (비동기 - fire & forget)
@@ -135,7 +138,17 @@ export class StockService {
           options.conditions?.companyAiModel,
           options.conditions?.companyApiKey,
           options.conditions?.newsAiModel,
-          options.conditions?.newsApiKey
+          options.conditions?.newsApiKey,
+          (progress, message) => {
+            const currentJob = userAnalysisJobs.get(userId);
+            if (currentJob && currentJob.status === 'processing') {
+              userAnalysisJobs.set(userId, {
+                ...currentJob,
+                progress,
+                progressMessage: message
+              });
+            }
+          }
         );
 
         // 성공 시 사용량 카운트 업
