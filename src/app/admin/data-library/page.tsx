@@ -98,6 +98,7 @@ const ModelSelector = ({ ext, currentModel, models, keys, onSelect }: { ext: str
     const filteredModels = models.filter(m => {
         if (ext === 'mp4') return m.supportsVideo;
         if (ext === 'pdf') return m.supportsPDF;
+        if (ext === '전체') return m.supportsVideo && m.supportsPDF;
         return true;
     });
 
@@ -428,6 +429,7 @@ export default function DataLibraryPage() {
 
     const isModelSelectionComplete = () => {
         if (selectedFileIds.size === 0) return true;
+        if (aiModels['전체']) return true;
         const selectedExts = new Set<string>();
         for (const file of files) {
             if (selectedFileIds.has(file.id)) selectedExts.add(getFileExt(file.name, file.mimeType));
@@ -538,19 +540,13 @@ export default function DataLibraryPage() {
                                                         <Brain className="h-4 w-4 text-blue-500" />
                                                         <span className="text-xs font-black text-white uppercase">{ext} 분석 AI 모델</span>
                                                     </div>
-                                                    {ext === '전체' ? (
-                                                        <div className="text-xs text-blue-400 font-medium bg-blue-500/10 px-3 py-1.5 rounded-md border border-blue-500/20">
-                                                            팁: 각 파일 형식 탭(MP4, PDF 등)에서 모델을 먼저 선택해주세요.
-                                                        </div>
-                                                    ) : (
-                                                        <ModelSelector
-                                                            ext={ext}
-                                                            currentModel={aiModels[ext] || ''}
-                                                            models={availableModels}
-                                                            keys={keys}
-                                                            onSelect={(val) => setAiModels(prev => ({ ...prev, [ext]: val }))}
-                                                        />
-                                                    )}
+                                                    <ModelSelector
+                                                        ext={ext}
+                                                        currentModel={aiModels[ext] || ''}
+                                                        models={availableModels}
+                                                        keys={keys}
+                                                        onSelect={(val) => setAiModels(prev => ({ ...prev, [ext]: val }))}
+                                                    />
                                                 </div>
 
                                                 <div className="flex bg-gray-950 px-4 py-2 border-b border-gray-800 justify-between items-center">

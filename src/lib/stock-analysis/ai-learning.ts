@@ -138,7 +138,7 @@ export async function runLearningPipeline(
         if (!content || content.trim().length === 0) continue;
 
         const ext = getFileExt(file.name, file.mimeType);
-        const chosenModelGrp = aiModels?.[ext];
+        const chosenModelGrp = aiModels?.[ext] || aiModels?.['전체'];
         if (!chosenModelGrp) {
           throw new Error(`${ext.toUpperCase()} 모델이 선택되지 않았습니다.`);
         }
@@ -240,11 +240,11 @@ JSON 형식:
 
     const defaultSource: SourceReference = { fileName: '종합 분석', type: 'pdf', pageOrTimestamp: '-', content: '학습 데이터 종합 분석 결과' };
 
-const strategy: InvestmentStrategy = {
-shortTermConditions: strategyData.strategy?.shortTermConditions || [],
-longTermConditions: strategyData.strategy?.longTermConditions || [],
-winningPatterns: strategyData.strategy?.winningPatterns || [],
-riskManagementRules: strategyData.strategy?.riskManagementRules || [],
+    const strategy: InvestmentStrategy = {
+      shortTermConditions: strategyData.strategy?.shortTermConditions || [],
+      longTermConditions: strategyData.strategy?.longTermConditions || [],
+      winningPatterns: strategyData.strategy?.winningPatterns || [],
+      riskManagementRules: strategyData.strategy?.riskManagementRules || [],
     };
 
     const keyConditionsSummary = strategyData.keyConditionsSummary || '학습 데이터 분석을 통해 도출된 핵심 투자 전략 요약본입니다.';
@@ -262,13 +262,13 @@ riskManagementRules: strategyData.strategy?.riskManagementRules || [],
 
     const knowledge: LearnedKnowledge = {
       fileAnalyses,
-criteria,
-strategy,
-keyConditionsSummary,
-rawSummaries: targetFiles.map(f => ({ fileName: f.name, summary: '학습 완료' })),
-learnedAt: new Date(),
-sourceFiles: targetFiles.map(f => f.name),
-};
+      criteria,
+      strategy,
+      keyConditionsSummary,
+      rawSummaries: targetFiles.map(f => ({ fileName: f.name, summary: '학습 완료' })),
+      learnedAt: new Date(),
+      sourceFiles: targetFiles.map(f => f.name),
+    };
 
     return knowledge;
   } finally {
