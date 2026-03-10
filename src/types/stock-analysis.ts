@@ -20,9 +20,10 @@ export interface InvestmentConditions {
 }
 
 export interface TenbaggerStepSource {
-  label: string;   // 출처 이름 (예: "Yahoo Finance - 매출성장률")
-  url: string;     // 직접 접근 가능한 링크
-  metric?: string; // 조회한 지표명 (예: "revenueGrowth: 23.1%")
+  label: string;       // 출처 이름 (예: "Yahoo Finance — Financials")
+  url: string;         // 직접 접근 가능한 링크
+  metric?: string;     // 조회한 지표명 (예: "revenueGrowth: 23.1%")
+  description?: string; // 이 출처가 해당 step 점수의 근거로 어떻게 활용됐는지 설명
 }
 
 export interface TenbaggerStepResult {

@@ -370,11 +370,21 @@ function calculateTenbaggerScore(
   const tk = stock.ticker;
   const steps: TenbaggerStepResult[] = [];
 
-  // 공통 외부 링크 헬퍼
+  // ─── URL 헬퍼 ───────────────────────────────────────────
+  // Yahoo Finance: 공식 데이터 제공 (실시간 시세·재무)
   const yahooUrl = (path: string) => `https://finance.yahoo.com/quote/${tk}${path}`;
-  const macroUrl = (slug: string) => `https://www.macrotrends.net/stocks/charts/${tk}/${slug}`;
-  const edgarUrl = (form: string) => `https://efts.sec.gov/LATEST/search-index?q=%22${tk}%22&dateRange=custom&startdt=2024-01-01&forms=${form}`;
+  // SEC EDGAR: 미국 증권거래위원회 공시 전문 검색 (HTML 뷰어)
+  const edgarSearch = (form: string) =>
+    `https://efts.sec.gov/LATEST/search-index?q=${encodeURIComponent(`"${tk}"`)}&forms=${form}&dateRange=custom&startdt=2024-01-01`;
+  const edgarViewer = (form: string) =>
+    `https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&company=${tk}&type=${form}&dateb=&owner=include&count=10&search_text=`;
+  // Macrotrends: 장기 재무 추이 차트 (검색 기반으로 정확한 종목 접근)
+  const macroSearch = (metric: string) =>
+    `https://www.macrotrends.net/assets/php/fund_multi_tickers.php?metric=${metric}&type=annual`;
+  // WSJ: 월스트리트저널 재무데이터
   const wsj = (section: string) => `https://www.wsj.com/market-data/quotes/${tk}/${section}`;
+  // Finviz: 기술 지표 스크리너
+  const finvizUrl = () => `https://finviz.com/quote.ashx?t=${tk}`;
 
   // ────────────────────────────────────
   // Step 1: 관심 산업 선정 (매출 성장률)
@@ -389,9 +399,24 @@ function calculateTenbaggerScore(
     detail: `매출성장률 ${(revenueGrowth * 100).toFixed(1)}% — ${revenueGrowth > 0.3 ? '폭발적 성장 (빙의 영역)' : revenueGrowth > 0.2 ? '패러다임 전환 후보 산업' : revenueGrowth > 0.1 ? '양호한 성장기' : '성장 모멘텀 부족'}`,
     recommendation: step1Score >= 6 ? '패러다임 전환 후보 산업 확인, 다음 단계 진행' : '산업 성장률 부족 — 관망 종목 등록부터 시작',
     sources: [
-      { label: 'Yahoo Finance — Financials', url: yahooUrl('/financials'), metric: `매출 성장률 ${(revenueGrowth * 100).toFixed(1)}%` },
-      { label: 'Macrotrends — Revenue Growth History', url: macroUrl('revenue'), metric: 'Annual / Quarterly Revenue' },
-      { label: 'WSJ — Financials', url: wsj('financials/annual/income-statement'), metric: 'Income Statement' },
+      {
+        label: 'Yahoo Finance — Financials',
+        url: yahooUrl('/financials'),
+        metric: `매출 성장률 ${(revenueGrowth * 100).toFixed(1)}%`,
+        description: 'Yahoo Finance 연간/분기 재무제표에서 매출액(Revenue) 항목의 전년 대비 성장률을 읽어 Step 1 점수 산정에 활용합니다.'
+      },
+      {
+        label: 'WSJ — Income Statement',
+        url: wsj('financials/annual/income-statement'),
+        metric: 'Revenue Growth YoY',
+        description: 'WSJ의 연간 손익계산서에서 매출성장률과 지난 3~5년 성장 추세를 교차검증하는 데 활용합니다.'
+      },
+      {
+        label: 'Macrotrends — Revenue 검색',
+        url: `https://www.macrotrends.net/search?query=${tk}+revenue`,
+        metric: '연간 매출 성장 추이',
+        description: 'Macrotrends에서 해당 티커를 검색하면 즌~20년 연간 매출 추이 차트를 확인할 수 있습니다.'
+      },
     ],
   });
 
@@ -410,9 +435,24 @@ function calculateTenbaggerScore(
     detail: `기관 보유비율 추정 ${instOwnership.toFixed(0)}% — ${instOwnership > 80 ? '대형 기관 동시 매집 신호' : instOwnership > 60 ? '기관 지지 화력 확인' : '기관 지지 미약'}`,
     recommendation: step2Score >= 5 ? '스마트 머니 유입 확인 — 정찰병 5% 진입' : '기관 매집 부족 — 아직 관망단계',
     sources: [
-      { label: 'SEC EDGAR — 13F 공시 목록', url: edgarUrl('13F-HR'), metric: '분기별 기관 포트폴리오 공시' },
-      { label: 'Yahoo Finance — Holders', url: yahooUrl('/holders'), metric: `기관 보유비율 추정 ${instOwnership.toFixed(0)}%` },
-      { label: 'Fintel — Institutional Ownership', url: `https://fintel.io/so/us/${tk.toLowerCase()}`, metric: '13F 기관 매집 현황' },
+      {
+        label: 'SEC EDGAR — 13F 공시 검색',
+        url: edgarViewer('13F-HR'),
+        metric: '분기별 기관 포트폴리오 공시',
+        description: 'SEC EDGAR에서 1억 달러 이상 운용 기관의 13F-HR 공시를 검색해 해당 종목에 대한 기관 매집 현황을 확인합니다.'
+      },
+      {
+        label: 'Yahoo Finance — Holders',
+        url: yahooUrl('/holders'),
+        metric: `기관 보유비율 추정 ${instOwnership.toFixed(0)}%`,
+        description: 'Yahoo Finance Holders 탭에서 기관투자자 보유 비율(Institutional Ownership %)\uacfc 주요 보유 기관\uba85단을 확인합니다. 이 수치가 Step 2 점수 산정의 기준이 됩니다.'
+      },
+      {
+        label: 'Fintel — Institutional Ownership',
+        url: `https://fintel.io/so/us/${tk.toLowerCase()}`,
+        metric: '13F 기관 매집 현황',
+        description: 'Fintel에서 분기별 기관 매집량 변화, 신규 진입 건수, 스마트 머니 동시 매집 신호를 시각화해 확인해주는 전문 분석 서비스입니다.'
+      },
     ],
   });
 
@@ -429,9 +469,24 @@ function calculateTenbaggerScore(
     detail: `순이익률 ${(profitMargin * 100).toFixed(1)}% — ${profitMargin > 0.2 ? '내부자가 자사주를 매수할 만한 강한 수익성' : profitMargin > 0.1 ? '내부자 매수 가능한 수익 구조' : '수익성 개선 필요'}`,
     recommendation: step3Score >= 5 ? '내부자 매수 신호 확인 시 1차 비중 확대 진행' : '내부자 확신 부족 — 수익성 개선 후 진입',
     sources: [
-      { label: 'SEC EDGAR — Form 4 내부자 거래', url: edgarUrl('4'), metric: `순이익률 ${(profitMargin * 100).toFixed(1)}% (대리지표)` },
-      { label: 'OpenInsider — 내부자 매수 현황', url: `https://openinsider.com/search?q=${tk}`, metric: '경영진 직접 매수 내역' },
-      { label: 'Yahoo Finance — Insider Transactions', url: yahooUrl('/insider-transactions'), metric: 'Form 4 공시 내역' },
+      {
+        label: 'SEC EDGAR — Form 4 코퍼스 검색',
+        url: edgarViewer('4'),
+        metric: `순이익률 ${(profitMargin * 100).toFixed(1)}% (대리지표)`,
+        description: 'SEC EDGAR에서 Form 4 공시를 검색하면 CEO/CFO 등 핵심 경영진의 자사주 직접 매수(코드 P: Open Market Purchase) 내역을 확인할 수 있습니다.'
+      },
+      {
+        label: 'OpenInsider — 내부자 매수 현황',
+        url: `https://openinsider.com/search?q=${tk}`,
+        metric: '경영진 직접 매수 내역',
+        description: 'OpenInsider는 Form 4 내부자 거래를 실시간 시각화해주는 사이트로, 매수 코드(P/M/F)와 거래 규모를 한눈에 확인할 수 있습니다. 집단 매수 신호 확인에 필수적입니다.'
+      },
+      {
+        label: 'Yahoo Finance — Insider Transactions',
+        url: yahooUrl('/insider-transactions'),
+        metric: 'Form 4 공시 내역',
+        description: 'Yahoo Finance 내부자 거래 내역에서 최근 6개월 이내 내부자의 매수/매도 동향을 빠르게 확인할 수 있습니다. 순이익률은 수익성 대리지표로 출점 기준에 활용됩니다.'
+      },
     ],
   });
 
@@ -449,9 +504,24 @@ function calculateTenbaggerScore(
     detail: `ROE ${roe.toFixed(1)}% | 매출성장률 ${(revenueGrowth * 100).toFixed(1)}% — ${roe > 20 ? '탁월한 자본효율, 텐배거 유리한 수익구조' : roe > 15 ? '펀더멘털 양호' : '개선 모니터링 필요'}`,
     recommendation: step4Score >= 6 ? 'ROE 변곡점 확인! 1차 비중 확대 시작' : '펀더멘털 개선 확인 후 비중 조절',
     sources: [
-      { label: 'Yahoo Finance — Key Statistics', url: yahooUrl('/key-statistics'), metric: `ROE ${roe.toFixed(1)}% / 매출성장률 ${(revenueGrowth * 100).toFixed(1)}%` },
-      { label: 'Macrotrends — ROE History', url: macroUrl('return-on-equity'), metric: 'Return on Equity (ROE) 추이' },
-      { label: 'Macrotrends — Revenue History', url: macroUrl('revenue'), metric: '연간 매출 성장 추이' },
+      {
+        label: 'Yahoo Finance — Key Statistics',
+        url: yahooUrl('/key-statistics'),
+        metric: `ROE ${roe.toFixed(1)}% / 매출성장률 ${(revenueGrowth * 100).toFixed(1)}%`,
+        description: 'Yahoo Finance Key Statistics에서 Return on Equity(ROE), Revenue Growth, EPS 등 핑더멘털 핵심 지표를 읽어 Step 4 점수 산정에 직접 활용합니다.'
+      },
+      {
+        label: 'Macrotrends — ROE 검색',
+        url: `https://www.macrotrends.net/search?query=${tk}+return+on+equity`,
+        metric: 'Return on Equity 추이',
+        description: `Macrotrends에서 ${tk} ROE를 검색하면 총 10년 이상의 ROE 변화 추이를 확인할 수 있습니다. 이 잎는 우상향 구조가 텔배거 후보의 핵심 현거입니다.`
+      },
+      {
+        label: 'Macrotrends — Revenue 검색',
+        url: `https://www.macrotrends.net/search?query=${tk}+revenue`,
+        metric: '연간 매출 성장 추이',
+        description: `Macrotrends에서 ${tk} 매출을 검색하면 분기/연간 매출의 지속적 성장 패턴을 확인해 산업 내 시장 점유율 확대 여부를 판단할 수 있습니다.`
+      },
     ],
   });
 
@@ -487,9 +557,24 @@ function calculateTenbaggerScore(
     detail: step5Detail,
     recommendation: step5Score >= 6 ? '200일선 돌파 확인 — 2차 비중 확대 후보' : '추세 전환 신호 후 추가 진입 검토',
     sources: [
-      { label: 'Yahoo Finance — Chart (6M)', url: yahooUrl('?p=' + tk), metric: step5Metric },
-      { label: 'TradingView — 차트 분석', url: `https://www.tradingview.com/chart/?symbol=${tk}`, metric: '200MA / 50MA 기술적 위치' },
-      { label: 'Finviz — 기술 지표', url: `https://finviz.com/quote.ashx?t=${tk}`, metric: '200일선 / RSI / MACD' },
+      {
+        label: 'Yahoo Finance — Chart',
+        url: yahooUrl(''),
+        metric: step5Metric,
+        description: 'Yahoo Finance 차트에서 6개월 ~ 1년 과거 주가를 조회하면 200일 이동평균선 대비 현재가 위치를 시각적으로 확인할 수 있습니다. Step 5 점수는 이 포지션에서 산정합니다.'
+      },
+      {
+        label: 'TradingView — 차트 분석',
+        url: `https://www.tradingview.com/chart/?symbol=NASDAQ:${tk}`,
+        metric: '200MA / 50MA 기술적 위치',
+        description: 'TradingView에서 200일 이동평균선(MA200)과 50일선(MA50)을 첨가하면 골든크로스 형성 여부와 현재가의 수급 포지션을 정확히 확인할 수 있습니다.'
+      },
+      {
+        label: 'Finviz — 기술 지표',
+        url: finvizUrl(),
+        metric: '200일선 / RSI / MACD',
+        description: `Finviz에서 ${tk}의 RSI, MACD, 벼린저 밴드 등 주요 기술지표를 한 화면에서 확인해 Step 5 수급포지션을 교차검증할 수 있습니다.`
+      },
     ],
   });
 
@@ -522,9 +607,24 @@ function calculateTenbaggerScore(
     detail: step6Detail,
     recommendation: step6Score >= 7 ? '매크로 우호적 — 공격적 매수 고려' : step6Score >= 5 ? '평균 수준, 포지션 유지' : '밸류에이션 부담 큼 — 비중 축소 검토',
     sources: [
-      { label: 'Yahoo Finance — Key Statistics', url: yahooUrl('/key-statistics'), metric: step6Metric },
-      { label: 'Macrotrends — PE Ratio History', url: macroUrl('pe-ratio'), metric: 'Forward / Trailing PE 추이' },
-      { label: 'Wisesheets — PEG Ratio', url: `https://wisesheets.io/peg-ratio-${tk.toLowerCase()}`, metric: `PEG Ratio` },
+      {
+        label: 'Yahoo Finance — Key Statistics',
+        url: yahooUrl('/key-statistics'),
+        metric: step6Metric,
+        description: 'Yahoo Finance Key Statistics의 Forward PE와 PEG ratio를 기반으로 성장률 대비 밀리에이션(PEG < 1 = 저평가)을 판단합니다. 이 수치가 Step 6 점수 산정의 핵심 기준입니다.'
+      },
+      {
+        label: 'Macrotrends — PE Ratio 검색',
+        url: `https://www.macrotrends.net/search?query=${tk}+pe+ratio`,
+        metric: 'Forward / Trailing PE 추이',
+        description: `Macrotrends에서 ${tk} PE Ratio를 검색하면 연간 PER 변화 추이를 확인할 수 있습니다. 그리히 보면 성장 대비 밀리에이션 노마라이즈 수준이 보입니다.`
+      },
+      {
+        label: 'Seeking Alpha — 밸류에이션 분석',
+        url: `https://seekingalpha.com/symbol/${tk}/valuation`,
+        metric: 'Peer Comparison / PEG',
+        description: 'Seeking Alpha Valuation탭에서 동종업 대비 Forward PE, PEG, EV/EBITDA 등 대비 밀리에이션을 확인해 거시 적 제6성을 팝단합니다.'
+      },
     ],
   });
 
@@ -542,9 +642,24 @@ function calculateTenbaggerScore(
     detail: `1~6단계 중 ${passedCount}/6 단계 통과 — 종합 펀더멘털 ${step7Score >= 7 ? '우수' : step7Score >= 5 ? '보통' : '미흡'}`,
     recommendation: passedCount >= 5 ? '텐배거 후보 최종 확정 — 분할 매수 시작' : passedCount >= 3 ? '소액 매수 후 지속 관찰' : '관망 종목 등록만 권장',
     sources: [
-      { label: 'Yahoo Finance — Summary', url: yahooUrl(''), metric: `종합 점수 ${step7Score}/10 (1~6단계 평균)` },
-      { label: 'Seeking Alpha — 투자 분석', url: `https://seekingalpha.com/symbol/${tk}`, metric: '기업 분석 리포트' },
-      { label: 'Macrotrends — 전체 지표', url: `https://www.macrotrends.net/stocks/charts/${tk}/profit-margin`, metric: '수익성 종합 지표' },
+      {
+        label: 'Yahoo Finance — Summary',
+        url: yahooUrl(''),
+        metric: `종합 점수 ${step7Score}/10 (1~6단계 평균)`,
+        description: 'Yahoo Finance 요약화면에서 시총액(시가총액), 예상 목표가, 애널리스트 의견 및 52주일 고듐가를 확인해 투자의 최종 판단에 활용합니다.'
+      },
+      {
+        label: 'Seeking Alpha — 뫰국 분석 리포트',
+        url: `https://seekingalpha.com/symbol/${tk}`,
+        metric: '기업 분석 리포트',
+        description: 'Seeking Alpha에서 애널리스트 등급(Quant/Wall St./SA)과 관련 뉴스를 확인해 1~6단계에서 포착한 지표를 종합함니다.'
+      },
+      {
+        label: 'Macrotrends — Profit Margin 검색',
+        url: `https://www.macrotrends.net/search?query=${tk}+profit+margin`,
+        metric: '순이익률 종합 지표',
+        description: `Macrotrends에서 ${tk} 순이익률(Net/Operating Margin)를 검색하면 수익성 분기점 배경과 지속가능 성장여부를 확인할 수 있습니다.`
+      },
     ],
   });
 

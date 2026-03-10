@@ -16,6 +16,7 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsToolti
 const STEP_ICONS = [Target, TrendingUp, Activity, CheckCircle, Zap, TrendingDown, Sparkles];
 
 function TenbaggerPipeline({ score }: { score: TenbaggerScoreResult }) {
+  const [expandedSource, setExpandedSource] = React.useState<string | null>(null);
   const stageBg = {
     watch: 'from-gray-500/10 to-gray-400/5 border-gray-500/30',
     scout: 'from-sky-500/10 to-sky-400/5 border-sky-500/30',
@@ -33,68 +34,94 @@ function TenbaggerPipeline({ score }: { score: TenbaggerScoreResult }) {
 
   return (
     <div className="space-y-4">
+      {/* 요약 헤더 */}
       <div className={cn('p-5 rounded-2xl border bg-gradient-to-br flex flex-col sm:flex-row sm:items-center justify-between gap-4', stageBg[score.investmentStage])}>
         <div>
-          <p className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-1">Ten-bagger Pipeline Score</p>
+          <p className="text-xs font-black uppercase tracking-widest text-gray-500 mb-1">Ten-bagger Pipeline Score</p>
           <div className="flex items-baseline gap-2">
             <span className={cn('text-5xl font-black font-mono', stageText[score.investmentStage])}>{score.percentage}%</span>
-            <span className="text-gray-500 text-sm">{score.totalScore} / {score.maxScore}점</span>
+            <span className="text-gray-400 text-sm">{score.totalScore} / {score.maxScore}점</span>
           </div>
-          <p className={cn('text-sm font-black mt-1', stageText[score.investmentStage])}>{score.allocationLabel}</p>
+          <p className={cn('text-base font-black mt-1', stageText[score.investmentStage])}>{score.allocationLabel}</p>
         </div>
         <div className="text-right">
-          <p className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-2">통과 단계</p>
+          <p className="text-xs font-black uppercase tracking-widest text-gray-500 mb-2">통과 단계</p>
           <div className="flex gap-1.5 justify-end">
             {score.steps.map((s, i) => (
-              <div key={i} className={cn('w-6 h-6 rounded-full flex items-center justify-center text-[9px] font-black border', s.passed ? 'bg-emerald-500 border-emerald-400 text-white' : 'bg-gray-800 border-gray-700 text-gray-500')}>{i + 1}</div>
+              <div key={i} className={cn('w-7 h-7 rounded-full flex items-center justify-center text-xs font-black border', s.passed ? 'bg-emerald-500 border-emerald-400 text-white' : 'bg-gray-800 border-gray-700 text-gray-500')}>{i + 1}</div>
             ))}
           </div>
-          <p className="text-[10px] text-gray-500 mt-1">{score.steps.filter(s => s.passed).length} / 7단계 통과</p>
+          <p className="text-xs text-gray-500 mt-1">{score.steps.filter(s => s.passed).length} / 7단계 통과</p>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-2">
+      {/* 단계별 카드 */}
+      <div className="grid grid-cols-1 gap-3">
         {score.steps.map((step, i) => {
           const Icon = STEP_ICONS[i] || CheckCircle;
           return (
-            <div key={i} className={cn('p-4 rounded-xl border transition-all', step.passed ? 'bg-emerald-500/5 border-emerald-500/20' : 'bg-gray-900/30 border-gray-800')}>
-              <div className="flex items-start gap-3">
-                <div className={cn('flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center mt-0.5', step.passed ? 'bg-emerald-500/20' : 'bg-gray-800')}>
-                  <Icon className={cn('h-3.5 w-3.5', step.passed ? 'text-emerald-400' : 'text-gray-500')} />
+            <div key={i} className={cn('p-5 rounded-xl border transition-all', step.passed ? 'bg-emerald-500/5 border-emerald-500/20' : 'bg-gray-900/30 border-gray-800')}>
+              <div className="flex items-start gap-4">
+                <div className={cn('flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center mt-0.5', step.passed ? 'bg-emerald-500/20' : 'bg-gray-800')}>
+                  <Icon className={cn('h-4 w-4', step.passed ? 'text-emerald-400' : 'text-gray-500')} />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between gap-2 mb-1">
+                  {/* 헤더 row */}
+                  <div className="flex items-center justify-between gap-2 mb-2">
                     <div className="flex items-center gap-2">
-                      <span className="text-[9px] font-black text-gray-600">STEP {step.step}</span>
-                      <span className={cn('text-xs font-black', step.passed ? 'text-white' : 'text-gray-400')}>{step.stepName}</span>
+                      <span className="text-xs font-black text-gray-500">STEP {step.step}</span>
+                      <span className={cn('text-sm font-black', step.passed ? 'text-white' : 'text-gray-300')}>{step.stepName}</span>
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
-                      <span className={cn('text-xs font-black font-mono', step.score >= 8 ? 'text-emerald-400' : step.score >= 5 ? 'text-amber-400' : 'text-rose-400')}>{step.score}/10</span>
-                      <Badge className={cn('text-[9px] font-black shrink-0', step.passed ? 'bg-emerald-500/20 text-emerald-400 border-none' : 'bg-gray-800 text-gray-500 border-none')}>{step.passed ? 'PASS' : 'HOLD'}</Badge>
+                      <span className={cn('text-sm font-black font-mono', step.score >= 8 ? 'text-emerald-400' : step.score >= 5 ? 'text-amber-400' : 'text-rose-400')}>{step.score}/10</span>
+                      <Badge className={cn('text-xs font-black shrink-0', step.passed ? 'bg-emerald-500/20 text-emerald-400 border-none' : 'bg-gray-800 text-gray-500 border-none')}>{step.passed ? 'PASS' : 'HOLD'}</Badge>
                     </div>
                   </div>
-                  <Progress value={step.score * 10} className="h-1 mb-2" />
-                  <p className="text-[11px] text-gray-500 leading-relaxed">{step.detail}</p>
-                  <p className={cn('text-[11px] font-bold mt-1', step.passed ? 'text-emerald-400' : 'text-amber-400')}>→ {step.recommendation}</p>
+                  <Progress value={step.score * 10} className="h-1.5 mb-3" />
+                  {/* 상세 설명 */}
+                  <p className="text-sm text-gray-400 leading-relaxed mb-1.5">{step.detail}</p>
+                  <p className={cn('text-sm font-bold', step.passed ? 'text-emerald-400' : 'text-amber-400')}>→ {step.recommendation}</p>
+
                   {/* 📎 출처 링크 */}
                   {step.sources && step.sources.length > 0 && (
-                    <div className="mt-3 pt-2 border-t border-gray-800/60">
-                      <p className="text-[9px] font-black text-gray-600 uppercase tracking-widest mb-1.5">📎 데이터 출처</p>
-                      <div className="flex flex-wrap gap-1.5">
-                        {step.sources.map((src, si) => (
-                          <a
-                            key={si}
-                            href={src.url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-gray-800 hover:bg-gray-700 border border-gray-700 hover:border-blue-500/50 text-[10px] text-gray-400 hover:text-blue-400 transition-all group/link"
-                            title={src.metric || src.label}
-                          >
-                            <ExternalLink className="h-2.5 w-2.5 shrink-0" />
-                            <span className="font-medium">{src.label}</span>
-                            {src.metric && <span className="text-gray-600 group-hover/link:text-blue-500/60">— {src.metric}</span>}
-                          </a>
-                        ))}
+                    <div className="mt-4 pt-3 border-t border-gray-800/60">
+                      <p className="text-xs font-black text-gray-500 uppercase tracking-widest mb-2">📎 데이터 출처</p>
+                      <div className="flex flex-col gap-2">
+                        {step.sources.map((src, si) => {
+                          const srcKey = `${i}-${si}`;
+                          const isExpanded = expandedSource === srcKey;
+                          return (
+                            <div key={si} className="rounded-lg border border-gray-800 overflow-hidden">
+                              <button
+                                className="w-full flex items-center justify-between gap-2 px-3 py-2 bg-gray-900/60 hover:bg-gray-800/80 transition-colors text-left"
+                                onClick={() => setExpandedSource(isExpanded ? null : srcKey)}
+                              >
+                                <div className="flex items-center gap-2 min-w-0 flex-1">
+                                  <ExternalLink className="h-3.5 w-3.5 shrink-0 text-gray-500" />
+                                  <span className="text-[13px] font-semibold text-gray-300 truncate">{src.label}</span>
+                                  {src.metric && <span className="text-xs text-gray-500 hidden sm:inline truncate">— {src.metric}</span>}
+                                </div>
+                                <div className="flex items-center gap-2 shrink-0">
+                                  <a
+                                    href={src.url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    onClick={e => e.stopPropagation()}
+                                    className="text-xs text-blue-400 hover:text-blue-300 hover:underline font-bold whitespace-nowrap"
+                                  >열기 ↗</a>
+                                  {src.description && (
+                                    <ChevronDown className={cn('h-3.5 w-3.5 text-gray-500 transition-transform duration-200', isExpanded && 'rotate-180')} />
+                                  )}
+                                </div>
+                              </button>
+                              {isExpanded && src.description && (
+                                <div className="px-4 py-3 bg-gray-900/40 border-t border-gray-800">
+                                  <p className="text-[13px] text-gray-400 leading-relaxed">{src.description}</p>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
                       </div>
                     </div>
                   )}
@@ -108,7 +135,11 @@ function TenbaggerPipeline({ score }: { score: TenbaggerScoreResult }) {
   );
 }
 
+
+
+
 interface AnalysisOutputProps {
+
   results: AnalysisResult[];
   conditions: InvestmentConditions | null;
   isLoading?: boolean;
@@ -429,32 +460,6 @@ export function AnalysisOutput({ results, conditions, isLoading, onSendEmail }: 
                   </div>
                 ))}
               </div>
-
-              {/* 지표 선적 그래프 섹션 */}
-              {result.financialHistory && result.financialHistory.length > 0 && (
-                <div className="bg-white p-6 rounded-2xl border border-gray-200">
-                  <h4 className="text-xs font-black text-gray-900 uppercase tracking-widest mb-6 flex items-center gap-2">
-                    <Activity className="h-4 w-4 text-blue-500" /> Financial Performance Trend
-                  </h4>
-                  <div className="h-[300px] w-full">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <LineChart data={result.financialHistory}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                        <XAxis dataKey="date" tick={{ fontSize: 10 }} stroke="#999" />
-                        <YAxis yAxisId="left" tick={{ fontSize: 10 }} stroke="#999" />
-                        <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 10 }} stroke="#999" />
-                        <RechartsTooltip
-                          contentStyle={{ backgroundColor: '#fff', border: '1px solid #eee', fontSize: '12px' }}
-                        />
-                        <Legend wrapperStyle={{ fontSize: '10px', fontWeight: 'bold' }} />
-                        <Line yAxisId="left" type="monotone" dataKey="revenue" name="매출액" stroke="#3b82f6" strokeWidth={3} dot={{ r: 4 }} activeDot={{ r: 6 }} />
-                        <Line yAxisId="left" type="monotone" dataKey="operatingIncome" name="영업이익" stroke="#10b981" strokeWidth={3} dot={{ r: 4 }} activeDot={{ r: 6 }} />
-                        <Line yAxisId="right" type="monotone" dataKey="operatingMargin" name="영업이익률(%)" stroke="#f59e0b" strokeWidth={2} strokeDasharray="5 5" dot={false} />
-                      </LineChart>
-                    </ResponsiveContainer>
-                  </div>
-                </div>
-              )}
 
               {/* 텐배거 7단계 파이프라인 */}
               {result.tenbaggerScore && (
