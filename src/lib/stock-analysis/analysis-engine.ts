@@ -373,14 +373,13 @@ function calculateTenbaggerScore(
   // ─── URL 헬퍼 ───────────────────────────────────────────
   // Yahoo Finance: 공식 데이터 제공 (실시간 시세·재무)
   const yahooUrl = (path: string) => `https://finance.yahoo.com/quote/${tk}${path}`;
-  // SEC EDGAR: 미국 증권거래위원회 공시 전문 검색 (HTML 뷰어)
-  const edgarSearch = (form: string) =>
-    `https://efts.sec.gov/LATEST/search-index?q=${encodeURIComponent(`"${tk}"`)}&forms=${form}&dateRange=custom&startdt=2024-01-01`;
+  // SEC EDGAR: Full-Text Search (HTML 결과 화면) - 사람이 읽을 수 있는 페이지
   const edgarViewer = (form: string) =>
-    `https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&company=${tk}&type=${form}&dateb=&owner=include&count=10&search_text=`;
+    `https://efts.sec.gov/LATEST/search-index?q=%22${tk}%22&forms=${form}&dateRange=custom&startdt=2024-01-01`;
+  // SEC EDGAR: 기업검색 페이지 (EDGAR 회사 검색 HTML UI)
+  const edgarCompany = (form: string) =>
+    `https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&company=&CIK=${tk}&type=${form}&dateb=&owner=include&count=10`;
   // Macrotrends: 장기 재무 추이 차트 (검색 기반으로 정확한 종목 접근)
-  const macroSearch = (metric: string) =>
-    `https://www.macrotrends.net/assets/php/fund_multi_tickers.php?metric=${metric}&type=annual`;
   // WSJ: 월스트리트저널 재무데이터
   const wsj = (section: string) => `https://www.wsj.com/market-data/quotes/${tk}/${section}`;
   // Finviz: 기술 지표 스크리너
@@ -437,7 +436,7 @@ function calculateTenbaggerScore(
     sources: [
       {
         label: 'SEC EDGAR — 13F 공시 검색',
-        url: edgarViewer('13F-HR'),
+        url: edgarCompany('13F-HR'),
         metric: '분기별 기관 포트폴리오 공시',
         description: 'SEC EDGAR에서 1억 달러 이상 운용 기관의 13F-HR 공시를 검색해 해당 종목에 대한 기관 매집 현황을 확인합니다.'
       },
@@ -445,7 +444,7 @@ function calculateTenbaggerScore(
         label: 'Yahoo Finance — Holders',
         url: yahooUrl('/holders'),
         metric: `기관 보유비율 추정 ${instOwnership.toFixed(0)}%`,
-        description: 'Yahoo Finance Holders 탭에서 기관투자자 보유 비율(Institutional Ownership %)\uacfc 주요 보유 기관\uba85단을 확인합니다. 이 수치가 Step 2 점수 산정의 기준이 됩니다.'
+        description: 'Yahoo Finance Holders 탭에서 기관투자자 보유 비율(Institutional Ownership %)과 주요 보유 기관명단을 확인합니다. 이 수치가 Step 2 점수 산정의 기준이 됩니다.'
       },
       {
         label: 'Fintel — Institutional Ownership',
@@ -471,7 +470,7 @@ function calculateTenbaggerScore(
     sources: [
       {
         label: 'SEC EDGAR — Form 4 코퍼스 검색',
-        url: edgarViewer('4'),
+        url: edgarCompany('4'),
         metric: `순이익률 ${(profitMargin * 100).toFixed(1)}% (대리지표)`,
         description: 'SEC EDGAR에서 Form 4 공시를 검색하면 CEO/CFO 등 핵심 경영진의 자사주 직접 매수(코드 P: Open Market Purchase) 내역을 확인할 수 있습니다.'
       },

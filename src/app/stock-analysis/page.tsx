@@ -1,8 +1,8 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Brain, Sparkles, User, MessageSquare, Lock } from 'lucide-react';
-import { useSession, signOut } from 'next-auth/react';
+import { Sparkles, User, MessageSquare, Lock } from 'lucide-react';
+import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { InvestmentInput } from '@/components/stock-analysis/investment-input';
 import { AnalysisOutput } from '@/components/stock-analysis/analysis-output';
@@ -42,8 +42,6 @@ export default function StockAnalysisPage() {
     summaries: [],
     isLoading: false,
   });
-  const [isLearned, setIsLearned] = useState(false);
-  const [queriedTickers, setQueriedTickers] = useState<string[]>([]);
   const [userPlan, setUserPlan] = useState<string>('FREE');
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const analysisAlerted = useRef(false);
@@ -66,26 +64,8 @@ export default function StockAnalysisPage() {
         console.error('Failed to fetch user plan:', error);
       }
     };
-
-    if (session?.user) {
-      fetchUserPlan();
-    }
+    if (session?.user) fetchUserPlan();
   }, [session]);
-
-  useEffect(() => {
-    const checkKnowledge = async () => {
-      try {
-        const response = await fetch('/api/gdrive/learn');
-        const data = await response.json();
-        if (data.exists) {
-          setIsLearned(true);
-        }
-      } catch (error) {
-        console.error('Failed to check existing knowledge:', error);
-      }
-    };
-    checkKnowledge();
-  }, []);
 
   useEffect(() => {
     let interval: NodeJS.Timeout | null = null;
@@ -121,29 +101,16 @@ export default function StockAnalysisPage() {
       }
     };
 
-    if (session?.user) {
-      pollStatus();
-    }
-
-    return () => {
-      if (interval) clearInterval(interval);
-    };
+    if (session?.user) pollStatus();
+    return () => { if (interval) clearInterval(interval); };
   }, [session]);
 
   const handleSendEmail = async (email: string) => {
     const response = await fetch('/api/email/send-analysis', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Confirmed': 'true'
-      },
-      body: JSON.stringify({
-        email,
-        results: analysisState.results,
-        conditions: analysisState.conditions,
-      }),
+      headers: { 'Content-Type': 'application/json', 'X-Confirmed': 'true' },
+      body: JSON.stringify({ email, results: analysisState.results, conditions: analysisState.conditions }),
     });
-
     if (!response.ok) {
       const error = await response.json();
       throw new Error(error.error || '이메일 발송 실패');
@@ -152,26 +119,15 @@ export default function StockAnalysisPage() {
 
   const fetchNewsForTickers = async (tickers: string[]) => {
     setNewsState(prev => ({ ...prev, isLoading: true }));
-
     try {
       const response = await fetch('/api/stock/news', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Confirmed': 'true'
-        },
+        headers: { 'Content-Type': 'application/json', 'X-Confirmed': 'true' },
         body: JSON.stringify({ tickers }),
       });
-
-      if (!response.ok) {
-        throw new Error('뉴스 조회 실패');
-      }
-
+      if (!response.ok) throw new Error('뉴스 조회 실패');
       const data = await response.json();
-      setNewsState({
-        summaries: data.results || [],
-        isLoading: false,
-      });
+      setNewsState({ summaries: data.results || [], isLoading: false });
     } catch (error) {
       console.error('News fetch error:', error);
       setNewsState(prev => ({ ...prev, isLoading: false }));
@@ -201,19 +157,13 @@ export default function StockAnalysisPage() {
         tenbaggerScore: pick.tenbaggerScore,
       }));
 
-      setAnalysisState(prev => ({
-        ...prev,
-        results,
-        isAnalyzing: false,
-      }));
+      setAnalysisState(prev => ({ ...prev, results, isAnalyzing: false }));
 
       const tickers = results.map(r => r.ticker).filter(Boolean) as string[];
-      if (tickers.length > 0) {
-        fetchNewsForTickers(tickers);
-      }
+      if (tickers.length > 0) fetchNewsForTickers(tickers);
 
       if (data.queriedTickers && Array.isArray(data.queriedTickers)) {
-        setQueriedTickers(data.queriedTickers);
+        // setQueriedTickers(data.queriedTickers); — removed (unused)
       }
     } else {
       setAnalysisState(prev => ({
@@ -225,15 +175,13 @@ export default function StockAnalysisPage() {
     }
   };
 
-  const handleAnalyze = async (newConditions: InvestmentConditions & { companyAiModel?: string; companyApiKey?: string; newsAiModel?: string; newsApiKey?: string; companyCount?: number }) => {
-    console.log('Starting analysis with:', newConditions);
+  const handleAnalyze = async (newConditions: InvestmentConditions & {
+    companyAiModel?: string; companyApiKey?: string;
+    newsAiModel?: string; newsApiKey?: string; companyCount?: number;
+  }) => {
     analysisAlerted.current = false;
     setAnalysisState(prev => ({
-      ...prev,
-      conditions: newConditions,
-      isAnalyzing: true,
-      error: null,
-      results: [],
+      ...prev, conditions: newConditions, isAnalyzing: true, error: null, results: [],
     }));
 
     try {
@@ -243,14 +191,12 @@ export default function StockAnalysisPage() {
         body: JSON.stringify({
           style: 'moderate',
           conditions: {
-            periodMonths: newConditions.periodMonths,
+            periodMonths: newConditions.periodMonths || 12,
             companyCount: newConditions.companyCount || 5,
             companyAiModel: newConditions.companyAiModel,
             companyApiKey: newConditions.companyApiKey,
             newsAiModel: newConditions.newsAiModel,
             newsApiKey: newConditions.newsApiKey,
-            sector: newConditions.sector,
-            strategyType: newConditions.strategyType,
           },
         }),
       });
@@ -266,28 +212,20 @@ export default function StockAnalysisPage() {
         throw new Error(data.error || '분석 실패');
       }
 
-      // Instead of processing result, we just started background execution
-      // The useEffect pollStatus will handle the rest!
       alert('AI 엔진 분석 요청이 접수되었습니다. 백그라운드에서 진행됩니다.');
-
     } catch (error) {
       console.error('Analysis error:', error);
       const message = error instanceof Error ? error.message : '분석 실패';
-      setAnalysisState(prev => ({
-        ...prev,
-        results: [],
-        isAnalyzing: false,
-        error: message,
-      }));
+      setAnalysisState(prev => ({ ...prev, results: [], isAnalyzing: false, error: message }));
     }
   };
 
-
+  // ── 로딩/미인증 상태 ──
   if (status === 'loading') {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4" />
           <p className="text-muted-foreground">로딩 중...</p>
         </div>
       </div>
@@ -307,13 +245,8 @@ export default function StockAnalysisPage() {
             <CardTitle className="text-2xl font-bold">로그인이 필요합니다</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <p className="text-center text-muted-foreground">
-              분석 기능을 이용하려면 로그인이 필요합니다.
-            </p>
-            <Button
-              className="w-full"
-              onClick={() => router.push('/login?callbackUrl=/stock-analysis')}
-            >
+            <p className="text-center text-muted-foreground">분석 기능을 이용하려면 로그인이 필요합니다.</p>
+            <Button className="w-full" onClick={() => router.push('/login?callbackUrl=/stock-analysis')}>
               로그인하기
             </Button>
           </CardContent>
@@ -325,143 +258,139 @@ export default function StockAnalysisPage() {
   const isAdmin = (session?.user as any)?.role === 'ADMIN';
 
   return (
-    <div className="min-h-screen bg-[#f3f4f6] text-gray-900 relative overflow-hidden font-sans">
-      <div className="container mx-auto px-4 py-8 max-w-7xl relative z-10">
-        <div className="flex justify-between gap-3 mb-12">
-          <Button variant="ghost" onClick={() => router.push('/')} className="text-gray-500 hover:text-black">
-            &larr; 홈
-          </Button>
-          <div className="flex items-center gap-3">
-            {session ? (
-              <>
-                {!isAdmin && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => router.push('/pricing')}
-                    className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
-                  >
-                    플랜 업그레이드
-                  </Button>
-                )}
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => router.push('/inquiry')}
-                >
-                  <MessageSquare className="mr-2 h-4 w-4" />
-                  1:1 문의
-                </Button>
-                <UserMenu />
-              </>
-            ) : (
-              <>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => window.location.href = '/login'}
-                >
-                  <User className="mr-2 h-4 w-4" />
-                  로그인 / 회원가입
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => window.location.href = '/inquiry'}
-                >
-                  <MessageSquare className="mr-2 h-4 w-4" />
-                  1:1 문의
-                </Button>
-              </>
-            )}
-          </div>
-        </div>
+    <div className="min-h-screen bg-[#f3f4f6] text-gray-900 font-sans">
 
-        <div className="text-center mb-16 relative">
-          <div className="inline-flex items-center gap-2 px-6 py-2 rounded-full bg-blue-100 text-blue-600 text-xs font-black uppercase tracking-[0.3em] border border-blue-200 mb-8 animate-pulse">
-            <Sparkles className="h-4 w-4" />
-            AI Market Intelligence System
-          </div>
-          <h1 className="text-6xl font-black tracking-tighter mb-4 text-gray-900">
-            ORLANDO <span className="text-blue-600">ANALYSIS</span>
-          </h1>
-          <p className="text-gray-500 max-w-2xl mx-auto font-medium tracking-tight text-lg">
-            Google Drive 기반의 독자적인 AI 학습 모델을 통해 S&P 500, Russell 1000 기업 중<br />
-            실시간 재무 지표를 기반으로 최적의 투자 Alpha를 발굴합니다.
-          </p>
-        </div>
+      {/* ── 스티키 헤더 (로고 + 스캔 컨트롤 + 우측 메뉴) ── */}
+      <header className="sticky top-0 z-30 bg-white/95 backdrop-blur-md border-b border-gray-200 shadow-sm">
+        <div className="mx-auto px-6 max-w-screen-2xl">
+          <div className="flex items-center gap-4 h-16">
+            {/* 로고 */}
+            <button
+              onClick={() => router.push('/')}
+              className="flex items-center gap-2 text-gray-900 hover:text-blue-600 transition-colors shrink-0"
+            >
+              <Sparkles className="h-5 w-5 text-blue-600" />
+              <span className="font-black tracking-tighter text-lg hidden sm:inline">
+                ORLANDO <span className="text-blue-600">ANALYSIS</span>
+              </span>
+            </button>
 
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-          <div className="lg:col-span-4 space-y-6">
-            <InvestmentInput
-              onAnalyze={handleAnalyze}
-              disabled={analysisState.isAnalyzing}
-            />
-          </div>
+            <div className="h-6 w-px bg-gray-200 hidden sm:block" />
 
-          <div className="lg:col-span-8 space-y-6">
-            {analysisState.isAnalyzing && (
-              <Card className="bg-card/50 border-dashed">
-                <CardContent className="py-20">
-                  <div className="text-center">
-                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-                    <h3 className="text-2xl font-black text-white mb-2 uppercase tracking-tighter">분석 진행 상태: {analysisState.progress}%</h3>
-                    <div className="w-full bg-gray-200/20 rounded-full h-2.5 max-w-sm mx-auto mb-4 overflow-hidden shadow-inner">
-                      <div className="bg-blue-500 h-2.5 rounded-full transition-all duration-500 ease-out" style={{ width: `${analysisState.progress}%` }}></div>
-                    </div>
-                    <p className="text-gray-200 font-bold whitespace-pre-line text-lg leading-relaxed">
-                      {analysisState.progressMessage || '초기화 중...'}
-                    </p>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-
-            {analysisState.error && !analysisState.isAnalyzing && (
-              <div className="p-4 rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm">
-                {analysisState.error}
-              </div>
-            )}
-
-            <AnalysisOutput
-              results={analysisState.results}
-              conditions={analysisState.conditions}
-              isLoading={analysisState.isAnalyzing}
-              onSendEmail={handleSendEmail}
-            />
-
-            {analysisState.results.length > 0 && (
-              <NewsSection
-                summaries={newsState.summaries}
-                isLoading={newsState.isLoading}
+            {/* 스캔 컨트롤 — 나머지 공간 전체 */}
+            <div className="flex-1 min-w-0">
+              <InvestmentInput
+                onAnalyze={handleAnalyze}
+                disabled={analysisState.isAnalyzing}
               />
-            )}
+            </div>
+
+            {/* 우측 액션 버튼 */}
+            <div className="flex items-center gap-2 shrink-0">
+              {session && !isAdmin && (
+                <Button
+                  variant="ghost" size="sm"
+                  onClick={() => router.push('/pricing')}
+                  className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 font-bold text-xs hidden md:flex"
+                >
+                  플랜 업그레이드
+                </Button>
+              )}
+              <Button
+                variant="outline" size="sm"
+                onClick={() => router.push('/inquiry')}
+                className="font-bold text-xs gap-1.5 hidden sm:flex"
+              >
+                <MessageSquare className="h-3.5 w-3.5" /> 문의
+              </Button>
+              {session ? (
+                <UserMenu />
+              ) : (
+                <Button
+                  variant="outline" size="sm"
+                  onClick={() => window.location.href = '/login'}
+                  className="font-bold text-xs gap-1.5"
+                >
+                  <User className="h-3.5 w-3.5" /> 로그인
+                </Button>
+              )}
+            </div>
           </div>
         </div>
+      </header>
 
-        {showUpgradeModal && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-            <Card className="w-full max-w-md mx-4">
-              <CardHeader>
-                <CardTitle className="text-xl text-center">플랜 업그레이드 필요</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <p className="text-center text-gray-600">
-                  기업 분석 가능 횟수를 초과했거나 더 높은 권한이 필요합니다.
-                </p>
-                <div className="flex gap-3 justify-center">
-                  <Button variant="outline" onClick={() => setShowUpgradeModal(false)}>
-                    닫기
-                  </Button>
-                  <Button onClick={() => router.push('/pricing')}>
-                    플랜 보기
-                  </Button>
+      {/* ── 메인 콘텐츠 (전체 폭 활용) ── */}
+      <main className="mx-auto px-6 py-8 max-w-screen-2xl">
+
+        {/* 분석 진행 상태 */}
+        {analysisState.isAnalyzing && (
+          <div className="mb-6 p-6 rounded-2xl bg-white border border-gray-200 shadow-sm">
+            <div className="flex items-center gap-4">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 shrink-0" />
+              <div className="flex-1">
+                <div className="flex items-center justify-between mb-2">
+                  <p className="font-black text-sm text-gray-900">AI 분석 진행 중</p>
+                  <span className="text-sm font-black text-blue-600">{analysisState.progress}%</span>
                 </div>
-              </CardContent>
-            </Card>
+                <div className="w-full bg-gray-100 rounded-full h-2 overflow-hidden">
+                  <div
+                    className="bg-blue-500 h-2 rounded-full transition-all duration-500 ease-out"
+                    style={{ width: `${analysisState.progress}%` }}
+                  />
+                </div>
+                <p className="text-xs text-gray-500 mt-1.5 font-medium">
+                  {analysisState.progressMessage || '초기화 중...'}
+                </p>
+              </div>
+            </div>
           </div>
         )}
-      </div>
+
+        {/* 에러 */}
+        {analysisState.error && !analysisState.isAnalyzing && (
+          <div className="mb-6 p-4 rounded-xl bg-red-50 border border-red-200 text-red-700 text-sm font-medium">
+            {analysisState.error}
+          </div>
+        )}
+
+        {/* 분석 결과 */}
+        <AnalysisOutput
+          results={analysisState.results}
+          conditions={analysisState.conditions}
+          isLoading={analysisState.isAnalyzing}
+          onSendEmail={handleSendEmail}
+        />
+
+        {/* 뉴스 섹션 */}
+        {analysisState.results.length > 0 && (
+          <div className="mt-8">
+            <NewsSection
+              summaries={newsState.summaries}
+              isLoading={newsState.isLoading}
+            />
+          </div>
+        )}
+      </main>
+
+      {/* 업그레이드 모달 */}
+      {showUpgradeModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <Card className="w-full max-w-md mx-4">
+            <CardHeader>
+              <CardTitle className="text-xl text-center">플랜 업그레이드 필요</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <p className="text-center text-gray-600">
+                기업 분석 가능 횟수를 초과했거나 더 높은 권한이 필요합니다.
+              </p>
+              <div className="flex gap-3 justify-center">
+                <Button variant="outline" onClick={() => setShowUpgradeModal(false)}>닫기</Button>
+                <Button onClick={() => router.push('/pricing')}>플랜 보기</Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
     </div>
   );
 }
