@@ -260,57 +260,36 @@ export default function StockAnalysisPage() {
   return (
     <div className="min-h-screen bg-[#f3f4f6] text-gray-900 font-sans">
 
-      {/* ── 스티키 헤더 (로고 + 스캔 컨트롤 + 우측 메뉴) ── */}
+      {/* ── 스티키 헤더 (로고 + 우측 메뉴만) ── */}
       <header className="sticky top-0 z-30 bg-white/95 backdrop-blur-md border-b border-gray-200 shadow-sm">
         <div className="mx-auto px-6 max-w-screen-2xl">
-          <div className="flex items-center gap-4 h-16">
+          <div className="flex items-center justify-between h-14">
             {/* 로고 */}
             <button
               onClick={() => router.push('/')}
-              className="flex items-center gap-2 text-gray-900 hover:text-blue-600 transition-colors shrink-0"
+              className="flex items-center gap-2 text-gray-900 hover:text-blue-600 transition-colors"
             >
               <Sparkles className="h-5 w-5 text-blue-600" />
-              <span className="font-black tracking-tighter text-lg hidden sm:inline">
+              <span className="font-black tracking-tighter text-base">
                 ORLANDO <span className="text-blue-600">ANALYSIS</span>
               </span>
             </button>
 
-            <div className="h-6 w-px bg-gray-200 hidden sm:block" />
-
-            {/* 스캔 컨트롤 — 나머지 공간 전체 */}
-            <div className="flex-1 min-w-0">
-              <InvestmentInput
-                onAnalyze={handleAnalyze}
-                disabled={analysisState.isAnalyzing}
-              />
-            </div>
-
-            {/* 우측 액션 버튼 */}
-            <div className="flex items-center gap-2 shrink-0">
+            {/* 우측 메뉴 */}
+            <div className="flex items-center gap-2">
               {session && !isAdmin && (
-                <Button
-                  variant="ghost" size="sm"
-                  onClick={() => router.push('/pricing')}
-                  className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 font-bold text-xs hidden md:flex"
-                >
+                <Button variant="ghost" size="sm" onClick={() => router.push('/pricing')}
+                  className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 font-bold text-xs hidden md:flex">
                   플랜 업그레이드
                 </Button>
               )}
-              <Button
-                variant="outline" size="sm"
-                onClick={() => router.push('/inquiry')}
-                className="font-bold text-xs gap-1.5 hidden sm:flex"
-              >
+              <Button variant="outline" size="sm" onClick={() => router.push('/inquiry')}
+                className="font-bold text-xs gap-1.5 hidden sm:flex">
                 <MessageSquare className="h-3.5 w-3.5" /> 문의
               </Button>
-              {session ? (
-                <UserMenu />
-              ) : (
-                <Button
-                  variant="outline" size="sm"
-                  onClick={() => window.location.href = '/login'}
-                  className="font-bold text-xs gap-1.5"
-                >
+              {session ? <UserMenu /> : (
+                <Button variant="outline" size="sm" onClick={() => window.location.href = '/login'}
+                  className="font-bold text-xs gap-1.5">
                   <User className="h-3.5 w-3.5" /> 로그인
                 </Button>
               )}
@@ -318,6 +297,16 @@ export default function StockAnalysisPage() {
           </div>
         </div>
       </header>
+
+      {/* ── 스캔 컨트롤 서브바 ── */}
+      <div className="sticky top-14 z-20 bg-white border-b border-gray-200 shadow-sm">
+        <div className="mx-auto px-6 max-w-screen-2xl py-3">
+          <InvestmentInput
+            onAnalyze={handleAnalyze}
+            disabled={analysisState.isAnalyzing}
+          />
+        </div>
+      </div>
 
       {/* ── 메인 콘텐츠 (전체 폭 활용) ── */}
       <main className="mx-auto px-6 py-8 max-w-screen-2xl">

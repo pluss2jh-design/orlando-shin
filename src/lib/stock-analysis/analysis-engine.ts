@@ -402,19 +402,19 @@ function calculateTenbaggerScore(
         label: 'Yahoo Finance — Financials',
         url: yahooUrl('/financials'),
         metric: `매출 성장률 ${(revenueGrowth * 100).toFixed(1)}%`,
-        description: 'Yahoo Finance 연간/분기 재무제표에서 매출액(Revenue) 항목의 전년 대비 성장률을 읽어 Step 1 점수 산정에 활용합니다.'
+        description: `전년 대비 매출이 ${(revenueGrowth * 100).toFixed(1)}% 성장했습니다. 30% 초과 → 10점, 20~30% → 8점, 10~20% → 6점(통과), 0~10% → 4점, 마이너스 → 2점으로 현재 ${step1Score}점입니다. 이 수치가 Step 1 점수 산정의 직접적 근거입니다.`
       },
       {
         label: 'WSJ — Income Statement',
         url: wsj('financials/annual/income-statement'),
         metric: 'Revenue Growth YoY',
-        description: 'WSJ의 연간 손익계산서에서 매출성장률과 지난 3~5년 성장 추세를 교차검증하는 데 활용합니다.'
+        description: `손익계산서의 Revenue 항목에서 전년과 금년 매출을 비교하면 성장률 ${(revenueGrowth * 100).toFixed(1)}%가 도출됩니다. 3년 이상 지속적으로 성장 중인지 여기서 추가 확인할 수 있습니다.`
       },
       {
         label: 'Macrotrends — Revenue 검색',
         url: `https://www.macrotrends.net/search?query=${tk}+revenue`,
         metric: '연간 매출 성장 추이',
-        description: 'Macrotrends에서 해당 티커를 검색하면 즌~20년 연간 매출 추이 차트를 확인할 수 있습니다.'
+        description: `현재 ${(revenueGrowth * 100).toFixed(1)}% 성장이 일회성인지, 3년 이상 이어지는 구조적 성장인지 이 차트로 확인합니다. 구조적 성장이 확인되면 텐배거 패러다임 변화 산업의 핵심 조건을 충족합니다.`
       },
     ],
   });
@@ -438,19 +438,19 @@ function calculateTenbaggerScore(
         label: 'SEC EDGAR — 13F 공시 검색',
         url: edgarCompany('13F-HR'),
         metric: '분기별 기관 포트폴리오 공시',
-        description: 'SEC EDGAR에서 1억 달러 이상 운용 기관의 13F-HR 공시를 검색해 해당 종목에 대한 기관 매집 현황을 확인합니다.'
+        description: `블랙록·피델리티 등 대형 기관이 보유한 ${tk} 주식 수량과 전 분기 대비 변화량을 직접 확인합니다. 여러 기관이 동시에 보유량을 늘렸다면 강력한 스마트머니 매집 신호입니다.`
       },
       {
         label: 'Yahoo Finance — Holders',
         url: yahooUrl('/holders'),
         metric: `기관 보유비율 추정 ${instOwnership.toFixed(0)}%`,
-        description: 'Yahoo Finance Holders 탭에서 기관투자자 보유 비율(Institutional Ownership %)과 주요 보유 기관명단을 확인합니다. 이 수치가 Step 2 점수 산정의 기준이 됩니다.'
+        description: `기관 보유비율 ${instOwnership.toFixed(0)}%가 이 점수의 핵심 수치입니다. 80% 초과 → 10점, 60~80% → 8점, 40~60% → 5점(통과), 40% 미만 → 3점. 현재 ${step2Score}점입니다. 기관 비율이 높을수록 대형 투자 전문가들이 이 주식을 선택했다는 의미입니다.`
       },
       {
         label: 'Fintel — Institutional Ownership',
         url: `https://fintel.io/so/us/${tk.toLowerCase()}`,
         metric: '13F 기관 매집 현황',
-        description: 'Fintel에서 분기별 기관 매집량 변화, 신규 진입 건수, 스마트 머니 동시 매집 신호를 시각화해 확인해주는 전문 분석 서비스입니다.'
+        description: `전 분기 대비 기관 순매수(매집량 증가)인지 순매도인지 확인합니다. 신규 진입 기관 수가 증가 중이라면 "${tk}에 대한 기관의 관심이 커지고 있다"는 신호로 점수에 긍정적으로 작용합니다.`
       },
     ],
   });
@@ -472,19 +472,19 @@ function calculateTenbaggerScore(
         label: 'SEC EDGAR — Form 4 코퍼스 검색',
         url: edgarCompany('4'),
         metric: `순이익률 ${(profitMargin * 100).toFixed(1)}% (대리지표)`,
-        description: 'SEC EDGAR에서 Form 4 공시를 검색하면 CEO/CFO 등 핵심 경영진의 자사주 직접 매수(코드 P: Open Market Purchase) 내역을 확인할 수 있습니다.'
+        description: `CEO·CFO·이사 등 핵심 내부자가 최근 공개 시장에서 ${tk} 주식을 자기 돈으로 직접 매수(코드 P)했는지 확인합니다. 내부자 매수는 "회사가 저평가돼 있다"는 가장 강력한 신호 중 하나입니다.`
       },
       {
         label: 'OpenInsider — 내부자 매수 현황',
         url: `https://openinsider.com/search?q=${tk}`,
         metric: '경영진 직접 매수 내역',
-        description: 'OpenInsider는 Form 4 내부자 거래를 실시간 시각화해주는 사이트로, 매수 코드(P/M/F)와 거래 규모를 한눈에 확인할 수 있습니다. 집단 매수 신호 확인에 필수적입니다.'
+        description: `순이익률 ${(profitMargin * 100).toFixed(1)}%를 내부자 확신의 대리지표로 씁니다. 20% 초과 → 9점, 10~20% → 7점, 5~10% → 5점(통과), 0~5% → 3점, 적자 → 1점. 수익성이 높을수록 경영진이 자사주를 살 유인이 큽니다. 현재 ${step3Score}점입니다.`
       },
       {
         label: 'Yahoo Finance — Insider Transactions',
         url: yahooUrl('/insider-transactions'),
         metric: 'Form 4 공시 내역',
-        description: 'Yahoo Finance 내부자 거래 내역에서 최근 6개월 이내 내부자의 매수/매도 동향을 빠르게 확인할 수 있습니다. 순이익률은 수익성 대리지표로 출점 기준에 활용됩니다.'
+        description: `최근 6개월 내 내부자 매수 건수가 매도보다 많은지 확인합니다. 내부자 순매수(매수 > 매도) 지속은 경영진이 주가 상승을 확신한다는 뜻으로, Step 3 점수를 보완하는 근거로 활용됩니다.`
       },
     ],
   });
@@ -507,19 +507,19 @@ function calculateTenbaggerScore(
         label: 'Yahoo Finance — Key Statistics',
         url: yahooUrl('/key-statistics'),
         metric: `ROE ${roe.toFixed(1)}% / 매출성장률 ${(revenueGrowth * 100).toFixed(1)}%`,
-        description: 'Yahoo Finance Key Statistics에서 Return on Equity(ROE), Revenue Growth, EPS 등 핑더멘털 핵심 지표를 읽어 Step 4 점수 산정에 직접 활용합니다.'
+        description: `ROE(자기자본이익률) ${roe.toFixed(1)}%가 핵심 수치입니다. "내 돈 100원으로 ${roe.toFixed(0)}원을 번다"는 의미입니다. 20% 초과 → 10점, 15~20% → 8점, 8~15% → 6점(통과), 0~8% → 4점, 적자 → 1점. 매출성장률 ${(revenueGrowth * 100).toFixed(1)}%가 20% 초과이고 ROE도 15% 초과이면 보너스 1점 추가. 현재 ${step4Score}점입니다.`
       },
       {
         label: 'Macrotrends — ROE 검색',
         url: `https://www.macrotrends.net/search?query=${tk}+return+on+equity`,
         metric: 'Return on Equity 추이',
-        description: `Macrotrends에서 ${tk} ROE를 검색하면 총 10년 이상의 ROE 변화 추이를 확인할 수 있습니다. 이 잎는 우상향 구조가 텔배거 후보의 핵심 현거입니다.`
+        description: `${tk}의 ROE ${roe.toFixed(1)}%가 최근 3~5년간 꾸준히 상승 중인지 확인합니다. ROE가 지속적으로 우상향하는 기업은 경쟁우위가 강화되고 있다는 뜻으로, 텐배거 핵심 조건 중 하나입니다.`
       },
       {
         label: 'Macrotrends — Revenue 검색',
         url: `https://www.macrotrends.net/search?query=${tk}+revenue`,
         metric: '연간 매출 성장 추이',
-        description: `Macrotrends에서 ${tk} 매출을 검색하면 분기/연간 매출의 지속적 성장 패턴을 확인해 산업 내 시장 점유율 확대 여부를 판단할 수 있습니다.`
+        description: `ROE ${roe.toFixed(1)}% + 매출성장률 ${(revenueGrowth * 100).toFixed(1)}% 조합이 3년 이상 지속되는지 확인합니다. 이 두 지표가 함께 우상향하는 기업은 "성장하면서도 효율이 좋아지는" 복리 기업의 전형적인 패턴입니다.`
       },
     ],
   });
@@ -560,19 +560,19 @@ function calculateTenbaggerScore(
         label: 'Yahoo Finance — Chart',
         url: yahooUrl(''),
         metric: step5Metric,
-        description: 'Yahoo Finance 차트에서 6개월 ~ 1년 과거 주가를 조회하면 200일 이동평균선 대비 현재가 위치를 시각적으로 확인할 수 있습니다. Step 5 점수는 이 포지션에서 산정합니다.'
+        description: `현재가 $${currentPrice.toFixed(2)}와 200일 이동평균선의 위치 관계로 점수를 산정합니다. 200일선 5% 이상 위 + 50일선 골든크로스 → 10점, 200일선 위 → 7점, 200일선 아래 → 3점. 200일선은 "기관·장기 투자자들의 평균 매수 단가"로, 이 위에서 거래된다는 것은 대다수 장기 투자자가 수익 중이라는 의미입니다. 현재 ${step5Score}점입니다.`
       },
       {
         label: 'TradingView — 차트 분석',
         url: `https://www.tradingview.com/chart/?symbol=NASDAQ:${tk}`,
         metric: '200MA / 50MA 기술적 위치',
-        description: 'TradingView에서 200일 이동평균선(MA200)과 50일선(MA50)을 첨가하면 골든크로스 형성 여부와 현재가의 수급 포지션을 정확히 확인할 수 있습니다.'
+        description: `차트에 MA200(노란선)·MA50(파란선)을 표시했을 때, 50일선이 200일선을 아래에서 위로 돌파(골든크로스)한 시점이 최근인지 확인합니다. 골든크로스 직후 진입은 강한 추세 전환 신호로, Step 5 최고점(10점)의 핵심 근거가 됩니다.`
       },
       {
         label: 'Finviz — 기술 지표',
         url: finvizUrl(),
         metric: '200일선 / RSI / MACD',
-        description: `Finviz에서 ${tk}의 RSI, MACD, 벼린저 밴드 등 주요 기술지표를 한 화면에서 확인해 Step 5 수급포지션을 교차검증할 수 있습니다.`
+        description: `RSI가 50 이상이면 매수 세력 우세, MACD 히스토그램이 0선 위면 단기 상승 추세를 의미합니다. 이 두 신호가 200일선 돌파와 겹칠 때 Step 5 점수의 신뢰도가 높아집니다.`
       },
     ],
   });
@@ -610,19 +610,19 @@ function calculateTenbaggerScore(
         label: 'Yahoo Finance — Key Statistics',
         url: yahooUrl('/key-statistics'),
         metric: step6Metric,
-        description: 'Yahoo Finance Key Statistics의 Forward PE와 PEG ratio를 기반으로 성장률 대비 밀리에이션(PEG < 1 = 저평가)을 판단합니다. 이 수치가 Step 6 점수 산정의 핵심 기준입니다.'
+        description: `PEG = Forward PER ÷ 매출성장률(%). ${step6Metric}. PEG < 1은 "성장 속도보다 저렴하게 거래 중(황금어장)" → 10점, PEG 1~2 → 7점, PEG > 2 → 4점. 현재 ${step6Score}점입니다. PEG가 낮을수록 빠르게 성장하는 기업을 싸게 살 수 있다는 의미입니다.`
       },
       {
         label: 'Macrotrends — PE Ratio 검색',
         url: `https://www.macrotrends.net/search?query=${tk}+pe+ratio`,
         metric: 'Forward / Trailing PE 추이',
-        description: `Macrotrends에서 ${tk} PE Ratio를 검색하면 연간 PER 변화 추이를 확인할 수 있습니다. 그리히 보면 성장 대비 밀리에이션 노마라이즈 수준이 보입니다.`
+        description: `${tk}의 과거 PER 범위를 보면 현재 PER이 역사적으로 비싼지 싼지 알 수 있습니다. 과거 평균 PER보다 현재가 낮으면 상대적 저평가, 높으면 고평가 구간입니다. 이 맥락으로 Step 6 밸류에이션 판단을 추가 검증합니다.`
       },
       {
         label: 'Seeking Alpha — 밸류에이션 분석',
         url: `https://seekingalpha.com/symbol/${tk}/valuation`,
         metric: 'Peer Comparison / PEG',
-        description: 'Seeking Alpha Valuation탭에서 동종업 대비 Forward PE, PEG, EV/EBITDA 등 대비 밀리에이션을 확인해 거시 적 제6성을 팝단합니다.'
+        description: `동종 경쟁사 대비 PER·PEG·EV/EBITDA를 비교합니다. ${tk}가 같은 업종 내 경쟁사보다 낮은 밸류에이션이라면 "시장이 아직 저평가 중"이라는 추가 근거가 됩니다.`
       },
     ],
   });
@@ -645,19 +645,19 @@ function calculateTenbaggerScore(
         label: 'Yahoo Finance — Summary',
         url: yahooUrl(''),
         metric: `종합 점수 ${step7Score}/10 (1~6단계 평균)`,
-        description: 'Yahoo Finance 요약화면에서 시총액(시가총액), 예상 목표가, 애널리스트 의견 및 52주일 고듐가를 확인해 투자의 최종 판단에 활용합니다.'
+        description: `1~6단계 점수 합산(${prevTotal})을 6으로 나눈 평균이 ${step7Score}점입니다. ${passedCount}/6단계 통과. 통과 5개 이상 → 텐배거 후보 확정·풀 진입(60%), 4개 → 2차 확대(35%), 3개 → 1차 확대(15%), 2개 → 정찰병(5%), 1개 이하 → 관망. 이 점수가 최종 투자 비중 배분의 직접적 근거입니다.`
       },
       {
         label: 'Seeking Alpha — 뫰국 분석 리포트',
         url: `https://seekingalpha.com/symbol/${tk}`,
         metric: '기업 분석 리포트',
-        description: 'Seeking Alpha에서 애널리스트 등급(Quant/Wall St./SA)과 관련 뉴스를 확인해 1~6단계에서 포착한 지표를 종합함니다.'
+        description: `Quant 등급(A+~F)과 Wall Street 애널리스트 목표가를 확인합니다. Quant B 이상 + 매수 의견 70% 이상이면, 정량 분석(1~6단계)과 전문가 정성 분석이 일치하는 강한 매수 신호로 ${step7Score}점을 뒷받침합니다.`
       },
       {
         label: 'Macrotrends — Profit Margin 검색',
         url: `https://www.macrotrends.net/search?query=${tk}+profit+margin`,
         metric: '순이익률 종합 지표',
-        description: `Macrotrends에서 ${tk} 순이익률(Net/Operating Margin)를 검색하면 수익성 분기점 배경과 지속가능 성장여부를 확인할 수 있습니다.`
+        description: `순이익률이 최근 3년간 지속 상승 중이라면 "규모의 경제 실현" 단계입니다. 매출이 늘어도 비용 증가속도가 느려지면 이익이 더 빠르게 증가합니다. 이 패턴이 확인될수록 주가 상승 속도도 가속됩니다.`
       },
     ],
   });
