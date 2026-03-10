@@ -19,6 +19,12 @@ export interface InvestmentConditions {
   strategyType?: 'growth' | 'value' | 'all';
 }
 
+export interface TenbaggerStepSource {
+  label: string;   // 출처 이름 (예: "Yahoo Finance - 매출성장률")
+  url: string;     // 직접 접근 가능한 링크
+  metric?: string; // 조회한 지표명 (예: "revenueGrowth: 23.1%")
+}
+
 export interface TenbaggerStepResult {
   step: number;
   stepName: string;
@@ -26,6 +32,7 @@ export interface TenbaggerStepResult {
   score: number; // 0~10
   detail: string;
   recommendation: string; // 이 단계 통과 시 조언
+  sources: TenbaggerStepSource[]; // 근거 출처
 }
 
 export interface TenbaggerScoreResult {

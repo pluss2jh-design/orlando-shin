@@ -1,4 +1,4 @@
-import type {
+﻿import type {
   ExtractedCompanyAnalysis,
   InvestmentConditions,
   LearnedInvestmentCriteria,
@@ -367,9 +367,18 @@ function calculateTenbaggerScore(
   stock: { ticker: string; yahooData: YahooFinanceData; periodReturn: number; totalScore: number; ruleScores: RuleScore[] }
 ): TenbaggerScoreResult {
   const d = stock.yahooData;
+  const tk = stock.ticker;
   const steps: TenbaggerStepResult[] = [];
 
-  // Step 1: 관심 산업 선정 (패러다임 변화 + 100배 혁신 + 시장 확장성)
+  // 공통 외부 링크 헬퍼
+  const yahooUrl = (path: string) => `https://finance.yahoo.com/quote/${tk}${path}`;
+  const macroUrl = (slug: string) => `https://www.macrotrends.net/stocks/charts/${tk}/${slug}`;
+  const edgarUrl = (form: string) => `https://efts.sec.gov/LATEST/search-index?q=%22${tk}%22&dateRange=custom&startdt=2024-01-01&forms=${form}`;
+  const wsj = (section: string) => `https://www.wsj.com/market-data/quotes/${tk}/${section}`;
+
+  // ────────────────────────────────────
+  // Step 1: 관심 산업 선정 (매출 성장률)
+  // ────────────────────────────────────
   const revenueGrowth = (d as any).revenueGrowth || 0;
   const step1Score = revenueGrowth > 0.3 ? 10 : revenueGrowth > 0.2 ? 8 : revenueGrowth > 0.1 ? 6 : revenueGrowth > 0 ? 4 : 2;
   steps.push({
@@ -377,11 +386,18 @@ function calculateTenbaggerScore(
     stepName: '관심 산업 선정 (패러다임 변화)',
     passed: step1Score >= 6,
     score: step1Score,
-    detail: `매출성장률 ${(revenueGrowth * 100).toFixed(1)}% — ${revenueGrowth > 0.3 ? '폭발적 성장 (병의 영역)' : revenueGrowth > 0.2 ? '패러다임 전환 후보 산업' : revenueGrowth > 0.1 ? '양호한 성장기' : '성장 모멘텀 부족'}`,
+    detail: `매출성장률 ${(revenueGrowth * 100).toFixed(1)}% — ${revenueGrowth > 0.3 ? '폭발적 성장 (빙의 영역)' : revenueGrowth > 0.2 ? '패러다임 전환 후보 산업' : revenueGrowth > 0.1 ? '양호한 성장기' : '성장 모멘텀 부족'}`,
     recommendation: step1Score >= 6 ? '패러다임 전환 후보 산업 확인, 다음 단계 진행' : '산업 성장률 부족 — 관망 종목 등록부터 시작',
+    sources: [
+      { label: 'Yahoo Finance — Financials', url: yahooUrl('/financials'), metric: `매출 성장률 ${(revenueGrowth * 100).toFixed(1)}%` },
+      { label: 'Macrotrends — Revenue Growth History', url: macroUrl('revenue'), metric: 'Annual / Quarterly Revenue' },
+      { label: 'WSJ — Financials', url: wsj('financials/annual/income-statement'), metric: 'Income Statement' },
+    ],
   });
 
-  // Step 2: 13F 기관 매집 (기관 보유비율 대리)
+  // ────────────────────────────────────
+  // Step 2: 13F 기관 매집 (시총 기반 추정)
+  // ────────────────────────────────────
   const marketCap = d.marketCap || 0;
   const instOwnership = (d as any).institutionalOwnershipPercentage ||
     (marketCap > 0 ? Math.min(90, 50 + (marketCap / 200e9) * 20) : 60);
@@ -391,11 +407,18 @@ function calculateTenbaggerScore(
     stepName: '13F 기관 매집 분석',
     passed: step2Score >= 5,
     score: step2Score,
-    detail: `기관 보유비율 아이디어 ${instOwnership.toFixed(0)}% — ${instOwnership > 80 ? '대형 기관 동시 매집 신호' : instOwnership > 60 ? '기관 지지 화력' : '기관 지지 미약'}`,
+    detail: `기관 보유비율 추정 ${instOwnership.toFixed(0)}% — ${instOwnership > 80 ? '대형 기관 동시 매집 신호' : instOwnership > 60 ? '기관 지지 화력 확인' : '기관 지지 미약'}`,
     recommendation: step2Score >= 5 ? '스마트 머니 유입 확인 — 정찰병 5% 진입' : '기관 매집 부족 — 아직 관망단계',
+    sources: [
+      { label: 'SEC EDGAR — 13F 공시 목록', url: edgarUrl('13F-HR'), metric: '분기별 기관 포트폴리오 공시' },
+      { label: 'Yahoo Finance — Holders', url: yahooUrl('/holders'), metric: `기관 보유비율 추정 ${instOwnership.toFixed(0)}%` },
+      { label: 'Fintel — Institutional Ownership', url: `https://fintel.io/so/us/${tk.toLowerCase()}`, metric: '13F 기관 매집 현황' },
+    ],
   });
 
+  // ────────────────────────────────────
   // Step 3: Form 4 내부자 매수 (순이익률 대리)
+  // ────────────────────────────────────
   const profitMargin = (d as any).profitMargins || 0;
   const step3Score = profitMargin > 0.2 ? 9 : profitMargin > 0.1 ? 7 : profitMargin > 0.05 ? 5 : profitMargin > 0 ? 3 : 1;
   steps.push({
@@ -403,76 +426,111 @@ function calculateTenbaggerScore(
     stepName: 'Form 4 내부자 매수 분석',
     passed: step3Score >= 5,
     score: step3Score,
-    detail: `순이익률 ${(profitMargin * 100).toFixed(1)}% — ${profitMargin > 0.2 ? '내부자가 적극 비용 지출할 만한 수익성' : profitMargin > 0.1 ? '내부자 매수할 만한 수익구조' : '수익성 개선 필요'}`,
-    recommendation: step3Score >= 5 ? '내부자 매수 신호 증신 시 1차 비중 확대 진행' : '내부자 확신 부족 — 수익성 개선 후 진입',
+    detail: `순이익률 ${(profitMargin * 100).toFixed(1)}% — ${profitMargin > 0.2 ? '내부자가 자사주를 매수할 만한 강한 수익성' : profitMargin > 0.1 ? '내부자 매수 가능한 수익 구조' : '수익성 개선 필요'}`,
+    recommendation: step3Score >= 5 ? '내부자 매수 신호 확인 시 1차 비중 확대 진행' : '내부자 확신 부족 — 수익성 개선 후 진입',
+    sources: [
+      { label: 'SEC EDGAR — Form 4 내부자 거래', url: edgarUrl('4'), metric: `순이익률 ${(profitMargin * 100).toFixed(1)}% (대리지표)` },
+      { label: 'OpenInsider — 내부자 매수 현황', url: `https://openinsider.com/search?q=${tk}`, metric: '경영진 직접 매수 내역' },
+      { label: 'Yahoo Finance — Insider Transactions', url: yahooUrl('/insider-transactions'), metric: 'Form 4 공시 내역' },
+    ],
   });
 
-  // Step 4: 재무 펜더멘털 (ROE + 매출성장률)
+  // ────────────────────────────────────
+  // Step 4: 재무 펀더멘털 (ROE + 매출 성장률)
+  // ────────────────────────────────────
   const roe = (d.returnOnEquity || 0) * 100;
   const step4Base = roe > 20 ? 10 : roe > 15 ? 8 : roe > 8 ? 6 : roe > 0 ? 4 : 1;
   const step4Score = Math.min(10, step4Base + (revenueGrowth > 0.2 && roe > 15 ? 1 : 0));
   steps.push({
     step: 4,
-    stepName: '재무 펜더멘털 검증 (ROE / 설성장률)',
+    stepName: '재무 펀더멘털 검증 (ROE/매출성장률)',
     passed: step4Score >= 6,
     score: step4Score,
-    detail: `ROE ${roe.toFixed(1)}% | 매출성장률 ${(revenueGrowth * 100).toFixed(1)}% — ${roe > 20 ? '쳄타적인 자본효율, 폤밴거 무력' : roe > 15 ? '편더멘털 양호' : '개선 모니터링 필요'}`,
-    recommendation: step4Score >= 6 ? 'ROE 변공점! 1차 비중확대 콘피님스' : '편더멘털 개선 확인 후 비중 조절',
+    detail: `ROE ${roe.toFixed(1)}% | 매출성장률 ${(revenueGrowth * 100).toFixed(1)}% — ${roe > 20 ? '탁월한 자본효율, 텐배거 유리한 수익구조' : roe > 15 ? '펀더멘털 양호' : '개선 모니터링 필요'}`,
+    recommendation: step4Score >= 6 ? 'ROE 변곡점 확인! 1차 비중 확대 시작' : '펀더멘털 개선 확인 후 비중 조절',
+    sources: [
+      { label: 'Yahoo Finance — Key Statistics', url: yahooUrl('/key-statistics'), metric: `ROE ${roe.toFixed(1)}% / 매출성장률 ${(revenueGrowth * 100).toFixed(1)}%` },
+      { label: 'Macrotrends — ROE History', url: macroUrl('return-on-equity'), metric: 'Return on Equity (ROE) 추이' },
+      { label: 'Macrotrends — Revenue History', url: macroUrl('revenue'), metric: '연간 매출 성장 추이' },
+    ],
   });
 
-  // Step 5: 기술적 분석 (200일선 + MA50 돌짜나 단기제)
+  // ────────────────────────────────────
+  // Step 5: 기술적 분석 (200일 이동평균)
+  // ────────────────────────────────────
   const { priceHistory, currentPrice, previousClose } = d;
   let step5Score = 5;
   let step5Detail = '';
+  let step5Metric = '';
   if (priceHistory && priceHistory.length >= 200) {
     const ma200 = priceHistory.slice(-200).reduce((s, p) => s + p.close, 0) / 200;
     const ma50 = priceHistory.slice(-50).reduce((s, p) => s + p.close, 0) / 50;
+    step5Metric = `현재가 $${currentPrice.toFixed(2)} / 200MA $${ma200.toFixed(2)} / 50MA $${ma50.toFixed(2)}`;
     if (currentPrice > ma200 * 1.05 && ma50 > ma200) {
-      step5Score = 10; step5Detail = `200일선(${ma200.toFixed(0)}) 돌파 또한 50일선 돌짜 형성`;
+      step5Score = 10; step5Detail = `200일선(${ma200.toFixed(0)}) 돌파 & 50일선 골든크로스 형성 ✅`;
     } else if (currentPrice > ma200) {
-      step5Score = 7; step5Detail = `200일선 위, 수급 개선 확인 중`;
+      step5Score = 7; step5Detail = `200일선(${ma200.toFixed(0)}) 위에서 거래 중, 수급 개선 확인`;
     } else {
-      step5Score = 3; step5Detail = `200일선 하방 — 추세 전환 대기`;
+      step5Score = 3; step5Detail = `200일선(${ma200.toFixed(0)}) 하방 — 추세 전환 대기`;
     }
   } else {
     const chg = previousClose > 0 ? (currentPrice - previousClose) / previousClose : 0;
     step5Score = chg > 0.02 ? 7 : chg > 0 ? 5 : 3;
     step5Detail = `단기 주가 변동 ${(chg * 100).toFixed(1)}% (200일 데이터 부족)`;
+    step5Metric = `현재가 $${currentPrice.toFixed(2)}`;
   }
   steps.push({
     step: 5,
-    stepName: '기술적 분석 (수급 개선 확인)',
+    stepName: '기술적 분석 (200일선 수급 확인)',
     passed: step5Score >= 6,
     score: step5Score,
     detail: step5Detail,
-    recommendation: step5Score >= 6 ? '200일선 돌파 — 2차 비중 확대 후보' : '추세 전환 이후 추가 진입',
+    recommendation: step5Score >= 6 ? '200일선 돌파 확인 — 2차 비중 확대 후보' : '추세 전환 신호 후 추가 진입 검토',
+    sources: [
+      { label: 'Yahoo Finance — Chart (6M)', url: yahooUrl('?p=' + tk), metric: step5Metric },
+      { label: 'TradingView — 차트 분석', url: `https://www.tradingview.com/chart/?symbol=${tk}`, metric: '200MA / 50MA 기술적 위치' },
+      { label: 'Finviz — 기술 지표', url: `https://finviz.com/quote.ashx?t=${tk}`, metric: '200일선 / RSI / MACD' },
+    ],
   });
 
-  // Step 6: 거시 환경 (PEG / 밸류에이션)
+  // ────────────────────────────────────
+  // Step 6: 거시 환경 (PEG / Forward PE)
+  // ────────────────────────────────────
   const forwardPE = d.forwardPE;
   let step6Score = 6;
   let step6Detail = '';
+  let step6Metric = '';
   if (forwardPE && revenueGrowth > 0) {
     const peg = forwardPE / (revenueGrowth * 100);
-    if (peg < 1) { step6Score = 10; step6Detail = `PEG ${peg.toFixed(2)} — 저평가 (병의 영역)`; }
-    else if (peg < 2) { step6Score = 7; step6Detail = `PEG ${peg.toFixed(2)} — 합리적 밀리에이션`; }
-    else { step6Score = 4; step6Detail = `PEG ${peg.toFixed(2)} — 고평가 주의`; }
+    step6Metric = `Forward PE ${forwardPE.toFixed(1)} / 성장률 ${(revenueGrowth * 100).toFixed(1)}% → PEG ${peg.toFixed(2)}`;
+    if (peg < 1) { step6Score = 10; step6Detail = `PEG ${peg.toFixed(2)} — 성장 대비 저평가 (황금어장)`; }
+    else if (peg < 2) { step6Score = 7; step6Detail = `PEG ${peg.toFixed(2)} — 합리적 밸류에이션`; }
+    else { step6Score = 4; step6Detail = `PEG ${peg.toFixed(2)} — 성장 대비 고평가 주의`; }
   } else if (forwardPE) {
     step6Score = forwardPE < 20 ? 8 : forwardPE < 35 ? 5 : 3;
     step6Detail = `Forward PER ${forwardPE.toFixed(1)}`;
+    step6Metric = `Forward PER ${forwardPE.toFixed(1)}`;
   } else {
-    step6Score = 5; step6Detail = '밸류에이션 데이터 부족';
+    step6Score = 5; step6Detail = '밸류에이션 데이터 부족 (기본값 적용)';
+    step6Metric = 'Forward PE 데이터 없음';
   }
   steps.push({
     step: 6,
-    stepName: '거시 환경 (밸류에이션 확인)',
+    stepName: '거시 환경 (PEG 밸류에이션 확인)',
     passed: step6Score >= 5,
     score: step6Score,
     detail: step6Detail,
-    recommendation: step6Score >= 7 ? '매크로 우호적 — 공격적 매수' : step6Score >= 5 ? '평균 수준, 포지션 유지' : '밸류에이션 부담, 비중 축소 검토',
+    recommendation: step6Score >= 7 ? '매크로 우호적 — 공격적 매수 고려' : step6Score >= 5 ? '평균 수준, 포지션 유지' : '밸류에이션 부담 큼 — 비중 축소 검토',
+    sources: [
+      { label: 'Yahoo Finance — Key Statistics', url: yahooUrl('/key-statistics'), metric: step6Metric },
+      { label: 'Macrotrends — PE Ratio History', url: macroUrl('pe-ratio'), metric: 'Forward / Trailing PE 추이' },
+      { label: 'Wisesheets — PEG Ratio', url: `https://wisesheets.io/peg-ratio-${tk.toLowerCase()}`, metric: `PEG Ratio` },
+    ],
   });
 
+  // ────────────────────────────────────
   // Step 7: 최종 판단 & 실행
+  // ────────────────────────────────────
   const prevTotal = steps.reduce((a, s) => a + s.score, 0);
   const step7Score = Math.round(Math.min(10, prevTotal / 6));
   const passedCount = steps.filter((s: TenbaggerStepResult) => s.passed).length;
@@ -481,8 +539,13 @@ function calculateTenbaggerScore(
     stepName: '최종 판단 및 실행 (비중 설정)',
     passed: passedCount >= 4,
     score: step7Score,
-    detail: `${passedCount}/6 단계 통과 — 종합 실신어장 향샘`,
-    recommendation: passedCount >= 5 ? '텐배거 후보 최종 확정 — 분할매수 시작' : passedCount >= 3 ? '소액 매수 후 관찰' : '관망 종목만 등록',
+    detail: `1~6단계 중 ${passedCount}/6 단계 통과 — 종합 펀더멘털 ${step7Score >= 7 ? '우수' : step7Score >= 5 ? '보통' : '미흡'}`,
+    recommendation: passedCount >= 5 ? '텐배거 후보 최종 확정 — 분할 매수 시작' : passedCount >= 3 ? '소액 매수 후 지속 관찰' : '관망 종목 등록만 권장',
+    sources: [
+      { label: 'Yahoo Finance — Summary', url: yahooUrl(''), metric: `종합 점수 ${step7Score}/10 (1~6단계 평균)` },
+      { label: 'Seeking Alpha — 투자 분석', url: `https://seekingalpha.com/symbol/${tk}`, metric: '기업 분석 리포트' },
+      { label: 'Macrotrends — 전체 지표', url: `https://www.macrotrends.net/stocks/charts/${tk}/profit-margin`, metric: '수익성 종합 지표' },
+    ],
   });
 
   const totalScore = steps.reduce((a, s) => a + s.score, 0);
@@ -501,3 +564,4 @@ function calculateTenbaggerScore(
 
   return { steps, totalScore, maxScore, percentage, recommendedAllocation, allocationLabel, investmentStage };
 }
+

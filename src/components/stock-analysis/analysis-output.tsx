@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { TrendingUp, AlertCircle, FileText, Video, CheckCircle, ChevronDown, ChevronUp, Mail, Lock, Sparkles, ArrowLeft, ArrowRight, Activity, TrendingDown, Target, Zap } from 'lucide-react';
+import { TrendingUp, AlertCircle, FileText, Video, CheckCircle, ChevronDown, ChevronUp, Mail, Lock, Sparkles, ArrowLeft, ArrowRight, Activity, TrendingDown, Target, Zap, ExternalLink } from 'lucide-react';
 import { useSession } from 'next-auth/react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -9,7 +9,7 @@ import { Progress } from '@/components/ui/progress';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { AnalysisResult, InvestmentConditions, TenbaggerScoreResult, TenbaggerStepResult } from '@/types/stock-analysis';
+import { AnalysisResult, InvestmentConditions, TenbaggerScoreResult, TenbaggerStepResult, TenbaggerStepSource } from '@/types/stock-analysis';
 import { cn } from '@/lib/utils';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, Legend } from 'recharts';
 
@@ -76,6 +76,28 @@ function TenbaggerPipeline({ score }: { score: TenbaggerScoreResult }) {
                   <Progress value={step.score * 10} className="h-1 mb-2" />
                   <p className="text-[11px] text-gray-500 leading-relaxed">{step.detail}</p>
                   <p className={cn('text-[11px] font-bold mt-1', step.passed ? 'text-emerald-400' : 'text-amber-400')}>→ {step.recommendation}</p>
+                  {/* 📎 출처 링크 */}
+                  {step.sources && step.sources.length > 0 && (
+                    <div className="mt-3 pt-2 border-t border-gray-800/60">
+                      <p className="text-[9px] font-black text-gray-600 uppercase tracking-widest mb-1.5">📎 데이터 출처</p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {step.sources.map((src, si) => (
+                          <a
+                            key={si}
+                            href={src.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-gray-800 hover:bg-gray-700 border border-gray-700 hover:border-blue-500/50 text-[10px] text-gray-400 hover:text-blue-400 transition-all group/link"
+                            title={src.metric || src.label}
+                          >
+                            <ExternalLink className="h-2.5 w-2.5 shrink-0" />
+                            <span className="font-medium">{src.label}</span>
+                            {src.metric && <span className="text-gray-600 group-hover/link:text-blue-500/60">— {src.metric}</span>}
+                          </a>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
