@@ -128,10 +128,10 @@ export class StockService {
         const result = await runAnalysisEngine(
           {
             amount: 0,
-            periodMonths: options.conditions?.periodMonths || 12,
             sector: options.conditions?.sector,
             strategyType: options.conditions?.strategyType
           },
+
           knowledge,
           options.style || 'moderate',
           options.conditions?.companyCount || 5,

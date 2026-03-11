@@ -109,21 +109,23 @@ export async function fetchBatchQuotes(tickers: string[]): Promise<YahooFinanceD
 }
 
 export async function fetchYahooFinanceData(
-  ticker: string,
-  periodMonths: number
+  ticker: string
 ): Promise<YahooFinanceData> {
+  // 과거 2년치 차트 기간
   const period1 = new Date();
-  period1.setMonth(period1.getMonth() - Math.max(periodMonths, 6));
+  period1.setFullYear(period1.getFullYear() - 2);
 
   let summaryResult: any = {};
-  let historicalResult: any[] = [];
+  let chartQuotes: any[] = [];
+  let fundamentals: any = {};
 
+  // ── 1. 기본 Summary (financialData, price, keyStats, assetProfile) ──
   try {
     summaryResult = await yahooFinance.quoteSummary(ticker, {
-      modules: ['financialData', 'price', 'defaultKeyStatistics', 'summaryDetail', 'assetProfile', 'incomeStatementHistory'],
+      modules: ['financialData', 'price', 'defaultKeyStatistics', 'summaryDetail', 'assetProfile'],
     });
   } catch (error) {
-    console.warn(`Quote summary failed for ${ticker}, attempting basic quote:`, error);
+    console.warn(`QuoteSummary failed for ${ticker}:`, (error as Error).message?.slice(0, 80));
     try {
       const basicQuote = await yahooFinance.quote(ticker);
       summaryResult = {
@@ -136,20 +138,33 @@ export async function fetchYahooFinanceData(
         summaryDetail: {
           trailingPE: basicQuote.trailingPE,
           dividendYield: basicQuote.dividendYield,
-        }
+        },
       };
     } catch (e) {
       console.error(`Basic quote also failed for ${ticker}`);
     }
   }
 
+  // ── 2. 주가 이력 — chart() 사용 (historical() deprecated) ──
   try {
-    historicalResult = await yahooFinance.historical(ticker, {
+    const chartResult = await (yahooFinance as any).chart(ticker, {
       period1: period1.toISOString().split('T')[0],
-      period2: new Date().toISOString().split('T')[0],
+      interval: '1d',
     });
+    chartQuotes = chartResult?.quotes ?? [];
   } catch (error) {
-    console.warn(`Historical data failed for ${ticker}:`, error);
+    console.warn(`Chart data failed for ${ticker}:`, (error as Error).message?.slice(0, 80));
+  }
+
+  // ── 3. 재무제표 — fundamentalsTimeSeries (incomeStatementHistory 대체) ──
+  try {
+    const fts = await (yahooFinance as any).fundamentalsTimeSeries(ticker, {
+      type: 'annual',
+      period1: new Date(Date.now() - 4 * 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+    });
+    fundamentals = fts ?? {};
+  } catch (error) {
+    console.warn(`FundamentalsTimeSeries failed for ${ticker}:`, (error as Error).message?.slice(0, 80));
   }
 
   const financial = summaryResult.financialData;
@@ -157,14 +172,16 @@ export async function fetchYahooFinanceData(
   const keyStats = summaryResult.defaultKeyStatistics;
   const summaryDetail = summaryResult.summaryDetail;
   const assetProfile = summaryResult.assetProfile;
-
   const currency = detectTickerCurrency(ticker, price?.currency);
 
-  const priceHistory: PriceHistoryEntry[] = (historicalResult || []).map((entry) => ({
-    date: entry.date instanceof Date ? entry.date : new Date(entry.date),
-    close: entry.adjClose ?? entry.close ?? 0,
-    volume: entry.volume ?? 0,
-  }));
+  // chart() 결과로 priceHistory 구성
+  const priceHistory: PriceHistoryEntry[] = chartQuotes
+    .filter((q: any) => q.close != null)
+    .map((q: any) => ({
+      date: q.date instanceof Date ? q.date : new Date(q.date),
+      close: q.adjclose ?? q.close ?? 0,
+      volume: q.volume ?? 0,
+    }));
 
   // 수익률 계산 (1년, 6개월, 3개월, 1개월)
   const returnRates: any = {};
@@ -175,63 +192,50 @@ export async function fetchYahooFinanceData(
     { label: 'threeMonths', months: 3 },
     { label: 'oneMonth', months: 1 },
   ];
-
   const currentPrice = price?.regularMarketPrice ?? financial?.currentPrice ?? 0;
-
   if (priceHistory.length > 0 && currentPrice > 0) {
     intervals.forEach(({ label, months }) => {
       const targetDate = new Date();
       targetDate.setMonth(now.getMonth() - months);
-      // 가장 가까운 과거 데이터 찾기
       const pastEntry = priceHistory
         .filter(h => h.date <= targetDate)
         .sort((a, b) => b.date.getTime() - a.date.getTime())[0];
-
       if (pastEntry && pastEntry.close > 0) {
         returnRates[label] = ((currentPrice - pastEntry.close) / pastEntry.close) * 100;
       }
     });
   }
 
-  // 재무 정보 추출 (최근 4분기/년)
-  const incomeStatementHistory = summaryResult.incomeStatementHistory?.incomeStatementHistory || [];
-  const financialHistory = incomeStatementHistory.map((item: any, index: number) => {
-    const rev = item.totalRevenue;
-    const opInc = item.operatingIncome;
+  // fundamentalsTimeSeries 기반 재무 이력
+  const annualRevenue: any[] = fundamentals.annualTotalRevenue ?? [];
+  const annualOpIncome: any[] = fundamentals.annualOperatingIncome ?? [];
+  const financialHistory = annualRevenue.map((revEntry: any, idx: number) => {
+    const rev = revEntry.reportedValue?.raw ?? revEntry.reportedValue ?? 0;
+    const opEntry = annualOpIncome[idx];
+    const opInc = opEntry?.reportedValue?.raw ?? opEntry?.reportedValue ?? 0;
     const margin = rev > 0 ? opInc / rev : 0;
-
-    let revGrowth = 0;
-    let opGrowth = 0;
-
-    if (index < incomeStatementHistory.length - 1) {
-      const nextItem = incomeStatementHistory[index + 1];
-      if (nextItem.totalRevenue > 0) revGrowth = (rev - nextItem.totalRevenue) / nextItem.totalRevenue;
-      if (nextItem.operatingIncome > 0) opGrowth = (opInc - nextItem.operatingIncome) / nextItem.operatingIncome;
-    }
-
+    const prevRev = annualRevenue[idx + 1]?.reportedValue?.raw ?? annualRevenue[idx + 1]?.reportedValue ?? 0;
+    const prevOp = annualOpIncome[idx + 1]?.reportedValue?.raw ?? annualOpIncome[idx + 1]?.reportedValue ?? 0;
     return {
-      date: item.endDate ? new Date(item.endDate).toLocaleDateString() : 'N/A',
+      date: revEntry.asOfDate ?? 'N/A',
       revenue: rev,
       operatingIncome: opInc,
       operatingMargin: margin,
-      revenueGrowth: revGrowth * 100,
-      operatingIncomeGrowth: opGrowth * 100,
+      revenueGrowth: prevRev > 0 ? ((rev - prevRev) / prevRev) * 100 : 0,
+      operatingIncomeGrowth: prevOp > 0 ? ((opInc - prevOp) / prevOp) * 100 : 0,
     };
-  }).reverse(); // 최근 데이터가 뒤로 가게 정렬
+  }).reverse();
 
   return {
     ticker,
     currency,
-
-    currentPrice: price?.regularMarketPrice ?? financial?.currentPrice ?? 0,
+    currentPrice,
     previousClose: price?.regularMarketPreviousClose ?? 0,
     fiftyTwoWeekHigh: (summaryDetail?.fiftyTwoWeekHigh as number | undefined) ?? 0,
     fiftyTwoWeekLow: (summaryDetail?.fiftyTwoWeekLow as number | undefined) ?? 0,
-
     targetMeanPrice: financial?.targetMeanPrice,
     targetHighPrice: financial?.targetHighPrice,
     targetLowPrice: financial?.targetLowPrice,
-
     trailingPE: summaryDetail?.trailingPE,
     forwardPE: summaryDetail?.forwardPE ?? keyStats?.forwardPE,
     priceToBook: keyStats?.priceToBook,
@@ -241,7 +245,6 @@ export async function fetchYahooFinanceData(
     marketCap: price?.marketCap,
     sector: assetProfile?.sector,
     revenueGrowth: financial?.revenueGrowth,
-
     priceHistory,
     financialHistory,
     returnRates,

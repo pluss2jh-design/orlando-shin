@@ -37,13 +37,13 @@ export async function runAnalysisEngine(
 ): Promise<RecommendationResult> {
   console.log(`Starting analysis: full Russell 1000 7-Step scan...`);
 
-  if (onProgress) onProgress(2, 'Russell 1000 유니버스 로딩 및 환율 수집 중...');
+  if (onProgress) onProgress(2, 'Russell 1000 유니버스 실시간 로딩 중...');
   const exchangeRate = await fetchExchangeRate();
 
-  // Russell 1000 전체를 순서대로 (셔플 없음, 실시간/인기 종목 제외)
-  const universe = getStockUniverse();
+  // Russell 1000 실시간 조회 (S&P 500 제외) — async
+  const universe = await getStockUniverse();
   const totalCount = universe.length;
-  console.log(`Universe size: ${totalCount} tickers (Russell 1000)`);
+  console.log(`Universe size: ${totalCount} tickers (Russell 1000 - S&P 500)`);
 
   // 모든 규칙 카테고리 통합
   const criteria = knowledge.criteria;
@@ -103,7 +103,7 @@ export async function runAnalysisEngine(
     const chunk = validStocks.slice(i, i + chunkSize);
     await Promise.all(chunk.map(async (stock) => {
       try {
-        const fullData = await fetchYahooFinanceData(stock.ticker, conditions.periodMonths || 12);
+        const fullData = await fetchYahooFinanceData(stock.ticker);
 
         // 섹터 필터
         if (conditions.sector && conditions.sector !== 'ALL') {
