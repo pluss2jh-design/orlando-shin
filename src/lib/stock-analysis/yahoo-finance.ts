@@ -111,23 +111,37 @@ export async function fetchBatchQuotes(tickers: string[]): Promise<YahooFinanceD
 export async function fetchYahooFinanceData(
   ticker: string
 ): Promise<YahooFinanceData> {
-  // 과거 2년치 차트 기간
+  // 2년치 차트 기간
   const period1 = new Date();
   period1.setFullYear(period1.getFullYear() - 2);
+  const period1Str = period1.toISOString().split('T')[0];
+
+  // 타임아웃 헬퍼 (ms 단위)
+  const withTimeout = <T>(promise: Promise<T>, ms: number, label: string): Promise<T> =>
+    Promise.race([
+      promise,
+      new Promise<T>((_, reject) =>
+        setTimeout(() => reject(new Error(`Timeout(${ms}ms): ${label}`)), ms)
+      ),
+    ]);
 
   let summaryResult: any = {};
   let chartQuotes: any[] = [];
-  let fundamentals: any = {};
+  let ftsData: any[] = [];
 
-  // ── 1. 기본 Summary (financialData, price, keyStats, assetProfile) ──
+  // ── 1. 기본 Summary ──
   try {
-    summaryResult = await yahooFinance.quoteSummary(ticker, {
-      modules: ['financialData', 'price', 'defaultKeyStatistics', 'summaryDetail', 'assetProfile'],
-    });
+    summaryResult = await withTimeout(
+      yahooFinance.quoteSummary(ticker, {
+        modules: ['financialData', 'price', 'defaultKeyStatistics', 'summaryDetail', 'assetProfile'],
+      }),
+      15000,
+      `quoteSummary(${ticker})`
+    );
   } catch (error) {
     console.warn(`QuoteSummary failed for ${ticker}:`, (error as Error).message?.slice(0, 80));
     try {
-      const basicQuote = await yahooFinance.quote(ticker);
+      const basicQuote = await withTimeout(yahooFinance.quote(ticker), 10000, `quote(${ticker})`);
       summaryResult = {
         price: {
           regularMarketPrice: basicQuote.regularMarketPrice,
@@ -145,26 +159,36 @@ export async function fetchYahooFinanceData(
     }
   }
 
-  // ── 2. 주가 이력 — chart() 사용 (historical() deprecated) ──
+  // ── 2. 주가 이력 — chart() (historical 대체) ──
   try {
-    const chartResult = await (yahooFinance as any).chart(ticker, {
-      period1: period1.toISOString().split('T')[0],
-      interval: '1d',
-    });
+    const chartResult: any = await withTimeout(
+      (yahooFinance as any).chart(ticker, { period1: period1Str, interval: '1d' }),
+      20000,
+      `chart(${ticker})`
+    );
     chartQuotes = chartResult?.quotes ?? [];
   } catch (error) {
     console.warn(`Chart data failed for ${ticker}:`, (error as Error).message?.slice(0, 80));
   }
 
-  // ── 3. 재무제표 — fundamentalsTimeSeries (incomeStatementHistory 대체) ──
+
+  // ── 3. 재무제표 — fundamentalsTimeSeries ──
+  // module 옵션이 required - 누락 시 Invalid options 오류 발생
   try {
-    const fts = await (yahooFinance as any).fundamentalsTimeSeries(ticker, {
-      type: 'annual',
-      period1: new Date(Date.now() - 4 * 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-    });
-    fundamentals = fts ?? {};
+    const fts = await withTimeout(
+      (yahooFinance as any).fundamentalsTimeSeries(ticker, {
+        period1: period1Str,
+        type: 'annual',
+        module: 'financials',    // ← required 필드. 누락하면 Invalid options 오류
+      }),
+      15000,
+      `fundamentalsTimeSeries(${ticker})`
+    );
+    // 반환값은 Array<FundamentalsTimeSeriesFinancialsResult>
+    ftsData = Array.isArray(fts) ? fts : [];
   } catch (error) {
-    console.warn(`FundamentalsTimeSeries failed for ${ticker}:`, (error as Error).message?.slice(0, 80));
+    // 오류 수준 DEBUG로 낮춰 로그 스팬 감소
+    console.debug(`FTS failed for ${ticker}:`, (error as Error).message?.slice(0, 60));
   }
 
   const financial = summaryResult.financialData;
@@ -206,18 +230,17 @@ export async function fetchYahooFinanceData(
     });
   }
 
-  // fundamentalsTimeSeries 기반 재무 이력
-  const annualRevenue: any[] = fundamentals.annualTotalRevenue ?? [];
-  const annualOpIncome: any[] = fundamentals.annualOperatingIncome ?? [];
-  const financialHistory = annualRevenue.map((revEntry: any, idx: number) => {
-    const rev = revEntry.reportedValue?.raw ?? revEntry.reportedValue ?? 0;
-    const opEntry = annualOpIncome[idx];
-    const opInc = opEntry?.reportedValue?.raw ?? opEntry?.reportedValue ?? 0;
+  // fundamentalsTimeSeries 배열에서 연도별 수익/영업이익 파싱
+  // 정렬: 오래된 연도부터 역순으로 (arr[0]이 가장 최근년)
+  const financialHistory = ftsData.map((entry: any, idx: number) => {
+    const rev = entry.totalRevenue ?? 0;
+    const opInc = entry.operatingIncome ?? 0;
     const margin = rev > 0 ? opInc / rev : 0;
-    const prevRev = annualRevenue[idx + 1]?.reportedValue?.raw ?? annualRevenue[idx + 1]?.reportedValue ?? 0;
-    const prevOp = annualOpIncome[idx + 1]?.reportedValue?.raw ?? annualOpIncome[idx + 1]?.reportedValue ?? 0;
+    const prev = ftsData[idx + 1];
+    const prevRev = prev?.totalRevenue ?? 0;
+    const prevOp = prev?.operatingIncome ?? 0;
     return {
-      date: revEntry.asOfDate ?? 'N/A',
+      date: entry.date ? new Date(entry.date).getFullYear().toString() : 'N/A',
       revenue: rev,
       operatingIncome: opInc,
       operatingMargin: margin,
