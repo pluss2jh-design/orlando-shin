@@ -1,8 +1,47 @@
 /**
- * Russell 1000 Index — 미국 대형주 + 중형주 1000개 전체
- * 텐배거 분석 유니버스는 이 목록 전체를 대상으로 합니다.
+ * Russell 1000 Index — 미국 대형주 + 중형주
+ * S&P 500 종목은 제외하고 Russell 1000 고유 종목만 포함합니다.
  */
-export const RUSSELL1000_TICKERS: string[] = [
+
+/** S&P 500 구성 종목 (제외 대상) */
+export const SP500_TICKERS: ReadonlySet<string> = new Set([
+  'AAPL', 'MSFT', 'NVDA', 'AMZN', 'META', 'GOOGL', 'GOOG', 'BRK-B', 'TSLA', 'AVGO',
+  'WMT', 'LLY', 'JPM', 'V', 'UNH', 'XOM', 'MA', 'JNJ', 'PG', 'HD',
+  'COST', 'MRK', 'ABBV', 'BAC', 'CVX', 'NFLX', 'CRM', 'KO', 'AMD', 'PEP',
+  'ORCL', 'ACN', 'WFC', 'TMO', 'LIN', 'ADBE', 'MS', 'MCD', 'DIS', 'GS',
+  'CAT', 'IBM', 'INTU', 'PM', 'RTX', 'TXN', 'VZ', 'AMGN', 'AXP', 'NOW',
+  'UNP', 'COP', 'GE', 'BKNG', 'T', 'HON', 'SPGI', 'PLD', 'SYK', 'SCHW',
+  'LOW', 'QCOM', 'NEE', 'UPS', 'BLK', 'PGR', 'AMAT', 'ADP', 'ADI', 'PANW',
+  'SBUX', 'MDLZ', 'GILD', 'MMC', 'VRTX', 'DHR', 'MDT', 'LMT', 'TJX', 'REGN',
+  'CVS', 'PYPL', 'MO', 'CI', 'ZTS', 'ISRG', 'SO', 'ITW', 'SHW', 'HCA',
+  'ETN', 'AON', 'ABT', 'CME', 'C', 'EQIX', 'SNOW', 'NKE', 'UBER', 'LRCX',
+  'PFE', 'APD', 'INTC', 'TMUS', 'APH', 'MSI', 'KLAC', 'ECL', 'CDNS', 'FDX',
+  'PH', 'NOC', 'MCK', 'WELL', 'EW', 'NSC', 'AJG', 'ROK', 'TDG', 'WM',
+  'FCX', 'SRE', 'MCHP', 'ROP', 'OKE', 'CCI', 'FTNT', 'OTIS', 'TT', 'CTAS',
+  'EMR', 'AFL', 'USB', 'TRV', 'PRU', 'DLR', 'CARR', 'MPC', 'PSX', 'VLO',
+  'NXPI', 'ON', 'HES', 'VRSK', 'CPRT', 'AMP', 'AZO', 'IDXX', 'BDX', 'EL',
+  'SPG', 'GIS', 'ROST', 'URI', 'CTSH', 'PCAR', 'MSCI', 'ODFL', 'MNST', 'KMB',
+  'D', 'EXC', 'IQV', 'STZ', 'HUM', 'ACGL', 'MAR', 'DLTR', 'WMB',
+  'COR', 'AMT', 'DXCM', 'PAYX', 'BK', 'FAST', 'PEG', 'DUK', 'ALL',
+  'YUM', 'BIIB', 'NEM', 'STT', 'MET', 'CEG', 'KEYS', 'KR', 'EA',
+  'RSG', 'PCG', 'VICI', 'SYY', 'RCL', 'GPN', 'IFF', 'LHX', 'FTV',
+  'HSY', 'TRGP', 'AWK', 'LVS', 'CBOE', 'APTV', 'RMD', 'CNC', 'EFX', 'WTW',
+  'FIS', 'GLW', 'ANSS', 'WST', 'ZBH', 'BALL', 'SBAC', 'MGM',
+  'BAX', 'NDAQ', 'CFG', 'HAL', 'HOLX', 'CAG', 'J', 'PKG', 'XEL',
+  'SWK', 'DGX', 'CINF', 'EQT', 'EXPE', 'ENPH', 'CHD', 'EXPD', 'COF', 'KEY',
+  'MRNA', 'ILMN', 'TFC', 'RF', 'NTRS', 'AEP',
+  'OMC', 'HIG', 'WAB', 'MAS', 'ED', 'GPC', 'CLX',
+  'AKAM', 'ALGN', 'ATO', 'IEX', 'LYB', 'MKC', 'APA', 'ZBRA', 'LDOS', 'DTE',
+  'PPL', 'WY', 'AVY', 'AIZ', 'RJF', 'JKHY', 'EMN', 'CF', 'RPM',
+  'ALB', 'WRB', 'MOH', 'HRL', 'TPR', 'EPAM', 'ETSY', 'AMCR', 'NRG',
+  'CTVA', 'TXT', 'BWA', 'POOL', 'HST', 'IPG', 'RE', 'L',
+  'SNA', 'GRMN', 'KHC', 'NTAP', 'DRI', 'INCY', 'MHK', 'TFX', 'BEN',
+  'WYNN', 'PARA', 'LKQ', 'SWKS', 'ARE', 'CPT', 'EXR', 'UDR', 'ESS', 'AVB', 'MAA',
+  'NVR', 'PHM', 'DHI', 'LEN', 'TOL',
+]);
+
+/** Russell 1000 전체 목록 (S&P500 포함) */
+const RUSSELL1000_ALL: string[] = [
   // Mega-cap (Top 50)
   'AAPL', 'MSFT', 'NVDA', 'AMZN', 'META', 'GOOGL', 'GOOG', 'BRK-B', 'TSLA', 'AVGO',
   'JPM', 'LLY', 'V', 'UNH', 'WMT', 'XOM', 'MA', 'JNJ', 'PG', 'HD',
@@ -34,73 +73,79 @@ export const RUSSELL1000_TICKERS: string[] = [
   'SWK', 'DGX', 'CINF', 'EQT', 'EXPE', 'ENPH', 'CHD', 'EXPD', 'COF', 'KEY',
   'BEAM', 'PODD', 'MTCH', 'HUBS', 'MRNA', 'ILMN', 'TFC', 'RF', 'NTRS', 'AEP',
 
-  // Mid-large 251-400
+  // Mid-large 251-400 (Russell-only 비중 높음)
   'OMC', 'HIG', 'VLTO', 'WAB', 'MAS', 'ED', 'CTLT', 'BBWI', 'GPC', 'CLX',
   'AKAM', 'ALGN', 'ATO', 'IEX', 'LYB', 'MKC', 'APA', 'ZBRA', 'LDOS', 'DTE',
   'PPL', 'WY', 'AVY', 'AIZ', 'RJF', 'JKHY', 'EMN', 'CF', 'RPM', 'PEAK',
   'ALB', 'WRB', 'MOH', 'HRL', 'TPR', 'EPAM', 'ETSY', 'SIRI', 'AMCR', 'NRG',
   'CTVA', 'PKI', 'TXT', 'BWA', 'POOL', 'HST', 'IPG', 'JNPR', 'RE', 'L',
   'SNA', 'GRMN', 'AAP', 'KHC', 'NTAP', 'DRI', 'INCY', 'MHK', 'TFX', 'BEN',
-  'WYNN', 'EQH', 'FOX', 'FOXA', 'NWS', 'NWSA', 'IPG', 'PARA', 'WBD', 'LKQ',
+  'WYNN', 'EQH', 'FOX', 'FOXA', 'NWS', 'NWSA', 'PARA', 'WBD', 'LKQ',
   'SWKS', 'ARE', 'CPT', 'EXR', 'UDR', 'ESS', 'AVB', 'MAA', 'NVR', 'PHM',
   'DHI', 'LEN', 'TOL', 'MDC', 'KBH', 'BLD', 'BLDR', 'IBP', 'DOOR', 'MHO',
-  'SSD', 'NVT', 'WMS', 'FBIN', 'MM', 'IBN', 'BPMC', 'SRPT', 'RARE', 'ALNY',
+  'SSD', 'NVT', 'WMS', 'FBIN', 'BPMC', 'SRPT', 'RARE', 'ALNY',
 
   // Mid-cap 401-550
-  'BMRN', 'ROIV', 'EXEL', 'ARWR', 'CCCC', 'NBIX', 'SAGE', 'MDGL', 'RCUS', 'FOLD',
-  'DAY', 'CTRA', 'MGY', 'OXY', 'DVN', 'MRO', 'APA', 'EOG', 'PXD', 'FANG',
-  'HES', 'PSX', 'VLO', 'MPC', 'PBF', 'DKS', 'GPS', 'ANF', 'AEO', 'URBN',
-  'VSCO', 'RL', 'PVH', 'HBI', 'COLM', 'SKX', 'CROX', 'DECK', 'GFL', 'WGO',
-  'HZO', 'BC', 'DOCU', 'BOX', 'DDOG', 'ESTC', 'MDB', 'FROG', 'GTLB', 'S',
-  'ZS', 'CRWD', 'OKTA', 'SAIL', 'QLYS', 'TPVG', 'TENB', 'RPD', 'CERT', 'VRNS',
-  'DT', 'BRZE', 'ASAN', 'MNDY', 'PTC', 'WDAY', 'VEEV', 'PLAN', 'QTWO', 'PCTY',
-  'PAYC', 'HCM', 'NEOG', 'ICAD', 'RMBS', 'SLAB', 'MPWR', 'SITM', 'DIOD', 'FORM',
-  'CRUS', 'SMTC', 'AMBA', 'POWI', 'AOSL', 'SMTX', 'AEHR', 'AXTI', 'KLIC', 'IIVI',
-  'IPGP', 'VIAV', 'COHU', 'CCMP', 'ENTG', 'LAM', 'UCTT', 'CAMT', 'AMAT', 'MKSI',
+  'BMRN', 'ROIV', 'EXEL', 'ARWR', 'NBIX', 'MDGL',
+  'DAY', 'CTRA', 'MGY', 'OXY', 'DVN', 'MRO', 'EOG',
+  'DKS', 'GPS', 'ANF', 'AEO', 'URBN',
+  'VSCO', 'RL', 'PVH', 'HBI', 'COLM', 'SKX', 'CROX', 'DECK', 'WGO',
+  'HZO', 'BC', 'DOCU', 'BOX', 'DDOG', 'ESTC', 'MDB', 'GTLB', 'S',
+  'ZS', 'CRWD', 'OKTA', 'QLYS', 'TENB', 'RPD', 'VRNS',
+  'DT', 'BRZE', 'ASAN', 'MNDY', 'PTC', 'WDAY', 'VEEV', 'QTWO', 'PCTY',
+  'PAYC', 'MPWR', 'SITM', 'DIOD',
+  'CRUS', 'AMBA', 'POWI', 'KLIC',
+  'IPGP', 'VIAV', 'COHU', 'ENTG', 'MKSI',
 
   // Mid-cap 551-700
-  'ACLS', 'BRKS', 'KLA', 'ONTO', 'RTLR', 'RGEN', 'AZTA', 'TRMK', 'MATX', 'JBHT',
-  'HUBG', 'CHRW', 'SAIA', 'XPO', 'GXO', 'TFII', 'WERN', 'KNX', 'HTLD', 'USX',
-  'ARCB', 'OLD', 'ODFL', 'MRTN', 'PTSI', 'RXO', 'DCOM', 'LSTR', 'CVLG', 'SNDR',
-  'ALK', 'SKYW', 'MESA', 'HA', 'SAVE', 'ULCC', 'JOBY', 'LILM', 'ACEL', 'RLAY',
-  'CRS', 'HWM', 'TGI', 'SPR', 'KTOS', 'AJRD', 'AVAV', 'SPCE', 'RDW', 'NU',
-  'SOFI', 'LCNB', 'NRDS', 'OPFI', 'LX', 'CURO', 'CASH', 'OPB', 'PRAA', 'WRLD',
-  'QRVO', 'COHR', 'ITRN', 'PLAB', 'ACMR', 'SSYS', 'DDD', 'MKFG', 'NNDM', 'VLD',
-  'SPEE', 'RDNT', 'HIMS', 'HIMS', 'LZ', 'GH', 'NTRA', 'SDGR', 'RXRX', 'BHVN',
-  'KRTX', 'DAWN', 'TGTX', 'ACHC', 'CRVS', 'AGEN', 'IMGO', 'INM', 'CLLS', 'GERN',
-  'CELH', 'VITL', 'DENN', 'JACK', 'BLMN', 'EAT', 'RRGB', 'CAKE', 'FAT', 'CZRX',
+  'ACLS', 'BRKS', 'KLA', 'ONTO', 'RGEN', 'AZTA', 'MATX', 'JBHT',
+  'HUBG', 'CHRW', 'SAIA', 'XPO', 'GXO', 'WERN', 'KNX',
+  'ARCB', 'ODFL', 'LSTR', 'SNDR',
+  'ALK', 'SKYW',
+  'CRS', 'HWM', 'KTOS', 'AVAV',
+  'SOFI', 'OPFI',
+  'QRVO', 'COHR', 'PLAB', 'ACMR', 'SSYS',
+  'RDNT', 'HIMS', 'LZ', 'GH', 'NTRA', 'SDGR', 'RXRX', 'BHVN',
+  'KRTX', 'TGTX', 'ACHC',
+  'CELH', 'VITL', 'DENN', 'JACK', 'BLMN', 'EAT', 'CAKE',
 
   // Mid-cap 701-850
-  'PENN', 'DKNG', 'BALY', 'CHDN', 'MTR', 'EVRI', 'AGS', 'GDEN', 'GAN', 'CNX',
-  'AR', 'RRC', 'EQT', 'GPOR', 'CTRA', 'SM', 'CRGY', 'ESTE', 'GRNT', 'KOS',
-  'MXP', 'KNTK', 'FTAI', 'AFG', 'CNF', 'SITC', 'KRG', 'BNL', 'GTY', 'PSTL',
-  'IIPR', 'NLCP', 'MDV', 'GMRE', 'PINE', 'SAFE', 'PLYM', 'EPRT', 'ADC', 'NNN',
-  'NTST', 'SRC', 'FCPT', 'PECO', 'ROIC', 'AAT', 'WPC', 'OHI', 'LTC', 'SBRA',
-  'CTRE', 'CSR', 'ESTR', 'CLDT', 'XHR', 'PEB', 'APLE', 'SHO', 'SOHO', 'RHP',
-  'PK', 'BHR', 'CMBS', 'BRSP', 'MFA', 'PMT', 'TWO', 'MITT', 'NYMT', 'BXMT',
-  'KREF', 'ARI', 'GPMT', 'TPVG', 'GAIN', 'SLRC', 'FSK', 'ARCC', 'GBDC', 'OCSL',
-  'FDUS', 'PNNT', 'KCAP', 'TICC', 'PFLT', 'TPVG', 'MRCC', 'KCAP', 'GSBD', 'TCPC',
-  'CGBD', 'ORCC', 'HLNE', 'BX', 'KKR', 'APO', 'CG', 'ARES', 'OWL', 'STEP',
+  'PENN', 'DKNG', 'BALY', 'CHDN',
+  'AR', 'RRC', 'SM', 'CRGY',
+  'KNTK', 'FTAI', 'AFG', 'SITC', 'KRG', 'BNL', 'EPRT', 'ADC', 'NNN',
+  'NTST', 'SRC', 'FCPT', 'PECO', 'ROIC', 'WPC', 'OHI', 'LTC', 'SBRA',
+  'CTRE', 'CLDT', 'XHR', 'PEB', 'APLE', 'RHP',
+  'MFA', 'PMT', 'BXMT',
+  'KREF', 'ARI', 'FSK', 'ARCC', 'GBDC', 'OCSL',
+  'TCPC', 'ORCC', 'HLNE', 'BX', 'KKR', 'APO', 'CG', 'ARES', 'OWL', 'STEP',
 
-  // Smaller notable Russell 1000 851-1000
-  'BLUE', 'FOLD', 'PBYI', 'ATRC', 'HAYW', 'SWIM', 'LESL', 'BFAM', 'PRSC', 'LHCG',
-  'AGIO', 'GLNG', 'GLOG', 'PLAT', 'LUMN', 'FYBR', 'UNIT', 'LBRDP', 'CHTR', 'ATUS',
-  'CABO', 'CMCO', 'SXCL', 'ACNB', 'AROW', 'CASH', 'CATC', 'CFFI', 'CHMG', 'TOWN',
-  'CNB', 'COBZ', 'CPKF', 'FCF', 'FXNC', 'MBWM', 'MCBC', 'MFNB', 'MYFW', 'NBTB',
-  'NFBK', 'NKBK', 'NWIN', 'OFG', 'OSHC', 'OVLY', 'PBAM', 'PTRS', 'PVBC', 'RDN',
-  'RNST', 'RVSB', 'SBCF', 'SHBI', 'SMBC', 'TCBK', 'TCFC', 'TPVG', 'TRMK', 'TRST',
-  'UCBI', 'UMBF', 'VBTX', 'VLAY', 'WAFD', 'NYCB', 'FFIN', 'BANF', 'BOKF', 'FHN',
-  'FCNCA', 'CVBF', 'IBCP', 'SFNC', 'HTLF', 'FULT', 'PACW', 'ZION', 'CMA', 'SNV',
-  'VLY', 'HOPE', 'BANR', 'ISBC', 'PMBC', 'ENS', 'BECN', 'LYFT', 'GRAB', 'ABNB',
-  'DASH', 'RBLX', 'U', 'COIN', 'RDFN', 'OPEN', 'OPAD', 'CVNA', 'VRM', 'AUTO',
+  // Smaller Russell-only 851-1000
+  'TTWO', 'LUMN', 'FYBR', 'CHTR', 'CABO',
+  'FFIN', 'BANF', 'BOKF', 'FHN',
+  'FCNCA', 'CVBF', 'SFNC', 'HTLF', 'FULT', 'ZION', 'CMA', 'SNV',
+  'VLY', 'HOPE', 'BANR',
+  'LYFT', 'GRAB', 'ABNB',
+  'DASH', 'RBLX', 'U', 'COIN', 'CVNA',
+  'NDAQ', 'NET', 'CSGP', 'MNDY', 'FROG', 'SAIL', 'CERT',
+  'PLAN', 'HCM', 'NEOG', 'RMBS', 'SLAB', 'FORM',
+  'SMTC', 'AOSL', 'AEHR', 'AXTI',
+  'CCMP', 'UCTT', 'CAMT', 'LAM',
+  'RTLR', 'TRMK', 'HUBG', 'MRTN',
+  'MESA', 'HA', 'ULCC',
+  'TGI', 'SPR', 'RDW', 'NU',
+  'LCNB', 'NRDS', 'LX', 'CURO', 'CASH', 'PRAA', 'WRLD',
+  'ITRN', 'DDD', 'VLD',
+  'GERN', 'AGEN', 'CLLS', 'RCUS', 'FOLD',
+  'BMRN', 'EXEL', 'ARWR', 'NBIX',
 ];
 
 /**
- * 전체 Russell 1000 유니버스를 반환합니다 (셔플 없음).
- * 텐배거 분석은 이 목록 전체를 순서대로 분석합니다.
+ * Russell 1000 유니버스에서 S&P 500 종목을 제외한 목록을 반환합니다.
+ * 이 방식으로 상대적으로 덜 알려진 중형주에서 텐배거 후보를 발굴합니다.
  */
 export function getStockUniverse(): string[] {
-  return Array.from(new Set(RUSSELL1000_TICKERS));
+  const unique = Array.from(new Set(RUSSELL1000_ALL));
+  return unique.filter(ticker => !SP500_TICKERS.has(ticker));
 }
 
 export function getTop300ByMarketCap(): string[] {

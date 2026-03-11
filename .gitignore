@@ -41,6 +41,10 @@ yarn-error.log*
 /uploads/
 *.log
 
+# application logs (date-based)
+/logs/
+
+
 # context & agents
 *.md
 !README.md

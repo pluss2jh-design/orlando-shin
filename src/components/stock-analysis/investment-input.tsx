@@ -60,10 +60,10 @@ export function InvestmentInput({ onAnalyze, disabled }: InvestmentInputProps) {
   const handleAnalyze = () => {
     onAnalyze?.({
       amount: 0,
-      periodMonths: 12,
       companyCount,
     });
   };
+
 
   const isLimitReached =
     userFeatures !== null &&
@@ -105,8 +105,8 @@ export function InvestmentInput({ onAnalyze, disabled }: InvestmentInputProps) {
                 key={n}
                 onClick={() => setCompanyCount(n)}
                 className={`w-8 h-8 rounded-lg text-sm font-black transition-all ${companyCount === n
-                    ? 'bg-blue-600 text-white shadow-sm'
-                    : 'text-gray-500 hover:bg-gray-100'
+                  ? 'bg-blue-600 text-white shadow-sm'
+                  : 'text-gray-500 hover:bg-gray-100'
                   }`}
               >
                 {n}
