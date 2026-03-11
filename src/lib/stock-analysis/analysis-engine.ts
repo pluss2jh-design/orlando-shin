@@ -22,8 +22,7 @@ import { getStockUniverse } from './universe';
 
 /**
  * 기업 분석 엔진 메인 함수
- * S&P 500, Russell 1000, Dow Jones 등 300개 기업 유니버스를 대상으로
- * 학습된 투자 규칙에 따른 점수를 산정하여 TOP 5를 추천합니다.
+ * Russell 1000 전체 유니버스를 대상으로 7-Step 텐배거 점수를 산정하여 TOP N을 추천합니다.
  */
 export async function runAnalysisEngine(
   conditions: InvestmentConditions,
@@ -36,12 +35,15 @@ export async function runAnalysisEngine(
   newsApiKey?: string,
   onProgress?: (progress: number, message: string) => void
 ): Promise<RecommendationResult> {
-  console.log(`Starting analysis engine with universe screening...`);
+  console.log(`Starting analysis: full Russell 1000 7-Step scan...`);
 
-  if (onProgress) onProgress(5, '시장 유니버스 구성 및 환율 정보 수집 중...');
+  if (onProgress) onProgress(2, 'Russell 1000 유니버스 로딩 및 환율 수집 중...');
   const exchangeRate = await fetchExchangeRate();
+
+  // Russell 1000 전체를 순서대로 (셔플 없음, 실시간/인기 종목 제외)
   const universe = getStockUniverse();
-  console.log(`Universe size: ${universe.length} tickers`);
+  const totalCount = universe.length;
+  console.log(`Universe size: ${totalCount} tickers (Russell 1000)`);
 
   // 모든 규칙 카테고리 통합
   const criteria = knowledge.criteria;
@@ -52,7 +54,6 @@ export async function runAnalysisEngine(
     ...(criteria.unitEconomicsRules || []).map(r => ({ ...r, category: 'unit_economics' })),
     ...(criteria.lifecycleRules || []).map(r => ({ ...r, category: 'lifecycle' })),
     ...(criteria.buyTimingRules || []).map(r => ({ ...r, category: 'timing' })),
-    // 전략 조건들 추가 (InvestmentStrategy)
     ...(knowledge.strategy?.shortTermConditions || []).map(s => ({ rule: s, category: 'strategy', weight: 0.8, source: { fileName: '전략' } as any })),
     ...(knowledge.strategy?.longTermConditions || []).map(s => ({ rule: s, category: 'strategy', weight: 0.9, source: { fileName: '전략' } as any })),
     ...(knowledge.strategy?.winningPatterns || []).map(s => ({ rule: s, category: 'strategy', weight: 0.7, source: { fileName: '전략' } as any })),
@@ -60,12 +61,13 @@ export async function runAnalysisEngine(
 
   console.log(`Evaluating ${allRules.length} rules for each company.`);
 
-  // 기본 시세 데이터 1차 조회 (배치 처리)
+  // ── Phase 1: 배치 시세 조회 ──
   const batchSize = 25;
   const allYahooData: YahooFinanceData[] = [];
 
   for (let i = 0; i < universe.length; i += batchSize) {
-    if (onProgress) onProgress(10 + Math.floor((i / universe.length) * 20), `기초 데이터 수집 중... (${i}/${universe.length})`);
+    const pct = 3 + Math.floor((i / totalCount) * 15);
+    if (onProgress) onProgress(pct, `[1/2] 시세 수집 중... ${i} / ${totalCount}개`);
     const batch = universe.slice(i, i + batchSize);
     try {
       const quotes = await fetchBatchQuotes(batch);
@@ -94,26 +96,31 @@ export async function runAnalysisEngine(
     totalScore: number;
   }> = [];
 
-  // 상세 데이터 조회 및 규칙 점수 산정 (청크 병렬 처리)
-  const chunkSize = 10;
+  // ── Phase 2: 상세 재무 데이터 + 7-Step 점수 산정 ──
+  let analyzedCount = 0;
+  const chunkSize = 5;
   for (let i = 0; i < validStocks.length; i += chunkSize) {
-    if (onProgress) onProgress(30 + Math.floor((i / validStocks.length) * 60), `기업 상세 재무 데이터 수집 및 분석 중... (${i}/${validStocks.length})`);
     const chunk = validStocks.slice(i, i + chunkSize);
     await Promise.all(chunk.map(async (stock) => {
       try {
         const fullData = await fetchYahooFinanceData(stock.ticker, conditions.periodMonths || 12);
 
+        // 섹터 필터
         if (conditions.sector && conditions.sector !== 'ALL') {
           const stockSector = (fullData.sector || (stock as any).sector || '').toLowerCase().trim();
           const targetSector = conditions.sector.toLowerCase().trim();
-
-          // 섹터 문자열이 포함되어 있는지 확인 (예: 'Technology' vs 'tech')
           if (!stockSector.includes(targetSector) && !targetSector.includes(stockSector)) {
-            console.log(`Skipping ${stock.ticker}: Sector mismatch (${stockSector} vs ${targetSector})`);
-            return; // Skip this stock
+            analyzedCount++;
+            return;
           }
-          console.log(`Matched ${stock.ticker} for sector ${targetSector}`);
         }
+
+        analyzedCount++;
+        const donePct = 18 + Math.floor((analyzedCount / validStocks.length) * 79);
+        if (onProgress) onProgress(
+          donePct,
+          `[2/2] 7-Step 분석 중... ${analyzedCount} / ${validStocks.length}개 완료`
+        );
 
         let periodReturn = 0;
         if (fullData.priceHistory && fullData.priceHistory.length >= 2) {
@@ -148,7 +155,6 @@ export async function runAnalysisEngine(
 
         for (const ruleObj of allRules) {
           const scoreResult = calculateRuleScore(ruleObj.rule, fullData, company);
-          // 데이터가 부족한 경우 stock(배치 데이터)에서라도 정보를 찾아 점수 보정
           if (scoreResult.score === 5 && scoreResult.reason === '보통') {
             const refinedScore = calculateRuleScore(ruleObj.rule, stock, company);
             if (refinedScore.score !== 5) {
@@ -175,7 +181,6 @@ export async function runAnalysisEngine(
           if (fullData.trailingPE && fullData.trailingPE > 0 && fullData.trailingPE < 12) strategyBonus += 1.5;
         }
 
-        // 0-10점 척도로 정규화 (AGENTS.md Rule 5 준수)
         let finalScore = totalWeightSum > 0 ? (weightedScoreSum / totalWeightSum) : 5;
         finalScore = Math.min(10, finalScore + strategyBonus);
 
@@ -189,10 +194,13 @@ export async function runAnalysisEngine(
         });
       } catch (err) {
         console.error(`Deep analysis failed for ${stock.ticker}:`, err);
+        analyzedCount++;
       }
     }));
-    await new Promise(resolve => setTimeout(resolve, 500));
+    await new Promise(resolve => setTimeout(resolve, 300));
   }
+
+
 
   if (onProgress) onProgress(95, '분석 완료! 수익률 및 점수 기반 결과 정렬 중...');
 

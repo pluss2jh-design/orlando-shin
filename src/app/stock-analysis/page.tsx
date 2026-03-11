@@ -320,22 +320,25 @@ export default function StockAnalysisPage() {
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 shrink-0" />
               <div className="flex-1">
                 <div className="flex items-center justify-between mb-2">
-                  <p className="font-black text-sm text-gray-900">AI 분석 진행 중</p>
-                  <span className="text-sm font-black text-blue-600">{analysisState.progress}%</span>
+                  <div>
+                    <p className="font-black text-sm text-gray-900">Russell 1000 전체 7-Step 스캔 중</p>
+                    <p className="text-xs text-gray-500 font-medium mt-0.5">
+                      {analysisState.progressMessage || '초기화 중...'}
+                    </p>
+                  </div>
+                  <span className="text-2xl font-black text-blue-600 tabular-nums">{analysisState.progress}%</span>
                 </div>
-                <div className="w-full bg-gray-100 rounded-full h-2 overflow-hidden">
+                <div className="w-full bg-gray-100 rounded-full h-3 overflow-hidden">
                   <div
-                    className="bg-blue-500 h-2 rounded-full transition-all duration-500 ease-out"
+                    className="bg-gradient-to-r from-blue-500 to-blue-400 h-3 rounded-full transition-all duration-300 ease-out"
                     style={{ width: `${analysisState.progress}%` }}
                   />
                 </div>
-                <p className="text-xs text-gray-500 mt-1.5 font-medium">
-                  {analysisState.progressMessage || '초기화 중...'}
-                </p>
               </div>
             </div>
           </div>
         )}
+
 
         {/* 에러 */}
         {analysisState.error && !analysisState.isAnalyzing && (

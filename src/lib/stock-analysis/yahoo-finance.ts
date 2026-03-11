@@ -312,3 +312,25 @@ export function calculateHistoricalVolatility(
 
   return Math.sqrt(variance);
 }
+
+export async function fetchTrendingTickers(): Promise<string[]> {
+  try {
+    const result = await yahooFinance.trendingSymbols('US') as any;
+    return (result.trending || []).map((t: any) => t.symbol).filter(Boolean) as string[];
+  } catch (error) {
+    console.warn('Failed to fetch trending tickers:', error);
+    return [];
+  }
+}
+
+
+export async function fetchDailyGainers(): Promise<string[]> {
+  try {
+    const result = await (yahooFinance as any).dailyGainers({ count: 20, region: 'US' });
+    return (result.quotes || []).map((q: any) => q.symbol).filter(Boolean) as string[];
+  } catch (error) {
+    console.warn('Failed to fetch daily gainers:', error);
+    return [];
+  }
+}
+
