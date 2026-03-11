@@ -155,6 +155,8 @@ export default function StockAnalysisPage() {
         financialHistory: pick.yahooData?.financialHistory,
         returnRates: pick.yahooData?.returnRates,
         tenbaggerScore: pick.tenbaggerScore,
+        sector: pick.yahooData?.sector || pick.company?.sector,
+
       }));
 
       setAnalysisState(prev => ({ ...prev, results, isAnalyzing: false }));

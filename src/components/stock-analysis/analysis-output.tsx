@@ -280,6 +280,19 @@ export function AnalysisOutput({ results, conditions, isLoading, onSendEmail }: 
   };
 
   if (selectedCompanyIndex === null) {
+    // 7 step 합산 점수 내림차순 정렬
+    const sortedResults = [...results].sort((a, b) => {
+      const aScore = a.tenbaggerScore?.totalScore ?? a.totalRuleScore ?? 0;
+      const bScore = b.tenbaggerScore?.totalScore ?? b.totalRuleScore ?? 0;
+      return bScore - aScore;
+    });
+
+    const stepColors = [
+      'bg-blue-500', 'bg-violet-500', 'bg-emerald-500', 'bg-amber-500',
+      'bg-orange-500', 'bg-rose-500', 'bg-cyan-500',
+    ];
+    const stepLabels = ['S1', 'S2', 'S3', 'S4', 'S5', 'S6', 'S7'];
+
     return (
       <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
@@ -292,52 +305,91 @@ export function AnalysisOutput({ results, conditions, isLoading, onSendEmail }: 
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {results.map((result, idx) => (
-            <Card key={result.ticker || idx}
-              className="cursor-pointer group bg-white border-gray-200 hover:bg-gray-50 hover:border-blue-500/40 hover:shadow-lg transition-all duration-300 relative overflow-hidden"
-              onClick={() => setSelectedCompanyIndex(idx)}
-            >
-              <div className="absolute left-0 top-0 h-full w-[3px] bg-blue-500 opacity-0 group-hover:opacity-100 transition-opacity" />
-              <CardContent className="p-5 flex flex-col justify-between h-full gap-4">
-                <div className="flex items-start justify-between">
-                  <div>
-                    <h3 className="text-lg font-black text-gray-900 group-hover:text-blue-600 transition-colors flex items-center gap-2 mb-2 line-clamp-1">
-                      {result.companyName}
-                    </h3>
-                    <div className="flex flex-wrap items-center gap-2">
-                      <Badge variant="secondary" className="bg-blue-50 text-blue-600 hover:bg-blue-100 border-none px-2 text-[10px]">{result.ticker}</Badge>
-                      <span className="text-gray-500 text-[10px] uppercase font-bold">{result.market}</span>
-                      {getRiskBadge(result.riskLevel)}
+          {sortedResults.map((result, idx) => {
+            const originalIdx = results.indexOf(result);
+            return (
+              <Card key={result.ticker || idx}
+                className="cursor-pointer group bg-white border-gray-200 hover:bg-gray-50 hover:border-blue-500/40 hover:shadow-lg transition-all duration-300 relative overflow-hidden"
+                onClick={() => setSelectedCompanyIndex(originalIdx)}
+              >
+                <div className="absolute left-0 top-0 h-full w-[3px] bg-blue-500 opacity-0 group-hover:opacity-100 transition-opacity" />
+                <CardContent className="p-5 flex flex-col gap-4">
+                  {/* 헤더: 기업명 + 순번 */}
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1 min-w-0">
+                      <h3 className="text-lg font-black text-gray-900 group-hover:text-blue-600 transition-colors mb-1.5 truncate">
+                        {result.companyName}
+                      </h3>
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <Badge variant="secondary" className="bg-blue-50 text-blue-600 border-none px-2 text-[10px]">{result.ticker}</Badge>
+                        <span className="text-gray-400 text-[10px] uppercase font-bold">{result.market}</span>
+                        {getRiskBadge(result.riskLevel)}
+                      </div>
+                    </div>
+                    <span className="text-3xl font-black text-gray-100 group-hover:text-blue-50 transition-colors shrink-0 ml-2">
+                      {String(idx + 1).padStart(2, '0')}
+                    </span>
+                  </div>
+
+                  {/* 섹터 */}
+                  {result.sector && (
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Sector</span>
+                      <span className="text-[11px] font-bold text-gray-600 bg-gray-100 px-2 py-0.5 rounded-full">{result.sector}</span>
+                    </div>
+                  )}
+
+                  {/* 7 Step 점수 바 */}
+                  {result.tenbaggerScore && (
+                    <div>
+                      <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1.5">7-Step Score</p>
+                      <div className="flex gap-1">
+                        {result.tenbaggerScore.steps.map((step, si) => (
+                          <div key={si} className="flex-1">
+                            <div className="flex items-center justify-center mb-0.5">
+                              <span className="text-[8px] font-black text-gray-400">{stepLabels[si]}</span>
+                            </div>
+                            <div className={cn(
+                              'h-1.5 rounded-full transition-all',
+                              step.passed ? stepColors[si] : 'bg-gray-200'
+                            )} />
+                            <div className="flex items-center justify-center mt-0.5">
+                              <span className={cn(
+                                'text-[9px] font-black',
+                                step.score >= 8 ? 'text-emerald-500' : step.score >= 5 ? 'text-amber-500' : 'text-rose-400'
+                              )}>{step.score}</span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* 하단: 점수 + 화살표 */}
+                  <div className="flex items-end justify-between pt-3 border-t border-gray-100">
+                    <div>
+                      <p className="text-[10px] text-gray-400 uppercase font-black tracking-widest mb-1">Ten-bagger Score</p>
+                      {result.tenbaggerScore ? (
+                        <div className="flex items-baseline gap-1">
+                          <p className={cn('text-2xl font-black font-mono leading-none',
+                            result.tenbaggerScore.percentage >= 70 ? 'text-emerald-500' :
+                              result.tenbaggerScore.percentage >= 50 ? 'text-amber-500' : 'text-rose-400'
+                          )}>{result.tenbaggerScore.percentage}%</p>
+                          <span className="text-xs text-gray-400">{result.tenbaggerScore.steps.filter(s => s.passed).length}/7단계</span>
+                        </div>
+                      ) : (
+                        <p className="text-2xl font-black text-gray-900 font-mono leading-none">{result.totalRuleScore}<span className="text-sm text-gray-400 font-medium">/{result.maxPossibleScore}</span></p>
+                      )}
+                      {result.tenbaggerScore && <p className="text-[10px] font-bold text-blue-500 mt-0.5">{result.tenbaggerScore.allocationLabel}</p>}
+                    </div>
+                    <div className="w-8 h-8 rounded-full bg-gray-50 group-hover:bg-blue-50 flex items-center justify-center transition-colors shadow-sm border border-gray-100 group-hover:border-blue-100">
+                      <ArrowRight className="h-4 w-4 text-gray-400 group-hover:text-blue-500 transition-colors" />
                     </div>
                   </div>
-                  <span className="text-3xl font-black text-gray-100 group-hover:text-blue-50 transition-colors">
-                    {String(idx + 1).padStart(2, '0')}
-                  </span>
-                </div>
-
-                <div className="flex items-end justify-between mt-4 pt-4 border-t border-gray-100">
-                  <div>
-                    <p className="text-[10px] text-gray-400 uppercase font-black tracking-widest mb-1">Ten-bagger Score</p>
-                    {result.tenbaggerScore ? (
-                      <div className="flex items-baseline gap-1">
-                        <p className={cn('text-2xl font-black font-mono leading-none',
-                          result.tenbaggerScore.percentage >= 70 ? 'text-emerald-500' :
-                            result.tenbaggerScore.percentage >= 50 ? 'text-amber-500' : 'text-rose-400'
-                        )}>{result.tenbaggerScore.percentage}%</p>
-                        <span className="text-xs text-gray-400">{result.tenbaggerScore.steps.filter(s => s.passed).length}/7단계</span>
-                      </div>
-                    ) : (
-                      <p className="text-2xl font-black text-gray-900 font-mono leading-none">{result.totalRuleScore}<span className="text-sm text-gray-400 font-medium">/{result.maxPossibleScore}</span></p>
-                    )}
-                    {result.tenbaggerScore && <p className="text-[10px] font-bold text-blue-500 mt-0.5">{result.tenbaggerScore.allocationLabel}</p>}
-                  </div>
-                  <div className="w-8 h-8 rounded-full bg-gray-50 group-hover:bg-blue-50 flex items-center justify-center transition-colors shadow-sm border border-gray-100 group-hover:border-blue-100">
-                    <ArrowRight className="h-4 w-4 text-gray-400 group-hover:text-blue-500 transition-colors" />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+                </CardContent>
+              </Card>
+            );
+          })}
         </div>
 
         <Card className={cn(
@@ -427,13 +479,7 @@ export function AnalysisOutput({ results, conditions, isLoading, onSendEmail }: 
               </div>
             </div>
 
-            <div className="text-left sm:text-right bg-gray-50/50 p-4 rounded-xl border border-gray-200/50 backdrop-blur-sm">
-              <p className="text-[10px] font-mono text-gray-500 tracking-widest mb-1 uppercase font-black">AI Assessment Score</p>
-              <div className="flex items-baseline gap-1 justify-start sm:justify-end">
-                <span className="text-4xl font-black text-blue-400 font-mono tracking-tighter">{result.totalRuleScore}</span>
-                <span className="text-lg text-gray-600 font-mono">/{result.maxPossibleScore}</span>
-              </div>
-            </div>
+
           </div>
         </CardHeader>
 

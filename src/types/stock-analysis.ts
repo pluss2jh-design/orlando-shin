@@ -70,7 +70,9 @@ export interface AnalysisResult {
     oneMonth?: number;
   };
   tenbaggerScore?: TenbaggerScoreResult;
+  sector?: string;
 }
+
 
 export interface FilteredCandidate {
   company: ExtractedCompanyAnalysis;
