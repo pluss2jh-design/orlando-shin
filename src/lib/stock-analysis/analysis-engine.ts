@@ -420,11 +420,12 @@ function calculateTenbaggerScore(
         description: `손익계산서의 Revenue 항목에서 전년과 금년 매출을 비교하면 성장률 ${(revenueGrowth * 100).toFixed(1)}%가 도출됩니다. 3년 이상 지속적으로 성장 중인지 여기서 추가 확인할 수 있습니다.`
       },
       {
-        label: 'Macrotrends — Revenue 검색',
-        url: `https://www.macrotrends.net/search?query=${tk}+revenue`,
+        label: 'Google Search — Macrotrends Revenue',
+        url: `https://www.google.com/search?q=site:macrotrends.net+${tk}+revenue`,
         metric: '연간 매출 성장 추이',
-        description: `현재 ${(revenueGrowth * 100).toFixed(1)}% 성장이 일회성인지, 3년 이상 이어지는 구조적 성장인지 이 차트로 확인합니다. 구조적 성장이 확인되면 텐배거 패러다임 변화 산업의 핵심 조건을 충족합니다.`
+        description: `현재 ${(revenueGrowth * 100).toFixed(1)}% 성장이 일회성인지, 3년 이상 이어지는 구조적 성장인지 확인합니다. 구조적 성장이 확인되면 텐배거 패러다임 변화 산업의 핵심 조건을 충족합니다.`
       },
+
     ],
   });
 
@@ -519,17 +520,18 @@ function calculateTenbaggerScore(
         description: `ROE(자기자본이익률) ${roe.toFixed(1)}%가 핵심 수치입니다. "내 돈 100원으로 ${roe.toFixed(0)}원을 번다"는 의미입니다. 20% 초과 → 10점, 15~20% → 8점, 8~15% → 6점(통과), 0~8% → 4점, 적자 → 1점. 매출성장률 ${(revenueGrowth * 100).toFixed(1)}%가 20% 초과이고 ROE도 15% 초과이면 보너스 1점 추가. 현재 ${step4Score}점입니다.`
       },
       {
-        label: 'Macrotrends — ROE 검색',
-        url: `https://www.macrotrends.net/search?query=${tk}+return+on+equity`,
+        label: 'Google Search — Macrotrends ROE',
+        url: `https://www.google.com/search?q=site:macrotrends.net+${tk}+return+on+equity`,
         metric: 'Return on Equity 추이',
         description: `${tk}의 ROE ${roe.toFixed(1)}%가 최근 3~5년간 꾸준히 상승 중인지 확인합니다. ROE가 지속적으로 우상향하는 기업은 경쟁우위가 강화되고 있다는 뜻으로, 텐배거 핵심 조건 중 하나입니다.`
       },
       {
-        label: 'Macrotrends — Revenue 검색',
-        url: `https://www.macrotrends.net/search?query=${tk}+revenue`,
+        label: 'Google Search — Macrotrends Revenue',
+        url: `https://www.google.com/search?q=site:macrotrends.net+${tk}+revenue`,
         metric: '연간 매출 성장 추이',
         description: `ROE ${roe.toFixed(1)}% + 매출성장률 ${(revenueGrowth * 100).toFixed(1)}% 조합이 3년 이상 지속되는지 확인합니다. 이 두 지표가 함께 우상향하는 기업은 "성장하면서도 효율이 좋아지는" 복리 기업의 전형적인 패턴입니다.`
       },
+
     ],
   });
 
@@ -622,11 +624,12 @@ function calculateTenbaggerScore(
         description: `PEG = Forward PER ÷ 매출성장률(%). ${step6Metric}. PEG < 1은 "성장 속도보다 저렴하게 거래 중(황금어장)" → 10점, PEG 1~2 → 7점, PEG > 2 → 4점. 현재 ${step6Score}점입니다. PEG가 낮을수록 빠르게 성장하는 기업을 싸게 살 수 있다는 의미입니다.`
       },
       {
-        label: 'Macrotrends — PE Ratio 검색',
-        url: `https://www.macrotrends.net/search?query=${tk}+pe+ratio`,
+        label: 'Google Search — Macrotrends PE Ratio',
+        url: `https://www.google.com/search?q=site:macrotrends.net+${tk}+pe+ratio`,
         metric: 'Forward / Trailing PE 추이',
-        description: `${tk}의 과거 PER 범위를 보면 현재 PER이 역사적으로 비싼지 싼지 알 수 있습니다. 과거 평균 PER보다 현재가 낮으면 상대적 저평가, 높으면 고평가 구간입니다. 이 맥락으로 Step 6 밸류에이션 판단을 추가 검증합니다.`
+        description: `${tk}의 과거 PER 범위를 보면 현재 PER이 역사적으로 비싼지 싼지 알 수 있습니다. 과거 평균 PER보다 현재가 낮으면 상대적 저평가, 높으면 고평가 구간입니다.`
       },
+
       {
         label: 'Seeking Alpha — 밸류에이션 분석',
         url: `https://seekingalpha.com/symbol/${tk}/valuation`,
@@ -663,11 +666,12 @@ function calculateTenbaggerScore(
         description: `Quant 등급(A+~F)과 Wall Street 애널리스트 목표가를 확인합니다. Quant B 이상 + 매수 의견 70% 이상이면, 정량 분석(1~6단계)과 전문가 정성 분석이 일치하는 강한 매수 신호로 ${step7Score}점을 뒷받침합니다.`
       },
       {
-        label: 'Macrotrends — Profit Margin 검색',
-        url: `https://www.macrotrends.net/search?query=${tk}+profit+margin`,
-        metric: '순이익률 종합 지표',
-        description: `순이익률이 최근 3년간 지속 상승 중이라면 "규모의 경제 실현" 단계입니다. 매출이 늘어도 비용 증가속도가 느려지면 이익이 더 빠르게 증가합니다. 이 패턴이 확인될수록 주가 상승 속도도 가속됩니다.`
+        label: 'Yahoo Finance — Financials Analysis',
+        url: yahooUrl('/financials'),
+        metric: '순이익률 추이 및 종합 지표',
+        description: `순이익률이 최근 3년간 지속 상승 중이라면 "규모의 경제 실현" 단계입니다. 매출이 늘어도 비용 증가속도가 느려지면 이익이 더 빠르게 증가합니다. Yahoo Finance의 연간/분기별 손익계산서에서 이를 직접 확인할 수 있습니다.`
       },
+
     ],
   });
 

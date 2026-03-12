@@ -7,8 +7,15 @@ function getLogFilePath(): string {
     const now = new Date();
     const kst = new Date(now.getTime() + 9 * 60 * 60 * 1000); // UTC+9
     const dateStr = kst.toISOString().slice(0, 10); // "YYYY-MM-DD"
-    return path.join(LOG_DIR, `${dateStr}.log`);
+    const dailyDir = path.join(LOG_DIR, dateStr);
+    
+    if (!fs.existsSync(dailyDir)) {
+        fs.mkdirSync(dailyDir, { recursive: true });
+    }
+    
+    return path.join(dailyDir, 'app.log');
 }
+
 
 function formatTimestamp(): string {
     const now = new Date();

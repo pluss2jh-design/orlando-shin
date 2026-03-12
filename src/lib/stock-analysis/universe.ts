@@ -111,3 +111,25 @@ export async function getStockUniverse(): Promise<string[]> {
   return unique;
 }
 
+export async function getUniverseCounts(): Promise<{ russellCount: number; sp500Count: number; finalCount: number }> {
+  try {
+    const [russell, sp500] = await Promise.all([
+      fetchRussell1000Tickers(),
+      fetchSP500Tickers(),
+    ]);
+
+    const filtered = russell.filter(t => !sp500.has(t));
+    const unique = Array.from(new Set(filtered));
+
+    return {
+      russellCount: russell.length,
+      sp500Count: sp500.size,
+      finalCount: unique.length,
+    };
+  } catch (error) {
+    console.error('Failed to get universe counts:', error);
+    return { russellCount: 0, sp500Count: 0, finalCount: 0 };
+  }
+}
+
+

@@ -42,6 +42,13 @@ export default function StockAnalysisPage() {
     summaries: [],
     isLoading: false,
   });
+  const [universeStats, setUniverseStats] = useState<{
+    russellCount: number;
+    sp500Count: number;
+    finalCount: number;
+  } | null>(null);
+
+
   const [userPlan, setUserPlan] = useState<string>('FREE');
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const analysisAlerted = useRef(false);
@@ -64,7 +71,23 @@ export default function StockAnalysisPage() {
         console.error('Failed to fetch user plan:', error);
       }
     };
-    if (session?.user) fetchUserPlan();
+    const fetchUniverseStats = async () => {
+      try {
+        const res = await fetch('/api/universe/counts');
+        if (res.ok) {
+          const data = await res.json();
+          setUniverseStats(data);
+        }
+      } catch (error) {
+        console.error('Failed to fetch universe stats:', error);
+      }
+    };
+
+    if (session?.user) {
+      fetchUserPlan();
+      fetchUniverseStats();
+    }
+
   }, [session]);
 
   useEffect(() => {
@@ -326,11 +349,19 @@ export default function StockAnalysisPage() {
               <div className="flex-1">
                 <div className="flex items-center justify-between mb-2">
                   <div>
-                    <p className="font-black text-sm text-gray-900">Russell 1000 전체 7-Step 스캔 중</p>
+                    <div className="flex items-center gap-2">
+                      <p className="font-black text-sm text-gray-900">Russell 1000 전체 7-Step 스캔 중</p>
+                      {universeStats && (
+                        <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 text-[10px] py-0 px-2 font-bold">
+                          UNIVERSE: R1000({universeStats.russellCount}) - SP500({universeStats.sp500Count}) = {universeStats.finalCount}
+                        </Badge>
+                      )}
+                    </div>
                     <p className="text-xs text-gray-500 font-medium mt-0.5">
                       {analysisState.progressMessage || '초기화 중...'}
                     </p>
                   </div>
+
                   <span className="text-2xl font-black text-blue-600 tabular-nums">{analysisState.progress}%</span>
                 </div>
                 <div className="w-full bg-gray-100 rounded-full h-3 overflow-hidden">
@@ -352,10 +383,19 @@ export default function StockAnalysisPage() {
           </div>
         )}
 
+        {universeStats && !analysisState.isAnalyzing && analysisState.results.length === 0 && (
+          <div className="mb-6 flex justify-center">
+            <Badge variant="outline" className="bg-white/50 text-gray-500 border-gray-200 text-xs py-1 px-4 font-bold shadow-sm">
+              전체 유니버스: 러셀1000({universeStats.russellCount}) - S&P500({universeStats.sp500Count}) = {universeStats.finalCount}개 기업 분석 준비 완료
+            </Badge>
+          </div>
+        )}
+
         {/* 분석 결과 */}
         <AnalysisOutput
           results={analysisState.results}
           conditions={analysisState.conditions}
+
           isLoading={analysisState.isAnalyzing}
           onSendEmail={handleSendEmail}
         />
