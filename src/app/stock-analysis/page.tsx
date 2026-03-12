@@ -404,18 +404,19 @@ export default function StockAnalysisPage() {
           </div>
         )}
 
-        {universeStats && !analysisState.isAnalyzing && analysisState.results.length === 0 && (
+        {universeStats && !analysisState.isAnalyzing && (
           <div className="mb-6 flex flex-col items-center gap-2">
             <Badge variant="outline" className="bg-white/50 text-gray-500 border-gray-200 text-xs py-1 px-4 font-bold shadow-sm">
-              전체 유니버스: 러셀1000({universeStats.russellCount}) - S&P500({universeStats.sp500Count}) = {universeStats.finalCount}개 기업 분석 준비 완료
+              분석 유니버스: 러셀1000({universeStats.russellCount}) - S&P500({universeStats.sp500Count}) = {universeStats.finalCount}개 기업 대상
             </Badge>
             {analysisState.excludedStockCount > 0 && (
               <p className="text-[10px] text-gray-400 font-medium">
-                * 이전 분석에서 {analysisState.excludedStockCount}개 종목이 시세 부재 등으로 제외되었습니다.
+                * (API 조회불가 / 신규 상장주 / 거래정지 및 데이터 오염) 종목 {analysisState.excludedStockCount}개 제외 완료
               </p>
             )}
           </div>
         )}
+
 
 
         {/* 분석 결과 */}

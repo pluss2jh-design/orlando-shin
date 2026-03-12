@@ -22,27 +22,35 @@ async function fetchRussell1000Tickers(): Promise<string[]> {
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const html = await res.text();
     
-    // Components 테이블 또는 링크를 통한 종목 파싱 (더 유연한 정규식 적용)
+    // constituents ID를 가진 테이블 섹션만 추출
+    const tableMatch = html.match(/<table[^>]*id="constituents"[^>]*>([\s\S]*?)<\/table>/);
+    if (!tableMatch) throw new Error('Russell 1000 구성종목 테이블(id="constituents")을 찾을 수 없습니다.');
+    
+    const tableHtml = tableMatch[1];
     const tickers = new Set<string>();
-    for (const re of [
-      /<td[^>]*>\s*<a[^>]*>([A-Z]{1,5}(?:\.[A-Z])?)<\/a>[\s\S]*?<\/td>/g,
-      /<td>\s*([A-Z]{1,5}(?:\.[A-Z])?)\s*<\/td>/g,
-      /title="([A-Z]{1,5})">/g, 
-    ]) {
-      for (const m of html.matchAll(re)) {
-        const t = m[1].replace('.', '-').trim();
-        if (t.length >= 1 && t.length <= 5) tickers.add(t);
+    
+    // Russell 1000: 2번째 열(Index 1)에 티커가 있음
+    const rowMatches = tableHtml.matchAll(/<tr>([\s\S]*?)<\/tr>/g);
+    for (const rowMatch of rowMatches) {
+      const cells = rowMatch[1].matchAll(/<t[dh][^>]*>([\s\S]*?)<\/t[dh]>/g);
+      const cellList = Array.from(cells);
+      if (cellList.length >= 2) {
+        // 2번째 열 데이터 추출 (태그 제거)
+        const rawTicker = cellList[1][1].replace(/<[^>]*>/g, '').trim();
+        // 티커 형식 검증 (1-5자 대문자)
+        if (/^[A-Z]{1,5}(\.[A-Z])?$/.test(rawTicker)) {
+          tickers.add(rawTicker.replace('.', '-'));
+        }
       }
     }
 
-
-
     if (tickers.size < 500) {
-      throw new Error(`조회된 기업 수가 너무 적습니다 (${tickers.size}개)`);
+      throw new Error(`Russell 1000 조회된 기업 수가 너무 적습니다 (${tickers.size}개)`);
     }
 
     console.log(`[Universe] Russell 1000 live: ${tickers.size} tickers`);
     return Array.from(tickers);
+
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error);
     throw new Error(`러셀 1000 기업 목록 조회 실패: ${msg}\n- 다음 링크를 확인하세요: ${url}`);
@@ -57,26 +65,34 @@ async function fetchSP500Tickers(): Promise<Set<string>> {
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const html = await res.text();
     
-    // S&P 500 components stocks 테이블 파싱 (더 유연한 정규식 적용)
+    // constituents ID를 가진 테이블 섹션만 추출
+    const tableMatch = html.match(/<table[^>]*id="constituents"[^>]*>([\s\S]*?)<\/table>/);
+    if (!tableMatch) throw new Error('S&P 500 구성종목 테이블(id="constituents")을 찾을 수 없습니다.');
+
+    const tableHtml = tableMatch[1];
     const tickers = new Set<string>();
-    for (const re of [
-      /<td[^>]*>\s*<a[^>]*>([A-Z]{1,5}(?:\.[A-Z])?)<\/a>[\s\S]*?<\/td>/g,
-      /<td>\s*([A-Z]{1,5}(?:\.[A-Z])?)\s*<\/td>/g,
-      /title="([A-Z]{1,5})">/g,
-    ]) {
-      for (const m of html.matchAll(re)) {
-        const t = m[1].replace('.', '-').trim();
-        if (t.length >= 1 && t.length <= 5) tickers.add(t);
+
+    // S&P 500: 1번째 열(Index 0)에 티커가 있음
+    const rowMatches = tableHtml.matchAll(/<tr>([\s\S]*?)<\/tr>/g);
+    for (const rowMatch of rowMatches) {
+      const cells = rowMatch[1].matchAll(/<t[dh][^>]*>([\s\S]*?)<\/t[dh]>/g);
+      const cellList = Array.from(cells);
+      if (cellList.length >= 1) {
+        // 1번째 열 데이터 추출 (태그 제거)
+        const rawTicker = cellList[0][1].replace(/<[^>]*>/g, '').trim();
+        if (/^[A-Z]{1,5}(\.[A-Z])?$/.test(rawTicker)) {
+          tickers.add(rawTicker.replace('.', '-'));
+        }
       }
     }
 
-
     if (tickers.size < 400) {
-      throw new Error(`조회된 기업 수가 너무 적습니다 (${tickers.size}개)`);
+      throw new Error(`S&P 500 조회된 기업 수가 너무 적습니다 (${tickers.size}개)`);
     }
 
     console.log(`[Universe] S&P 500 live: ${tickers.size} tickers. Has NVDA? ${tickers.has('NVDA')}`);
     return tickers;
+
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error);
     throw new Error(`S&P 500 기업 목록 조회 실패: ${msg}\n- 다음 링크를 확인하세요: ${url}`);
