@@ -34,8 +34,9 @@ export async function runAnalysisEngine(
   companyApiKey?: string,
   newsAiModel?: string,
   newsApiKey?: string,
-  onProgress?: (progress: number, message: string) => void
+  onProgress?: (progress: number, message: string, meta?: { excludedStockCount?: number }) => void
 ): Promise<RecommendationResult> {
+
   console.log(`Starting analysis: full Russell 1000 7-Step scan...`);
 
   if (onProgress) onProgress(2, 'Russell 1000 유니버스 실시간 로딩 중...');
@@ -86,9 +87,15 @@ export async function runAnalysisEngine(
   }
 
   const validStocks = allYahooData.filter(d => d.ticker && d.currentPrice > 0);
-  console.log(`Valid stocks for deep analysis: ${validStocks.length}`);
+  const excludedStockCount = universe.length - validStocks.length;
+  console.log(`Valid stocks for deep analysis: ${validStocks.length} (Excluded: ${excludedStockCount})`);
+  
+  if (onProgress) {
+    onProgress(20, `[1/2] 시세 수집 완료 (분석 제외 ${excludedStockCount}개)`, { excludedStockCount });
+  }
 
   const stocksWithScores: Array<{
+
     ticker: string;
     yahooData: YahooFinanceData;
     periodReturn: number;
@@ -253,11 +260,13 @@ export async function runAnalysisEngine(
     investmentStyle: style,
     exchangeRate,
     processedAt: new Date(),
-    summary: `시장 유니버스 ${stocksWithScores.length}개 종목을 텐배거 7단계 파이프라인으로 분석하여 TOP ${companyCount} 기업을 선정했습니다.`,
+    summary: `시장 유니버스 ${totalCount}개 종목 중 ${validStocks.length}개를 텐배거 7단계 파이프라인으로 분석 완료했습니다. (${excludedStockCount}개 시세 부재 등으로 제외)`,
     allSourcesUsed: deduplicateSources(allRules.map(r => r.source).filter(Boolean)),
     queriedTickers: universe,
+    excludedStockCount,
   };
 }
+
 
 /**
  * 개별 투자 규칙에 대한 기업의 부합 정도를 0-10점 사이로 산정합니다.

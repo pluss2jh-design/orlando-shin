@@ -27,14 +27,18 @@ export default function StockAnalysisPage() {
     error: string | null;
     progress: number;
     progressMessage: string;
-  }>({
+    excludedStockCount: number;
+  }>( {
     conditions: null,
     results: [],
     isAnalyzing: false,
     error: null,
     progress: 0,
-    progressMessage: ''
+    progressMessage: '',
+    excludedStockCount: 0
   });
+
+
   const [newsState, setNewsState] = useState<{
     summaries: NewsSummary[];
     isLoading: boolean;
@@ -104,8 +108,10 @@ export default function StockAnalysisPage() {
               isAnalyzing: true,
               error: null,
               progress: data.progress || 0,
-              progressMessage: data.progressMessage || '분석 중...'
+              progressMessage: data.progressMessage || '분석 중...',
+              excludedStockCount: data.excludedStockCount || 0
             }));
+
             if (!interval) interval = setInterval(pollStatus, 1500);
           } else if (data.status === 'completed' && data.result) {
             if (interval) { clearInterval(interval); interval = null; }
@@ -185,7 +191,13 @@ export default function StockAnalysisPage() {
 
       }));
 
-      setAnalysisState(prev => ({ ...prev, results, isAnalyzing: false }));
+      setAnalysisState(prev => ({ 
+        ...prev, 
+        results, 
+        isAnalyzing: false,
+        excludedStockCount: data.excludedStockCount || prev.excludedStockCount
+      }));
+
 
       // [TOKEN_SAVE] 개별 기업 뉴스 조회 호출 주석 처리
       // const tickers = results.map(r => r.ticker).filter(Boolean) as string[];
@@ -211,8 +223,9 @@ export default function StockAnalysisPage() {
   }) => {
     analysisAlerted.current = false;
     setAnalysisState(prev => ({
-      ...prev, conditions: newConditions, isAnalyzing: true, error: null, results: [],
+      ...prev, conditions: newConditions, isAnalyzing: true, error: null, results: [], progress: 0, excludedStockCount: 0
     }));
+
 
     try {
       const response = await fetch('/api/analysis', {
@@ -352,10 +365,18 @@ export default function StockAnalysisPage() {
                     <div className="flex items-center gap-2">
                       <p className="font-black text-sm text-gray-900">Russell 1000 전체 7-Step 스캔 중</p>
                       {universeStats && (
-                        <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 text-[10px] py-0 px-2 font-bold">
-                          UNIVERSE: R1000({universeStats.russellCount}) - SP500({universeStats.sp500Count}) = {universeStats.finalCount}
-                        </Badge>
+                        <div className="flex flex-wrap gap-2">
+                          <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 text-[10px] py-0 px-2 font-bold">
+                            UNIVERSE: R1000({universeStats.russellCount}) - SP500({universeStats.sp500Count}) = {universeStats.finalCount}
+                          </Badge>
+                          {analysisState.excludedStockCount > 0 && (
+                            <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200 text-[10px] py-0 px-2 font-bold">
+                              EXCLUDED: {analysisState.excludedStockCount} (시세 부재 등)
+                            </Badge>
+                          )}
+                        </div>
                       )}
+
                     </div>
                     <p className="text-xs text-gray-500 font-medium mt-0.5">
                       {analysisState.progressMessage || '초기화 중...'}
@@ -384,12 +405,18 @@ export default function StockAnalysisPage() {
         )}
 
         {universeStats && !analysisState.isAnalyzing && analysisState.results.length === 0 && (
-          <div className="mb-6 flex justify-center">
+          <div className="mb-6 flex flex-col items-center gap-2">
             <Badge variant="outline" className="bg-white/50 text-gray-500 border-gray-200 text-xs py-1 px-4 font-bold shadow-sm">
               전체 유니버스: 러셀1000({universeStats.russellCount}) - S&P500({universeStats.sp500Count}) = {universeStats.finalCount}개 기업 분석 준비 완료
             </Badge>
+            {analysisState.excludedStockCount > 0 && (
+              <p className="text-[10px] text-gray-400 font-medium">
+                * 이전 분석에서 {analysisState.excludedStockCount}개 종목이 시세 부재 등으로 제외되었습니다.
+              </p>
+            )}
           </div>
         )}
+
 
         {/* 분석 결과 */}
         <AnalysisOutput

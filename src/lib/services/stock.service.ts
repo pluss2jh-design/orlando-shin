@@ -19,7 +19,9 @@ interface AnalysisJobStatus {
   startedAt: Date;
   progress?: number;
   progressMessage?: string;
+  excludedStockCount?: number;
 }
+
 
 declare global {
   // eslint-disable-next-line no-var
@@ -140,16 +142,18 @@ export class StockService {
           options.conditions?.companyApiKey,
           options.conditions?.newsAiModel,
           options.conditions?.newsApiKey,
-          (progress, message) => {
+          (progress, message, meta) => {
             const currentJob = userAnalysisJobs.get(userId);
             if (currentJob && currentJob.status === 'processing') {
               userAnalysisJobs.set(userId, {
                 ...currentJob,
                 progress,
-                progressMessage: message
+                progressMessage: message,
+                excludedStockCount: meta?.excludedStockCount ?? currentJob.excludedStockCount,
               });
             }
           }
+
         );
 
         // 성공 시 사용량 카운트 업
@@ -158,8 +162,10 @@ export class StockService {
         userAnalysisJobs.set(userId, {
           status: 'completed',
           result,
-          startedAt: new Date()
+          startedAt: new Date(),
+          excludedStockCount: result.excludedStockCount
         });
+
       } catch (error) {
         console.error('분석 엔진 오류:', error);
         userAnalysisJobs.set(userId, {

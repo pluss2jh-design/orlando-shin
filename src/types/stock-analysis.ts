@@ -388,7 +388,9 @@ export interface RecommendationResult {
   summary: string;
   allSourcesUsed: SourceReference[];
   queriedTickers: string[];
+  excludedStockCount?: number;
 }
+
 
 // ===========================
 // G. 뉴스 및 공시 정보
