@@ -22,16 +22,20 @@ async function fetchRussell1000Tickers(): Promise<string[]> {
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const html = await res.text();
     
-    // Components 테이블 또는 링크를 통한 종목 파싱
+    // Components 테이블 또는 링크를 통한 종목 파싱 (더 유연한 정규식 적용)
     const tickers = new Set<string>();
     for (const re of [
-      /<td[^>]*><a[^>]+>([A-Z]{1,5}(?:\.[A-Z])?)<\/a><\/td>/g,
+      /<td[^>]*>\s*<a[^>]*>([A-Z]{1,5}(?:\.[A-Z])?)<\/a>[\s\S]*?<\/td>/g,
       /<td>\s*([A-Z]{1,5}(?:\.[A-Z])?)\s*<\/td>/g,
+      /title="([A-Z]{1,5})">/g, 
     ]) {
       for (const m of html.matchAll(re)) {
-        tickers.add(m[1].replace('.', '-')); // BRK.B -> BRK-B 변환
+        const t = m[1].replace('.', '-').trim();
+        if (t.length >= 1 && t.length <= 5) tickers.add(t);
       }
     }
+
+
 
     if (tickers.size < 500) {
       throw new Error(`조회된 기업 수가 너무 적습니다 (${tickers.size}개)`);
@@ -53,28 +57,32 @@ async function fetchSP500Tickers(): Promise<Set<string>> {
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const html = await res.text();
     
-    // S&P 500 components stocks 테이블
+    // S&P 500 components stocks 테이블 파싱 (더 유연한 정규식 적용)
     const tickers = new Set<string>();
     for (const re of [
-      /<td[^>]*><a[^>]+>([A-Z]{1,5}(?:\.[A-Z])?)<\/a><\/td>/g,
+      /<td[^>]*>\s*<a[^>]*>([A-Z]{1,5}(?:\.[A-Z])?)<\/a>[\s\S]*?<\/td>/g,
       /<td>\s*([A-Z]{1,5}(?:\.[A-Z])?)\s*<\/td>/g,
+      /title="([A-Z]{1,5})">/g,
     ]) {
       for (const m of html.matchAll(re)) {
-        tickers.add(m[1].replace('.', '-')); // BRK.B -> BRK-B 변환
+        const t = m[1].replace('.', '-').trim();
+        if (t.length >= 1 && t.length <= 5) tickers.add(t);
       }
     }
+
 
     if (tickers.size < 400) {
       throw new Error(`조회된 기업 수가 너무 적습니다 (${tickers.size}개)`);
     }
 
-    console.log(`[Universe] S&P 500 live: ${tickers.size} tickers`);
+    console.log(`[Universe] S&P 500 live: ${tickers.size} tickers. Has NVDA? ${tickers.has('NVDA')}`);
     return tickers;
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error);
     throw new Error(`S&P 500 기업 목록 조회 실패: ${msg}\n- 다음 링크를 확인하세요: ${url}`);
   }
 }
+
 
 /**
  * 메인 함수: Russell 1000 실시간 조회 → S&P 500 차집합 반환
@@ -86,8 +94,20 @@ export async function getStockUniverse(): Promise<string[]> {
     fetchSP500Tickers(),
   ]);
 
+  const russellSet = new Set(russell);
+  const common = russell.filter(t => sp500.has(t));
+  console.log(`[Universe] S&P 500 overlap in Russell 1000: ${common.length} tickers`);
+  if (common.includes('NVDA')) {
+    console.log(`[Universe] ALERT: NVDA found in S&P 500. It WILL be excluded from Russell 1000 list.`);
+  } else if (sp500.has('NVDA')) {
+    console.log(`[Universe] NVDA is in S&P 500 set, but NOT found in Russell 1000 fetch.`);
+  } else if (russellSet.has('NVDA')) {
+    console.log(`[Universe] NVDA is in Russell 1000 fetch, but NOT found in S&P 500 set.`);
+  }
+
   const filtered = russell.filter(t => !sp500.has(t));
   const unique = Array.from(new Set(filtered));
-  console.log(`[Universe] Final: ${unique.length} tickers (Russell ${russell.length} - SP500 ${sp500.size})`);
+  console.log(`[Universe] Final Selection: ${unique.length} tickers (Russell ${russell.length} - ${common.length} excluded)`);
   return unique;
 }
+

@@ -14,10 +14,10 @@ export interface UploadedFile {
 
 export interface InvestmentConditions {
   amount: number;
-  periodMonths?: number;
   sector?: string;
   strategyType?: 'growth' | 'value' | 'all';
 }
+
 
 
 export interface TenbaggerStepSource {

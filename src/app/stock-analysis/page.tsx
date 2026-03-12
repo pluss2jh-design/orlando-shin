@@ -198,7 +198,6 @@ export default function StockAnalysisPage() {
         body: JSON.stringify({
           style: 'moderate',
           conditions: {
-            periodMonths: newConditions.periodMonths || 12,
             companyCount: newConditions.companyCount || 5,
             companyAiModel: newConditions.companyAiModel,
             companyApiKey: newConditions.companyApiKey,
@@ -206,6 +205,7 @@ export default function StockAnalysisPage() {
             newsApiKey: newConditions.newsApiKey,
           },
         }),
+
       });
 
       const data = await response.json();

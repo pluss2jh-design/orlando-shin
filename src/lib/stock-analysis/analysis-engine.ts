@@ -1,4 +1,4 @@
-﻿import type {
+import type {
   ExtractedCompanyAnalysis,
   InvestmentConditions,
   LearnedInvestmentCriteria,
@@ -29,6 +29,7 @@ export async function runAnalysisEngine(
   knowledge: LearnedKnowledge,
   style: InvestmentStyle = 'moderate',
   companyCount: number = 5,
+
   companyAiModel?: string,
   companyApiKey?: string,
   newsAiModel?: string,

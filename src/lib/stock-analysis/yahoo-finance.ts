@@ -6,7 +6,9 @@ import type {
 } from '@/types/stock-analysis';
 import YahooFinance from 'yahoo-finance2';
 
-const yahooFinance = new YahooFinance();
+const yahooFinance = new YahooFinance({ 
+  suppressNotices: ['yahooSurvey'] 
+});
 
 interface SearchQuoteResult {
   symbol?: string;
@@ -82,8 +84,9 @@ export async function resolveTickerSymbol(
 }
 
 export async function fetchBatchQuotes(tickers: string[]): Promise<YahooFinanceData[]> {
-  const quotes = await yahooFinance.quote(tickers);
+  const quotes = await yahooFinance.quote(tickers, {}, { validateResult: false });
   const results: YahooFinanceData[] = [];
+
 
   for (const q of quotes) {
     const currency = detectTickerCurrency(q.symbol, q.currency);
@@ -134,14 +137,14 @@ export async function fetchYahooFinanceData(
     summaryResult = await withTimeout(
       yahooFinance.quoteSummary(ticker, {
         modules: ['financialData', 'price', 'defaultKeyStatistics', 'summaryDetail', 'assetProfile'],
-      }),
+      }, { validateResult: false }),
       15000,
       `quoteSummary(${ticker})`
     );
   } catch (error) {
     console.warn(`QuoteSummary failed for ${ticker}:`, (error as Error).message?.slice(0, 80));
     try {
-      const basicQuote = await withTimeout(yahooFinance.quote(ticker), 10000, `quote(${ticker})`);
+      const basicQuote = await withTimeout(yahooFinance.quote(ticker, {}, { validateResult: false }), 10000, `quote(${ticker})`);
       summaryResult = {
         price: {
           regularMarketPrice: basicQuote.regularMarketPrice,
@@ -162,7 +165,7 @@ export async function fetchYahooFinanceData(
   // ── 2. 주가 이력 — chart() (historical 대체) ──
   try {
     const chartResult: any = await withTimeout(
-      (yahooFinance as any).chart(ticker, { period1: period1Str, interval: '1d' }),
+      yahooFinance.chart(ticker, { period1: period1Str, interval: '1d' }, { validateResult: false }),
       20000,
       `chart(${ticker})`
     );
@@ -173,21 +176,18 @@ export async function fetchYahooFinanceData(
 
 
   // ── 3. 재무제표 — fundamentalsTimeSeries ──
-  // module 옵션이 required - 누락 시 Invalid options 오류 발생
   try {
     const fts = await withTimeout(
-      (yahooFinance as any).fundamentalsTimeSeries(ticker, {
+      yahooFinance.fundamentalsTimeSeries(ticker, {
         period1: period1Str,
         type: 'annual',
-        module: 'financials',    // ← required 필드. 누락하면 Invalid options 오류
-      }),
+        module: 'financials',
+      }, { validateResult: false }),
       15000,
       `fundamentalsTimeSeries(${ticker})`
     );
-    // 반환값은 Array<FundamentalsTimeSeriesFinancialsResult>
     ftsData = Array.isArray(fts) ? fts : [];
   } catch (error) {
-    // 오류 수준 DEBUG로 낮춰 로그 스팬 감소
     console.debug(`FTS failed for ${ticker}:`, (error as Error).message?.slice(0, 60));
   }
 
@@ -198,8 +198,7 @@ export async function fetchYahooFinanceData(
   const assetProfile = summaryResult.assetProfile;
   const currency = detectTickerCurrency(ticker, price?.currency);
 
-  // chart() 결과로 priceHistory 구성
-  const priceHistory: PriceHistoryEntry[] = chartQuotes
+  const priceHistory: PriceHistoryEntry[] = (chartQuotes || [])
     .filter((q: any) => q.close != null)
     .map((q: any) => ({
       date: q.date instanceof Date ? q.date : new Date(q.date),
@@ -207,7 +206,6 @@ export async function fetchYahooFinanceData(
       volume: q.volume ?? 0,
     }));
 
-  // 수익률 계산 (1년, 6개월, 3개월, 1개월)
   const returnRates: any = {};
   const now = new Date();
   const intervals = [
@@ -230,8 +228,6 @@ export async function fetchYahooFinanceData(
     });
   }
 
-  // fundamentalsTimeSeries 배열에서 연도별 수익/영업이익 파싱
-  // 정렬: 오래된 연도부터 역순으로 (arr[0]이 가장 최근년)
   const financialHistory = ftsData.map((entry: any, idx: number) => {
     const rev = entry.totalRevenue ?? 0;
     const opInc = entry.operatingIncome ?? 0;
@@ -349,14 +345,12 @@ export async function fetchTrendingTickers(): Promise<string[]> {
   }
 }
 
-
 export async function fetchDailyGainers(): Promise<string[]> {
   try {
-    const result = await (yahooFinance as any).dailyGainers({ count: 20, region: 'US' });
+    const result = await (yahooFinance as any).dailyGainers({ count: 20, region: 'US' }, { validateResult: false });
     return (result.quotes || []).map((q: any) => q.symbol).filter(Boolean) as string[];
   } catch (error) {
     console.warn('Failed to fetch daily gainers:', error);
     return [];
   }
 }
-

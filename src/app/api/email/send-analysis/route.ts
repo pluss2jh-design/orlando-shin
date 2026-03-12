@@ -22,7 +22,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    await sendAnalysisEmail(email, results as AnalysisResult[], conditions || { periodMonths: 12 });
+    await sendAnalysisEmail(email, results as AnalysisResult[]);
+
 
     return NextResponse.json({
       success: true,

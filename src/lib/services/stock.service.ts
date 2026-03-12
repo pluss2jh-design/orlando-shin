@@ -99,7 +99,8 @@ export class StockService {
    * 분석을 시작합니다 (백그라운드 실행).
    */
   static async startAnalysis(userId: string, options: {
-    conditions?: { periodMonths?: number; companyCount?: number; companyAiModel?: string; companyApiKey?: string; newsAiModel?: string; newsApiKey?: string; sector?: string; strategyType?: 'growth' | 'value' | 'all' };
+    conditions?: { companyCount?: number; companyAiModel?: string; companyApiKey?: string; newsAiModel?: string; newsApiKey?: string; sector?: string; strategyType?: 'growth' | 'value' | 'all' };
+
     style?: InvestmentStyle;
   }) {
     // 1. 제한 확인

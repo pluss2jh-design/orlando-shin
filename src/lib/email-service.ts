@@ -28,11 +28,10 @@ function createTransporter() {
 
 export async function sendAnalysisEmail(
   to: string,
-  results: AnalysisResult[],
-  conditions: { periodMonths: number }
+  results: AnalysisResult[]
 ): Promise<void> {
   const transporter = createTransporter();
-  const html = generateEmailTemplate(results, conditions);
+  const html = generateEmailTemplate(results);
 
   await transporter.sendMail({
     from: `"선생님" <${FROM_EMAIL}>`,
@@ -43,8 +42,7 @@ export async function sendAnalysisEmail(
 }
 
 function generateEmailTemplate(
-  results: AnalysisResult[],
-  conditions: { periodMonths: number }
+  results: AnalysisResult[]
 ): string {
   const currentDate = new Date().toLocaleDateString('ko-KR', {
     year: 'numeric',
@@ -76,9 +74,9 @@ function generateEmailTemplate(
           <span style="color: #64748b; margin-left: 8px;">${result.ticker}</span>
         </div>
         <div style="text-align: right;">
-          <div style="font-size: 12px; color: #64748b;">${conditions.periodMonths}개월 예상 수익률</div>
+          <div style="font-size: 12px; color: #64748b;">예상 수익률</div>
           <div style="font-size: 28px; font-weight: bold; color: #22c55e;">
-            +${calculateExpectedReturn(result.expectedReturnRate, conditions.periodMonths).toFixed(1)}%
+            +${result.expectedReturnRate.toFixed(1)}%
           </div>
         </div>
       </div>
@@ -156,8 +154,8 @@ function generateEmailTemplate(
             margin-bottom: 24px;
           ">
             <p style="margin: 0; color: #1e40af; font-size: 14px;">
-              <strong>분석 조건:</strong> 투자 기간 ${conditions.periodMonths}개월 | 
-              S&P 500, Russell 1000, Dow Jones 기업 중 AI가 선정한 최적의 TOP 5 기업입니다.
+              <strong>분석 조건:</strong> 7-Step 텐배거 조건 검증 | 
+              S&P 500을 제외한 Russell 1000 기업 중 AI가 선정한 최적의 TOP 5 기업입니다.
             </p>
           </div>
           
@@ -200,9 +198,4 @@ function generateEmailTemplate(
     </body>
     </html>
   `;
-}
-
-function calculateExpectedReturn(baseReturn: number, periodMonths: number): number {
-  const monthlyRate = baseReturn / 12;
-  return monthlyRate * periodMonths;
 }

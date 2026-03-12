@@ -4,7 +4,8 @@ import { StockService, userAnalysisJobs } from '@/lib/services/stock.service';
 import type { InvestmentStyle } from '@/types/stock-analysis';
 
 interface AnalysisRequestBody {
-  conditions?: { periodMonths?: number; companyCount?: number; companyAiModel?: string; companyApiKey?: string; newsAiModel?: string; newsApiKey?: string; sector?: string; strategyType?: 'growth' | 'value' | 'all' };
+  conditions?: { companyCount?: number; companyAiModel?: string; companyApiKey?: string; newsAiModel?: string; newsApiKey?: string; sector?: string; strategyType?: 'growth' | 'value' | 'all' };
+
   style?: InvestmentStyle;
 }
 
