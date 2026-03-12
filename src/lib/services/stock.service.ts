@@ -9,8 +9,10 @@ import type {
   InvestmentStyle,
   LearnedKnowledge,
   RecommendationResult,
-  LearnedInvestmentCriteria
+  LearnedInvestmentCriteria,
+  ExcludedStockDetail
 } from '@/types/stock-analysis';
+
 
 interface AnalysisJobStatus {
   status: 'processing' | 'completed' | 'error';
@@ -20,7 +22,15 @@ interface AnalysisJobStatus {
   progress?: number;
   progressMessage?: string;
   excludedStockCount?: number;
+  excludedDetails?: ExcludedStockDetail[];
+  universeCounts?: {
+    russellCount: number;
+    sp500Count: number;
+    overlapCount: number;
+  };
 }
+
+
 
 
 declare global {
@@ -150,9 +160,11 @@ export class StockService {
                 progress,
                 progressMessage: message,
                 excludedStockCount: meta?.excludedStockCount ?? currentJob.excludedStockCount,
+                excludedDetails: meta?.excludedDetails ?? currentJob.excludedDetails,
               });
             }
           }
+
 
         );
 
@@ -163,8 +175,11 @@ export class StockService {
           status: 'completed',
           result,
           startedAt: new Date(),
-          excludedStockCount: result.excludedStockCount
+          excludedStockCount: result.excludedStockCount,
+          excludedDetails: result.excludedDetails,
+          universeCounts: result.universeCounts
         });
+
 
       } catch (error) {
         console.error('분석 엔진 오류:', error);

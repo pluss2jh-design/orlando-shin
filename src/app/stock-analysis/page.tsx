@@ -13,9 +13,18 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   InvestmentConditions,
   AnalysisResult,
-  NewsSummary
+  NewsSummary,
+  ExcludedStockDetail
 } from '@/types/stock-analysis';
+
 import { UserMenu } from '@/components/shared/user-menu';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+
 
 export default function StockAnalysisPage() {
   const router = useRouter();
@@ -28,6 +37,7 @@ export default function StockAnalysisPage() {
     progress: number;
     progressMessage: string;
     excludedStockCount: number;
+    excludedDetails: ExcludedStockDetail[];
   }>( {
     conditions: null,
     results: [],
@@ -35,8 +45,10 @@ export default function StockAnalysisPage() {
     error: null,
     progress: 0,
     progressMessage: '',
-    excludedStockCount: 0
+    excludedStockCount: 0,
+    excludedDetails: []
   });
+
 
 
   const [newsState, setNewsState] = useState<{
@@ -49,8 +61,10 @@ export default function StockAnalysisPage() {
   const [universeStats, setUniverseStats] = useState<{
     russellCount: number;
     sp500Count: number;
+    overlapCount: number;
     finalCount: number;
   } | null>(null);
+
 
 
   const [userPlan, setUserPlan] = useState<string>('FREE');
@@ -109,8 +123,10 @@ export default function StockAnalysisPage() {
               error: null,
               progress: data.progress || 0,
               progressMessage: data.progressMessage || '분석 중...',
-              excludedStockCount: data.excludedStockCount || 0
+              excludedStockCount: data.excludedStockCount || 0,
+              excludedDetails: data.excludedDetails || []
             }));
+
 
             if (!interval) interval = setInterval(pollStatus, 1500);
           } else if (data.status === 'completed' && data.result) {
@@ -195,8 +211,14 @@ export default function StockAnalysisPage() {
         ...prev, 
         results, 
         isAnalyzing: false,
-        excludedStockCount: data.excludedStockCount || prev.excludedStockCount
+        excludedStockCount: data.excludedStockCount || prev.excludedStockCount,
+        excludedDetails: data.excludedDetails || prev.excludedDetails
       }));
+      
+      if (data.universeCounts) {
+        setUniverseStats(data.universeCounts);
+      }
+
 
 
       // [TOKEN_SAVE] 개별 기업 뉴스 조회 호출 주석 처리
@@ -223,8 +245,9 @@ export default function StockAnalysisPage() {
   }) => {
     analysisAlerted.current = false;
     setAnalysisState(prev => ({
-      ...prev, conditions: newConditions, isAnalyzing: true, error: null, results: [], progress: 0, excludedStockCount: 0
+      ...prev, conditions: newConditions, isAnalyzing: true, error: null, results: [], progress: 0, excludedStockCount: 0, excludedDetails: []
     }));
+
 
 
     try {
@@ -367,15 +390,36 @@ export default function StockAnalysisPage() {
                       {universeStats && (
                         <div className="flex flex-wrap gap-2">
                           <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 text-[10px] py-0 px-2 font-bold">
-                            UNIVERSE: R1000({universeStats.russellCount}) - SP500({universeStats.sp500Count}) = {universeStats.finalCount}
+                            UNIVERSE: R1000({universeStats.russellCount}) - Overlap({universeStats.overlapCount}) = {universeStats.finalCount}
                           </Badge>
+
                           {analysisState.excludedStockCount > 0 && (
-                            <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200 text-[10px] py-0 px-2 font-bold">
-                              EXCLUDED: {analysisState.excludedStockCount} (시세 부재 등)
-                            </Badge>
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200 text-[10px] py-0 px-2 font-bold cursor-help">
+                                    EXCLUDED: {analysisState.excludedStockCount}
+                                  </Badge>
+                                </TooltipTrigger>
+                                <TooltipContent className="max-w-[300px] p-0 overflow-hidden border-red-100">
+                                  <div className="bg-red-50 px-3 py-2 border-b border-red-100">
+                                    <p className="text-[11px] font-bold text-red-800">분석 제외 종목 리스트</p>
+                                  </div>
+                                  <div className="max-h-[200px] overflow-y-auto p-2 bg-white">
+                                    {analysisState.excludedDetails.map((item, idx) => (
+                                      <div key={idx} className="flex justify-between gap-4 py-1 border-b border-gray-50 last:border-0">
+                                        <span className="text-[10px] font-bold text-gray-900">{item.ticker}</span>
+                                        <span className="text-[10px] text-gray-500">{item.reason}</span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
                           )}
                         </div>
                       )}
+
 
                     </div>
                     <p className="text-xs text-gray-500 font-medium mt-0.5">
@@ -407,15 +451,36 @@ export default function StockAnalysisPage() {
         {universeStats && !analysisState.isAnalyzing && (
           <div className="mb-6 flex flex-col items-center gap-2">
             <Badge variant="outline" className="bg-white/50 text-gray-500 border-gray-200 text-xs py-1 px-4 font-bold shadow-sm">
-              분석 유니버스: 러셀1000({universeStats.russellCount}) - S&P500({universeStats.sp500Count}) = {universeStats.finalCount}개 기업 대상
+              분석 유니버스: 러셀1000({universeStats.russellCount}) - 중복({universeStats.overlapCount}) = {universeStats.finalCount}개 기업 대상
             </Badge>
+
             {analysisState.excludedStockCount > 0 && (
-              <p className="text-[10px] text-gray-400 font-medium">
-                * (API 조회불가 / 신규 상장주 / 거래정지 및 데이터 오염) 종목 {analysisState.excludedStockCount}개 제외 완료
-              </p>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <p className="text-[10px] text-gray-400 font-medium cursor-help hover:text-gray-600 transition-colors">
+                      * (API 조회불가 / 신규 상장주 / 거래정지 및 데이터 오염) 종목 <span className="text-red-500 font-bold">{analysisState.excludedStockCount}개</span> 제외 완료 (마우스를 올려 상세 확인)
+                    </p>
+                  </TooltipTrigger>
+                  <TooltipContent className="max-w-[300px] p-0 overflow-hidden border-red-100">
+                    <div className="bg-red-50 px-3 py-2 border-b border-red-100">
+                      <p className="text-[11px] font-bold text-red-800">분석 제외 종목 상세</p>
+                    </div>
+                    <div className="max-h-[250px] overflow-y-auto p-2 bg-white">
+                      {analysisState.excludedDetails.map((item, idx) => (
+                        <div key={idx} className="flex justify-between gap-4 py-1.5 border-b border-gray-50 last:border-0">
+                          <span className="text-[10px] font-bold text-gray-900">{item.ticker}</span>
+                          <span className="text-[10px] text-gray-500">{item.reason}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
             )}
           </div>
         )}
+
 
 
 

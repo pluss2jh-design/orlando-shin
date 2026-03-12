@@ -12,11 +12,12 @@ import type {
   LearnedKnowledge,
   TenbaggerStepResult,
   TenbaggerScoreResult,
+  ExcludedStockDetail, // Added ExcludedStockDetail type import
 } from '@/types/stock-analysis';
 import { fetchExchangeRate } from './currency';
 import {
   fetchYahooFinanceData,
-  fetchBatchQuotes,
+  fetchBatchQuotes, // Ensure fetchBatchQuotes is imported
 } from './yahoo-finance';
 import { getStockUniverse } from './universe';
 
@@ -34,8 +35,9 @@ export async function runAnalysisEngine(
   companyApiKey?: string,
   newsAiModel?: string,
   newsApiKey?: string,
-  onProgress?: (progress: number, message: string, meta?: { excludedStockCount?: number }) => void
+  onProgress?: (progress: number, message: string, meta?: { excludedStockCount?: number; excludedDetails?: ExcludedStockDetail[] }) => void
 ): Promise<RecommendationResult> {
+
 
   console.log(`Starting analysis: full Russell 1000 7-Step scan...`);
 
@@ -43,9 +45,10 @@ export async function runAnalysisEngine(
   const exchangeRate = await fetchExchangeRate();
 
   // Russell 1000 실시간 조회 (S&P 500 제외) — async
-  const universe = await getStockUniverse();
+  const { tickers: universe, universeCounts } = await getStockUniverse();
   const totalCount = universe.length;
   console.log(`Universe size: ${totalCount} tickers (Russell 1000 - S&P 500)`);
+
 
   // 모든 규칙 카테고리 통합
   const criteria = knowledge.criteria;
@@ -65,7 +68,7 @@ export async function runAnalysisEngine(
 
   // ── Phase 1: 배치 시세 조회 ──
   const batchSize = 25;
-  const allYahooData: YahooFinanceData[] = [];
+  const allYahooData: YahooFinanceData[] = []; // Added initialization of allYahooData
 
   for (let i = 0; i < universe.length; i += batchSize) {
     const pct = 3 + Math.floor((i / totalCount) * 15);
@@ -85,14 +88,28 @@ export async function runAnalysisEngine(
       }
     }
   }
-
   const validStocks = allYahooData.filter(d => d.ticker && d.currentPrice > 0);
-  const excludedStockCount = universe.length - validStocks.length;
+  const validTickerSet = new Set(validStocks.map(s => s.ticker));
+  
+  const excludedDetails: ExcludedStockDetail[] = [];
+  universe.forEach(ticker => {
+    if (!validTickerSet.has(ticker)) {
+      const data = allYahooData.find(d => d.ticker === ticker);
+      let reason = '시세 정보 없음 (API 조회불가)';
+      if (data && data.currentPrice === 0) reason = '거래정지 또는 주가 0';
+      else if (!data) reason = '데이터 공급처에 종목 정보 없음 (신규 상장 등)';
+      
+      excludedDetails.push({ ticker, reason });
+    }
+  });
+
+  const excludedStockCount = excludedDetails.length;
   console.log(`Valid stocks for deep analysis: ${validStocks.length} (Excluded: ${excludedStockCount})`);
   
   if (onProgress) {
-    onProgress(20, `[1/2] 시세 수집 완료 (분석 제외 ${excludedStockCount}개)`, { excludedStockCount });
+    onProgress(20, `[1/2] 시세 수집 완료 (분석 제외 ${excludedStockCount}개)`, { excludedStockCount, excludedDetails });
   }
+
 
   const stocksWithScores: Array<{
 
@@ -264,8 +281,11 @@ export async function runAnalysisEngine(
     allSourcesUsed: deduplicateSources(allRules.map(r => r.source).filter(Boolean)),
     queriedTickers: universe,
     excludedStockCount,
+    excludedDetails,
+    universeCounts
   };
 }
+
 
 
 /**

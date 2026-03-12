@@ -101,51 +101,48 @@ async function fetchSP500Tickers(): Promise<Set<string>> {
 
 
 /**
+ * 티커를 비교하기 위해 정규화합니다. (영문자만 추출)
+ */
+function normalizeTicker(ticker: string): string {
+  return ticker.replace(/[^A-Z]/g, '').trim();
+}
+
+/**
  * 메인 함수: Russell 1000 실시간 조회 → S&P 500 차집합 반환
  * 실패 시 fallback 없이 error throw
  */
-export async function getStockUniverse(): Promise<string[]> {
+export async function getStockUniverse(): Promise<{ tickers: string[]; universeCounts: { russellCount: number; sp500Count: number; overlapCount: number; finalCount: number } }> {
   const [russell, sp500] = await Promise.all([
     fetchRussell1000Tickers(),
     fetchSP500Tickers(),
   ]);
 
-  const russellSet = new Set(russell);
-  const common = russell.filter(t => sp500.has(t));
-  console.log(`[Universe] S&P 500 overlap in Russell 1000: ${common.length} tickers`);
-  if (common.includes('NVDA')) {
-    console.log(`[Universe] ALERT: NVDA found in S&P 500. It WILL be excluded from Russell 1000 list.`);
-  } else if (sp500.has('NVDA')) {
-    console.log(`[Universe] NVDA is in S&P 500 set, but NOT found in Russell 1000 fetch.`);
-  } else if (russellSet.has('NVDA')) {
-    console.log(`[Universe] NVDA is in Russell 1000 fetch, but NOT found in S&P 500 set.`);
-  }
-
-  const filtered = russell.filter(t => !sp500.has(t));
+  const normalizedSP500 = new Set(Array.from(sp500).map(normalizeTicker));
+  const filtered = russell.filter(t => !normalizedSP500.has(normalizeTicker(t)));
   const unique = Array.from(new Set(filtered));
-  console.log(`[Universe] Final Selection: ${unique.length} tickers (Russell ${russell.length} - ${common.length} excluded)`);
-  return unique;
+
+  const overlapCount = russell.length - unique.length;
+  const universeCounts = {
+    russellCount: russell.length,
+    sp500Count: sp500.size,
+    overlapCount,
+    finalCount: unique.length,
+  };
+
+  console.log(`[Universe] Final Selection: ${unique.length} tickers (Russell ${russell.length} - ${overlapCount} overlap)`);
+  return { tickers: unique, universeCounts };
 }
 
-export async function getUniverseCounts(): Promise<{ russellCount: number; sp500Count: number; finalCount: number }> {
+export async function getUniverseCounts(): Promise<{ russellCount: number; sp500Count: number; overlapCount: number; finalCount: number }> {
   try {
-    const [russell, sp500] = await Promise.all([
-      fetchRussell1000Tickers(),
-      fetchSP500Tickers(),
-    ]);
-
-    const filtered = russell.filter(t => !sp500.has(t));
-    const unique = Array.from(new Set(filtered));
-
-    return {
-      russellCount: russell.length,
-      sp500Count: sp500.size,
-      finalCount: unique.length,
-    };
+    const { universeCounts } = await getStockUniverse();
+    return universeCounts;
   } catch (error) {
     console.error('Failed to get universe counts:', error);
-    return { russellCount: 0, sp500Count: 0, finalCount: 0 };
+    return { russellCount: 0, sp500Count: 0, overlapCount: 0, finalCount: 0 };
   }
 }
+
+
 
 

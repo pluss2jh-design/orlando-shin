@@ -378,6 +378,11 @@ export interface EvidenceChain {
 // F. 최종 추천 결과
 // ===========================
 
+export interface ExcludedStockDetail {
+  ticker: string;
+  reason: string;
+}
+
 export interface RecommendationResult {
   candidates: FilteredCandidate[];
   topPicks: FilteredCandidate[];
@@ -389,7 +394,14 @@ export interface RecommendationResult {
   allSourcesUsed: SourceReference[];
   queriedTickers: string[];
   excludedStockCount?: number;
+  excludedDetails?: ExcludedStockDetail[];
+  universeCounts?: {
+    russellCount: number;
+    sp500Count: number;
+    overlapCount: number;
+  };
 }
+
 
 
 // ===========================
