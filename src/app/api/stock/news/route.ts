@@ -6,6 +6,7 @@ const NEWS_CACHE = new Map<string, { data: NewsItem[]; timestamp: number }>();
 const CACHE_TTL = 5 * 60 * 1000;
 
 async function translateNewsToKorean(newsItems: NewsItem[]): Promise<NewsItem[]> {
+  /* [TOKEN_SAVE] AI 번역 기능 일시 중지 (토큰 소모 방지)
   try {
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) return newsItems;
@@ -42,8 +43,10 @@ Required JSON Format:
   } catch (error) {
     console.error('Failed to translate news:', error);
   }
+  */
   return newsItems;
 }
+
 
 async function fetchNewsFromYahoo(ticker: string): Promise<NewsItem[]> {
   try {

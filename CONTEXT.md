@@ -1,3 +1,6 @@
+### 2026-03-12 (데이터 소스 업데이트 및 AI 모델 최적화 정리)
+- **유니버스 티커 조회 소스 변경**: universe.ts에서 Russell 1000과 S&P 500 기업 목록을 가져오는 방식을 Wikipedia HTML 직접 파싱 방식으로 전면 교체. (dummy fallback 제거, 조회 실패 시 즉시 에러 throw 및 url 알림)
+
 ### 2026-03-01 (코딩 규칙 준수 리팩토링)
 - **`any` 타입 전면 제거**: `proxy.ts`, `auth.ts`, `auth.config.ts`, `stock.service.ts`, `data-library/page.tsx`, `plan/route.ts` 등 6개 파일에서 `as any`, `any` 파라미터를 proper 타입(NextAuth Session/JWT/User 확장, 커스텀 인터페이스)으로 교체.
   - `src/types/next-auth.d.ts` 신규 생성 (NextAuth 모듈 타입 확장)

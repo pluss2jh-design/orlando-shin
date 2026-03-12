@@ -117,6 +117,7 @@ export default function StockAnalysisPage() {
     }
   };
 
+  /* [TOKEN_SAVE] 개별 기업 뉴스 조회 일시 중지
   const fetchNewsForTickers = async (tickers: string[]) => {
     setNewsState(prev => ({ ...prev, isLoading: true }));
     try {
@@ -133,6 +134,8 @@ export default function StockAnalysisPage() {
       setNewsState(prev => ({ ...prev, isLoading: false }));
     }
   };
+  */
+
 
   const processAnalysisData = (data: any) => {
     if (data.topPicks && Array.isArray(data.topPicks) && data.topPicks.length > 0) {
@@ -161,8 +164,10 @@ export default function StockAnalysisPage() {
 
       setAnalysisState(prev => ({ ...prev, results, isAnalyzing: false }));
 
-      const tickers = results.map(r => r.ticker).filter(Boolean) as string[];
-      if (tickers.length > 0) fetchNewsForTickers(tickers);
+      // [TOKEN_SAVE] 개별 기업 뉴스 조회 호출 주석 처리
+      // const tickers = results.map(r => r.ticker).filter(Boolean) as string[];
+      // if (tickers.length > 0) fetchNewsForTickers(tickers);
+
 
       if (data.queriedTickers && Array.isArray(data.queriedTickers)) {
         // setQueriedTickers(data.queriedTickers); — removed (unused)
