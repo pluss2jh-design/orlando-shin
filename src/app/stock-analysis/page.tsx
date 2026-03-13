@@ -393,30 +393,33 @@ export default function StockAnalysisPage() {
                             UNIVERSE: R1000({universeStats.russellCount}) - Overlap({universeStats.overlapCount}) = {universeStats.finalCount}
                           </Badge>
 
-                          {analysisState.excludedStockCount > 0 && (
-                            <TooltipProvider>
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200 text-[10px] py-0 px-2 font-bold cursor-help">
-                                    EXCLUDED: {analysisState.excludedStockCount}
-                                  </Badge>
-                                </TooltipTrigger>
-                                <TooltipContent className="max-w-[300px] p-0 overflow-hidden border-red-100">
-                                  <div className="bg-red-50 px-3 py-2 border-b border-red-100">
-                                    <p className="text-[11px] font-bold text-red-800">분석 제외 종목 리스트</p>
-                                  </div>
-                                  <div className="max-h-[200px] overflow-y-auto p-2 bg-white">
-                                    {analysisState.excludedDetails.map((item, idx) => (
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Badge variant="outline" className={`${analysisState.excludedStockCount > 0 ? 'bg-red-50 text-red-700 border-red-200' : 'bg-gray-50 text-gray-500 border-gray-200'} text-[10px] py-0 px-2 font-bold cursor-help`}>
+                                  EXCLUDED: {analysisState.excludedStockCount}
+                                </Badge>
+                              </TooltipTrigger>
+                              <TooltipContent className="max-w-[300px] p-0 overflow-hidden border-red-100">
+                                <div className="bg-red-50 px-3 py-2 border-b border-red-100">
+                                  <p className="text-[11px] font-bold text-red-800">분석 제외 종목 리스트</p>
+                                </div>
+                                <div className="max-h-[200px] overflow-y-auto p-2 bg-white">
+                                  {analysisState.excludedDetails.length > 0 ? (
+                                    analysisState.excludedDetails.map((item, idx) => (
                                       <div key={idx} className="flex justify-between gap-4 py-1 border-b border-gray-50 last:border-0">
                                         <span className="text-[10px] font-bold text-gray-900">{item.ticker}</span>
                                         <span className="text-[10px] text-gray-500">{item.reason}</span>
                                       </div>
-                                    ))}
-                                  </div>
-                                </TooltipContent>
-                              </Tooltip>
-                            </TooltipProvider>
-                          )}
+                                    ))
+                                  ) : (
+                                    <p className="text-[10px] text-gray-400 p-2 text-center">제외된 종목이 없습니다.</p>
+                                  )}
+                                </div>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+
                         </div>
                       )}
 
@@ -454,30 +457,33 @@ export default function StockAnalysisPage() {
               분석 유니버스: 러셀1000({universeStats.russellCount}) - 중복({universeStats.overlapCount}) = {universeStats.finalCount}개 기업 대상
             </Badge>
 
-            {analysisState.excludedStockCount > 0 && (
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <p className="text-[10px] text-gray-400 font-medium cursor-help hover:text-gray-600 transition-colors">
-                      * (API 조회불가 / 신규 상장주 / 거래정지 및 데이터 오염) 종목 <span className="text-red-500 font-bold">{analysisState.excludedStockCount}개</span> 제외 완료 (마우스를 올려 상세 확인)
-                    </p>
-                  </TooltipTrigger>
-                  <TooltipContent className="max-w-[300px] p-0 overflow-hidden border-red-100">
-                    <div className="bg-red-50 px-3 py-2 border-b border-red-100">
-                      <p className="text-[11px] font-bold text-red-800">분석 제외 종목 상세</p>
-                    </div>
-                    <div className="max-h-[250px] overflow-y-auto p-2 bg-white">
-                      {analysisState.excludedDetails.map((item, idx) => (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <p className="text-[10px] text-gray-400 font-medium cursor-help hover:text-gray-600 transition-colors">
+                    * (API 조회불가 / 신규 상장주 / 거래정지 및 데이터 오염) 종목 <span className={`${analysisState.excludedStockCount > 0 ? 'text-red-500' : 'text-gray-500'} font-bold`}>{analysisState.excludedStockCount}개</span> 제외 완료 (마우스를 올려 상세 확인)
+                  </p>
+                </TooltipTrigger>
+                <TooltipContent className="max-w-[300px] p-0 overflow-hidden border-red-100">
+                  <div className="bg-red-50 px-3 py-2 border-b border-red-100">
+                    <p className="text-[11px] font-bold text-red-800">분석 제외 종목 상세</p>
+                  </div>
+                  <div className="max-h-[250px] overflow-y-auto p-2 bg-white">
+                    {analysisState.excludedDetails.length > 0 ? (
+                      analysisState.excludedDetails.map((item, idx) => (
                         <div key={idx} className="flex justify-between gap-4 py-1.5 border-b border-gray-50 last:border-0">
                           <span className="text-[10px] font-bold text-gray-900">{item.ticker}</span>
                           <span className="text-[10px] text-gray-500">{item.reason}</span>
                         </div>
-                      ))}
-                    </div>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-            )}
+                      ))
+                    ) : (
+                      <p className="text-[10px] text-gray-400 p-2 text-center">제외된 종목이 없습니다.</p>
+                    )}
+                  </div>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+
           </div>
         )}
 
