@@ -50,25 +50,14 @@ export async function runAnalysisEngine(
   console.log(`Universe size: ${totalCount} tickers (Russell 1000 - S&P 500)`);
 
 
-  // 모든 규칙 카테고리 통합
-  const criteria = knowledge.criteria;
-  const allRules = [
-    ...(criteria.goodCompanyRules || []).map(r => ({ ...r, category: 'fundamental' })),
-    ...(criteria.technicalRules || []).map(r => ({ ...r, category: 'technical' })),
-    ...(criteria.marketSizeRules || []).map(r => ({ ...r, category: 'market' })),
-    ...(criteria.unitEconomicsRules || []).map(r => ({ ...r, category: 'unit_economics' })),
-    ...(criteria.lifecycleRules || []).map(r => ({ ...r, category: 'lifecycle' })),
-    ...(criteria.buyTimingRules || []).map(r => ({ ...r, category: 'timing' })),
-    ...(knowledge.strategy?.shortTermConditions || []).map(s => ({ rule: s, category: 'strategy', weight: 0.8, source: { fileName: '전략' } as any })),
-    ...(knowledge.strategy?.longTermConditions || []).map(s => ({ rule: s, category: 'strategy', weight: 0.9, source: { fileName: '전략' } as any })),
-    ...(knowledge.strategy?.winningPatterns || []).map(s => ({ rule: s, category: 'strategy', weight: 0.7, source: { fileName: '전략' } as any })),
-  ];
+  // 모든 규칙 카테고리 통합 (새로운 동적 구조 적용)
+  const allRules = knowledge.criteria.criterias || [];
 
   console.log(`Evaluating ${allRules.length} rules for each company.`);
 
   // ── Phase 1: 배치 시세 조회 ──
   const batchSize = 25;
-  const allYahooData: YahooFinanceData[] = []; // Added initialization of allYahooData
+  const allYahooData: YahooFinanceData[] = [];
 
   for (let i = 0; i < universe.length; i += batchSize) {
     const pct = 3 + Math.floor((i / totalCount) * 15);
@@ -79,49 +68,43 @@ export async function runAnalysisEngine(
       allYahooData.push(...quotes);
       await new Promise(resolve => setTimeout(resolve, 200));
     } catch (error) {
-      console.warn(`Batch fetch failed, trying individual tickers...`);
+      console.warn(`Batch fetch failed for ${batch.join(',')}`);
       for (const ticker of batch) {
         try {
           const singleQuote = await fetchBatchQuotes([ticker]);
           allYahooData.push(...singleQuote);
-        } catch (e) { }
+        } catch (e) {}
       }
     }
   }
-  const validStocks = allYahooData.filter(d => d.ticker && d.currentPrice > 0);
+
+  const validStocks = allYahooData.filter(d => d.ticker && (d.currentPrice > 0 || d.previousClose > 0));
   const validTickerSet = new Set(validStocks.map(s => s.ticker));
   
   const excludedDetails: ExcludedStockDetail[] = [];
   universe.forEach(ticker => {
     if (!validTickerSet.has(ticker)) {
-      const data = allYahooData.find(d => d.ticker === ticker);
-      let reason = '시세 정보 없음 (API 조회불가)';
-      if (data && data.currentPrice === 0) reason = '거래정지 또는 주가 0';
-      else if (!data) reason = '데이터 공급처에 종목 정보 없음 (신규 상장 등)';
-      
-      excludedDetails.push({ ticker, reason });
+      excludedDetails.push({ ticker, reason: '시세 정보 또는 유효 데이터 없음' });
     }
   });
 
   const excludedStockCount = excludedDetails.length;
-  console.log(`Valid stocks for deep analysis: ${validStocks.length} (Excluded: ${excludedStockCount})`);
-  
   if (onProgress) {
     onProgress(20, `[1/2] 시세 수집 완료 (분석 제외 ${excludedStockCount}개)`, { excludedStockCount, excludedDetails });
   }
 
-
   const stocksWithScores: Array<{
-
     ticker: string;
     yahooData: YahooFinanceData;
     periodReturn: number;
     company: ExtractedCompanyAnalysis;
     ruleScores: RuleScore[];
     totalScore: number;
+    failedCritical?: boolean;
+    failureReason?: string;
   }> = [];
 
-  // ── Phase 2: 상세 재무 데이터 + 7-Step 점수 산정 ──
+  // ── Phase 2: 상세 재무 데이터 + 점수 산정 ──
   let analyzedCount = 0;
   const chunkSize = 5;
   for (let i = 0; i < validStocks.length; i += chunkSize) {
@@ -132,7 +115,7 @@ export async function runAnalysisEngine(
 
         // 섹터 필터
         if (conditions.sector && conditions.sector !== 'ALL') {
-          const stockSector = (fullData.sector || (stock as any).sector || '').toLowerCase().trim();
+          const stockSector = (fullData.sector || '').toLowerCase().trim();
           const targetSector = conditions.sector.toLowerCase().trim();
           if (!stockSector.includes(targetSector) && !targetSector.includes(stockSector)) {
             analyzedCount++;
@@ -142,18 +125,13 @@ export async function runAnalysisEngine(
 
         analyzedCount++;
         const donePct = 18 + Math.floor((analyzedCount / validStocks.length) * 79);
-        if (onProgress) onProgress(
-          donePct,
-          `[2/2] 7-Step 분석 중... ${analyzedCount} / ${validStocks.length}개 완료`
-        );
+        if (onProgress) onProgress(donePct, `[2/2] 상세 지표 분석 중... ${analyzedCount} / ${validStocks.length}개 완료`);
 
         let periodReturn = 0;
         if (fullData.priceHistory && fullData.priceHistory.length >= 2) {
           const startPrice = fullData.priceHistory[0].close;
           const endPrice = fullData.priceHistory[fullData.priceHistory.length - 1].close;
           if (startPrice > 0) periodReturn = ((endPrice - startPrice) / startPrice) * 100;
-        } else if (stock.previousClose) {
-          periodReturn = ((stock.currentPrice - stock.previousClose) / stock.previousClose) * 100;
         }
 
         const company: ExtractedCompanyAnalysis = {
@@ -162,8 +140,8 @@ export async function runAnalysisEngine(
           market: stock.ticker.endsWith('.KS') || stock.ticker.endsWith('.KQ') ? 'KRX' : 'NYSE',
           currency: stock.currency,
           metrics: {
-            per: fullData.trailingPE || stock.trailingPE,
-            pbr: fullData.priceToBook || stock.priceToBook,
+            per: fullData.trailingPE,
+            pbr: fullData.priceToBook,
             roe: fullData.returnOnEquity ? fullData.returnOnEquity * 100 : undefined,
           },
           investmentThesis: '',
@@ -171,43 +149,35 @@ export async function runAnalysisEngine(
           investmentStyle: style,
           sources: [],
           extractedAt: new Date(),
-          confidence: 0.7,
+          confidence: 0.8,
         };
 
         const ruleScores: RuleScore[] = [];
         let weightedScoreSum = 0;
         let totalWeightSum = 0;
+        let failedCritical = false;
+        let failureReason = '';
 
-        for (const ruleObj of allRules) {
-          const scoreResult = calculateRuleScore(ruleObj.rule, fullData, company);
-          if (scoreResult.score === 5 && scoreResult.reason === '보통') {
-            const refinedScore = calculateRuleScore(ruleObj.rule, stock, company);
-            if (refinedScore.score !== 5) {
-              ruleScores.push(refinedScore);
-              const weight = (ruleObj as any).weight || 0.5;
-              weightedScoreSum += refinedScore.score * weight;
-              totalWeightSum += weight;
-              continue;
-            }
+        for (const rule of allRules) {
+          const scoreResult = evaluateQuantifiedRule(rule, fullData);
+          ruleScores.push(scoreResult);
+
+          // Critical Fail 체크 (Hard Gate)
+          if (rule.isCritical && scoreResult.score < 5) {
+            failedCritical = true;
+            failureReason = `자료에서 강조된 필수 조건(${rule.name}) 미달: ${scoreResult.reason}`;
+            break; 
           }
 
-          const weight = (ruleObj as any).weight || 0.5;
-          ruleScores.push(scoreResult);
-          weightedScoreSum += scoreResult.score * weight;
-          totalWeightSum += weight;
+          weightedScoreSum += scoreResult.score * rule.weight;
+          totalWeightSum += rule.weight;
         }
 
-        let strategyBonus = 0;
-        if (conditions.strategyType === 'growth') {
-          if (fullData.revenueGrowth && fullData.revenueGrowth > 0.1) strategyBonus += 1.5;
-          if (fullData.revenueGrowth && fullData.revenueGrowth > 0.3) strategyBonus += 1.5;
-        } else if (conditions.strategyType === 'value') {
-          if (fullData.priceToBook && fullData.priceToBook > 0 && fullData.priceToBook < 1.2) strategyBonus += 1.5;
-          if (fullData.trailingPE && fullData.trailingPE > 0 && fullData.trailingPE < 12) strategyBonus += 1.5;
-        }
-
-        let finalScore = totalWeightSum > 0 ? (weightedScoreSum / totalWeightSum) : 5;
-        finalScore = Math.min(10, finalScore + strategyBonus);
+        let finalScore = totalWeightSum > 0 ? (weightedScoreSum / totalWeightSum) : 0;
+        
+        // 전략 보너스
+        if (knowledge.strategyType === 'aggressive' && periodReturn > 20) finalScore += 1;
+        if (knowledge.strategyType === 'stable' && (fullData.dividendYield || 0) > 0.03) finalScore += 1;
 
         stocksWithScores.push({
           ticker: stock.ticker,
@@ -215,15 +185,18 @@ export async function runAnalysisEngine(
           periodReturn,
           company,
           ruleScores,
-          totalScore: Number(finalScore.toFixed(2)),
+          totalScore: failedCritical ? 0 : Number(finalScore.toFixed(2)),
+          failedCritical,
+          failureReason
         });
       } catch (err) {
-        console.error(`Deep analysis failed for ${stock.ticker}:`, err);
+        console.error(`Analysis failed for ${stock.ticker}:`, err);
         analyzedCount++;
       }
     }));
     await new Promise(resolve => setTimeout(resolve, 300));
   }
+
 
 
 
@@ -234,34 +207,37 @@ export async function runAnalysisEngine(
     .slice(0, Math.min(companyCount, 20))
     .map((stock) => {
       const riskLevel = stock.periodReturn > 50 ? 'high' : stock.periodReturn > 20 ? 'medium' : 'low';
-      const sortedRules = [...stock.ruleScores].sort((a, b) => b.score - a.score);
-      const topRules = sortedRules.slice(0, 3);
-
-      // 텐배거 7단계 스코어 산정
+      
+      // 텐배거 7단계 스코어 산정 (레거시 유지하되 종합 점수 위주로 필터링)
       const tenbaggerScore = calculateTenbaggerScore(stock);
 
-      const thesis = `${stock.ticker}는 텐배거 파이프라인 ${tenbaggerScore.percentage}% 달성 (${tenbaggerScore.steps.filter(s => s.passed).length}/7단계 통과). ` +
-        `웹 시 권고 편입 비중: ${tenbaggerScore.allocationLabel}. ` +
-        `특히 ${topRules.map(r => r.rule.split(':')[0]).join(', ')} 등의 지표에서 긍정적인 신호를 보였습니다. ` +
-        `실시간 데이터 PER ${stock.yahooData.trailingPE?.toFixed(1) || 'N/A'}, ROE ${stock.yahooData.returnOnEquity ? (stock.yahooData.returnOnEquity * 100).toFixed(1) : 'N/A'}%`;
+      let thesis = '';
+      if (stock.failedCritical) {
+        thesis = `[투자 주의] ${stock.failureReason}. 다른 지표가 우수함에도 불구하고 자료에서 정의한 필수 조건을 충족하지 못했습니다.`;
+      } else {
+        const topRules = [...stock.ruleScores].sort((a, b) => b.score - a.score).slice(0, 3);
+        thesis = `${stock.ticker}는 통합 투자 로직 점수 ${stock.totalScore.toFixed(1)}/10점을 기록했습니다. ` +
+          `특히 ${topRules.map(r => r.rule).join(', ')} 분야에서 강력한 부합성을 보입니다. ` +
+          `실시간 PER ${stock.yahooData.trailingPE?.toFixed(1) || 'N/A'}, ROE ${stock.yahooData.returnOnEquity ? (stock.yahooData.returnOnEquity * 100).toFixed(1) : 'N/A'}%`;
+      }
 
       return {
         company: { ...stock.company, investmentThesis: thesis },
         yahooData: stock.yahooData,
         normalizedPrices: {
           currentPriceKRW: stock.yahooData.currentPrice * (stock.yahooData.currency === 'USD' ? exchangeRate.rate : 1),
-          targetPriceKRW: stock.yahooData.currentPrice * (stock.yahooData.currency === 'USD' ? exchangeRate.rate : 1) * (1 + tenbaggerScore.recommendedAllocation / 100),
+          targetPriceKRW: stock.yahooData.currentPrice * (stock.yahooData.currency === 'USD' ? exchangeRate.rate : 1) * 1.5,
           recommendedBuyPriceKRW: stock.yahooData.currentPrice * (stock.yahooData.currency === 'USD' ? exchangeRate.rate : 1),
           exchangeRateUsed: exchangeRate.rate,
         },
         filterResults: [
-          { stage: 1, stageName: '데이터 수집', passed: true, reason: '실시간 데이터 기반 규칙 평가 완료' },
-          { stage: 2, stageName: '텐배거 단계', passed: tenbaggerScore.percentage >= 50, reason: `${tenbaggerScore.percentage}% 달성` }
+          { stage: 1, stageName: '필수 조건 검증', passed: !stock.failedCritical, reason: stock.failedCritical ? '필수 조건 미달' : '통과' },
+          { stage: 2, stageName: '동적 로직 평가', passed: stock.totalScore >= 7, reason: `${stock.totalScore}점 기록` }
         ],
-        passedAllFilters: tenbaggerScore.percentage >= 50,
-        score: tenbaggerScore.percentage,
+        passedAllFilters: !stock.failedCritical && stock.totalScore >= 7,
+        score: stock.totalScore * 10,
         expectedReturnRate: stock.periodReturn,
-        confidenceScore: Math.min(98, 50 + tenbaggerScore.percentage / 2),
+        confidenceScore: Math.min(98, stock.totalScore * 10),
         riskLevel,
         ruleScores: stock.ruleScores,
         totalRuleScore: stock.totalScore,
@@ -277,7 +253,7 @@ export async function runAnalysisEngine(
     investmentStyle: style,
     exchangeRate,
     processedAt: new Date(),
-    summary: `시장 유니버스 ${totalCount}개 종목 중 ${validStocks.length}개를 텐배거 7단계 파이프라인으로 분석 완료했습니다. (${excludedStockCount}개 시세 부재 등으로 제외)`,
+    summary: `시장 유니버스에서 필수 조건을 검증하고 동적 로직으로 상위 기업을 선별했습니다.`,
     allSourcesUsed: deduplicateSources(allRules.map(r => r.source).filter(Boolean)),
     queriedTickers: universe,
     excludedStockCount,
@@ -285,6 +261,75 @@ export async function runAnalysisEngine(
     universeCounts
   };
 }
+
+/**
+ * AI가 추출한 계량화된 규칙을 바탕으로 실시간 데이터를 평가합니다.
+ */
+function evaluateQuantifiedRule(rule: any, data: YahooFinanceData): RuleScore {
+  const q = rule.quantification;
+  const metric = q.target_metric;
+  const condition = q.condition;
+  const benchmark = q.benchmark;
+  const scoringType = q.scoring_type;
+
+  let actualValue: number | undefined;
+  
+  // 지표 매핑 로직
+  switch (metric.toLowerCase()) {
+    case 'revenue_growth': actualValue = (data as any).revenueGrowth !== undefined ? (data as any).revenueGrowth * 100 : undefined; break;
+    case 'net_income_growth': actualValue = (data as any).netIncomeGrowth !== undefined ? (data as any).netIncomeGrowth * 100 : undefined; break;
+    case 'roe': actualValue = data.returnOnEquity !== undefined ? data.returnOnEquity * 100 : undefined; break;
+    case 'per': actualValue = data.trailingPE; break;
+    case 'pbr': actualValue = data.priceToBook; break;
+    case 'debt_ratio': actualValue = (data as any).debtToEquity; break;
+    case 'operating_margin': actualValue = (data as any).operatingMargins !== undefined ? (data as any).operatingMargins * 100 : undefined; break;
+    case 'dividend_yield': actualValue = data.dividendYield !== undefined ? data.dividendYield * 100 : undefined; break;
+    case 'current_ratio': actualValue = (data as any).currentRatio; break;
+    case 'quick_ratio': actualValue = (data as any).quickRatio; break;
+    case 'eps_growth': actualValue = (data as any).epsGrowth !== undefined ? (data as any).epsGrowth * 100 : undefined; break;
+    default:
+      // 이름이 정확히 일치하지 않는 경우 유사어 매칭 시도
+      if (metric.includes('revenue')) actualValue = (data as any).revenueGrowth !== undefined ? (data as any).revenueGrowth * 100 : undefined;
+      else if (metric.includes('profit')) actualValue = (data as any).operatingMargins !== undefined ? (data as any).operatingMargins * 100 : undefined;
+  }
+  
+  if (actualValue === undefined || isNaN(actualValue)) {
+    return { rule: rule.name, score: 5, reason: `데이터 부재 (${metric})` };
+  }
+
+  const passed = (function() {
+    switch(condition) {
+      case '>': return actualValue > benchmark;
+      case '<': return actualValue < benchmark;
+      case '>=': return actualValue >= benchmark;
+      case '<=': return actualValue <= benchmark;
+      case '==': return actualValue === benchmark;
+      default: return false;
+    }
+  })();
+
+  if (scoringType === 'binary') {
+    return {
+      rule: rule.name,
+      score: passed ? 10 : 0,
+      reason: `${actualValue.toFixed(1)} ${condition} ${benchmark} (${passed ? '만족' : '미달'})`
+    };
+  } else {
+    // Linear (임시 로직: 방향성에 따라 점수 산정)
+    let score = 5;
+    if (condition === '>' || condition === '>=') {
+      score = actualValue >= benchmark ? 10 : (actualValue / benchmark) * 10;
+    } else {
+      score = actualValue <= benchmark ? 10 : (benchmark / actualValue) * 10;
+    }
+    return {
+      rule: rule.name,
+      score: Math.min(10, Math.max(0, Number(score.toFixed(1)))),
+      reason: `${actualValue.toFixed(1)} (기준: ${benchmark})`
+    };
+  }
+}
+
 
 
 

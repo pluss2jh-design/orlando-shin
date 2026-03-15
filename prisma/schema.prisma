@@ -134,10 +134,12 @@ model LearnedKnowledge {
   content     Json     // LearnedInvestmentCriteria, InvestmentStrategy, FileAnalyses 포함
   files       Json?    // 학습에 사용된 파일 목록 (name, id 등)
   keyConditionsSummary String?
+  strategyType String? // aggressive, moderate, stable
   isActive    Boolean  @default(false)
   createdAt   DateTime @default(now()) @db.Timestamptz(3)
   updatedAt   DateTime @updatedAt @db.Timestamptz(3)
 }
+
 
 model Payment {
   id            String   @id @default(cuid())

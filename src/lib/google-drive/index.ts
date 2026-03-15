@@ -3,7 +3,7 @@ import { promises as fs } from 'fs';
 import path from 'path';
 
 // .env에서 폴더 ID를 가져오거나 기본값을 사용합니다.
-const GOOGLE_DRIVE_FOLDER_ID = process.env.GOOGLE_DRIVE_FOLDER_ID || '1ODcnaY0yQgeFUWYUGOkxVxGKTXsB3t56';
+const GOOGLE_DRIVE_FOLDER_ID = process.env.GOOGLE_DRIVE_FOLDER_ID;
 
 interface DriveFileInfo {
   id: string;
@@ -25,17 +25,17 @@ function parseServiceAccountKey(key: string): any {
   try {
     // 1. 기본적인 JSON 파싱 시도
     let parsed = JSON.parse(key);
-    
+
     if (parsed && typeof parsed.private_key === 'string') {
       // 모든 형태의 \n 이스케이프가 실제 개행으로 변환되지 않았을 경우를 위해 2중 처리
       // 특히 .env에서 이중 백슬래시로 들어오는 경우를 완벽히 해결합니다.
       const originalKey = parsed.private_key;
       parsed.private_key = parsed.private_key.replace(/\\n/g, '\n');
-      
+
       if (originalKey !== parsed.private_key) {
         console.log('[Drive] Fixed private_key escaping (replaced \\n with actual newlines)');
       }
-      
+
       // PEM 형식 체크 (디버깅용)
       if (!parsed.private_key.includes('-----BEGIN PRIVATE KEY-----')) {
         console.warn('[Drive] private_key does not contain BEGIN marker');
@@ -44,7 +44,7 @@ function parseServiceAccountKey(key: string): any {
         console.warn('[Drive] private_key does not contain END marker');
       }
     }
-    
+
     return parsed;
   } catch (error: any) {
     console.warn(`[Drive] First JSON.parse attempt failed: ${error.message}`);
@@ -52,11 +52,11 @@ function parseServiceAccountKey(key: string): any {
       // 2. 입력값 자체가 이미 깨진 경우(줄바꿈 누락 등) 대비
       let sanitizedKey = key.trim();
       // 만약 시작과 끝에 따옴표가 있다면 제거
-      if ((sanitizedKey.startsWith('"') && sanitizedKey.endsWith('"')) || 
-          (sanitizedKey.startsWith("'") && sanitizedKey.endsWith("'"))) {
+      if ((sanitizedKey.startsWith('"') && sanitizedKey.endsWith('"')) ||
+        (sanitizedKey.startsWith("'") && sanitizedKey.endsWith("'"))) {
         sanitizedKey = sanitizedKey.substring(1, sanitizedKey.length - 1);
       }
-      
+
       let parsed = JSON.parse(sanitizedKey);
       if (parsed && typeof parsed.private_key === 'string') {
         parsed.private_key = parsed.private_key.replace(/\\n/g, '\n');

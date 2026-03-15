@@ -152,63 +152,24 @@ export interface ExtractedMetrics {
 
 /** 교육 자료에서 학습한 투자 판단 기준 */
 export interface LearnedInvestmentCriteria {
-  goodCompanyRules: {
-    rule: string;
+  criterias: {
+    name: string;
+    category: string;
     weight: number;
-    source: SourceReference;
-    category: 'fundamental' | 'technical' | 'market' | 'unit_economics' | 'lifecycle' | 'timing' | 'risk';
-  }[];
-
-  idealMetricRanges: {
-    metric: string;
-    min?: number;
-    max?: number;
     description: string;
+    quantification: {
+      target_metric: string;
+      condition: '>' | '<' | '>=' | '<=' | '==';
+      benchmark: number;
+      scoring_type: 'binary' | 'linear';
+    };
+    isCritical: boolean;
     source: SourceReference;
   }[];
 
   principles: {
     principle: string;
     category: 'entry' | 'exit' | 'risk' | 'general';
-    source: SourceReference;
-  }[];
-
-  // 기술적 분석 규칙
-  technicalRules: {
-    indicator: string;
-    rule: string;
-    weight: number;
-    source: SourceReference;
-  }[];
-
-  // 시장 규모 관련 규칙 (TAM/SAM/SOM)
-  marketSizeRules: {
-    rule: string;
-    weight: number;
-    source: SourceReference;
-  }[];
-
-  // 단위 경제성 규칙 (CAC, LTV, 공헌이익률)
-  unitEconomicsRules: {
-    metric: string;
-    rule: string;
-    weight: number;
-    source: SourceReference;
-  }[];
-
-  // 기업 생애주기 관련 규칙
-  lifecycleRules: {
-    stage: 'introduction' | 'growth' | 'maturity' | 'decline';
-    rule: string;
-    weight: number;
-    source: SourceReference;
-  }[];
-
-  // 매수 타이밍 규칙
-  buyTimingRules: {
-    rule: string;
-    weight: number;
-    conditions: string[];
     source: SourceReference;
   }[];
 }
@@ -231,6 +192,7 @@ export interface LearnedKnowledge {
   fileAnalyses: FileAnalysis[];
   criteria: LearnedInvestmentCriteria;
   strategy: InvestmentStrategy;
+  strategyType?: 'aggressive' | 'moderate' | 'stable';
   keyConditionsSummary?: string;
   rawSummaries: {
     fileName: string;
@@ -239,6 +201,7 @@ export interface LearnedKnowledge {
   learnedAt: Date;
   sourceFiles: string[];
 }
+
 
 // ===========================
 // B. Yahoo Finance 실시간 데이터

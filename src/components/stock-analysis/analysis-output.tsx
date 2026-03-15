@@ -317,9 +317,14 @@ export function AnalysisOutput({ results, conditions, isLoading, onSendEmail }: 
                   {/* 헤더: 기업명 + 순번 */}
                   <div className="flex items-start justify-between">
                     <div className="flex-1 min-w-0">
-                      <h3 className="text-lg font-black text-gray-900 group-hover:text-blue-600 transition-colors mb-1.5 truncate">
-                        {result.companyName}
-                      </h3>
+                      <div className="flex items-center gap-2 mb-1">
+                        <h3 className="text-lg font-black text-gray-900 group-hover:text-blue-600 transition-colors truncate">
+                          {result.companyName}
+                        </h3>
+                        {(result as any).failedCritical && (
+                          <Badge className="bg-rose-500 text-white border-none text-[9px] font-black animate-pulse">CRITICAL FAIL</Badge>
+                        )}
+                      </div>
                       <div className="flex flex-wrap items-center gap-1.5">
                         <Badge variant="secondary" className="bg-blue-50 text-blue-600 border-none px-2 text-[10px]">{result.ticker}</Badge>
                         <span className="text-gray-400 text-[10px] uppercase font-bold">{result.market}</span>
@@ -469,6 +474,9 @@ export function AnalysisOutput({ results, conditions, isLoading, onSendEmail }: 
                   {result.companyName}
                 </CardTitle>
                 {getRiskBadge(result.riskLevel)}
+                {(result as any).failedCritical && (
+                  <Badge className="bg-rose-500 text-white border-none py-1.5 px-3 font-black text-xs">CRITICAL CONDITION FAILED</Badge>
+                )}
               </div>
               <div className="flex items-center gap-2 text-sm font-mono text-gray-500 mt-3">
                 <Badge className="bg-blue-500/10 text-blue-400 border border-blue-500/20 font-bold px-2 py-0.5">{result.ticker}</Badge>

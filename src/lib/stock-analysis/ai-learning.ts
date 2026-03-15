@@ -199,32 +199,65 @@ export async function runLearningPipeline(
     if (!strategyModelName) {
       throw new Error('종합 전략 도출을 위한 AI 모델이 선택되지 않았습니다. PDF 또는 문서 모델을 선택해주세요.');
     }
-    const strategyPrompt = `당신은 전설적인 투자 전략가입니다. 아래 나열된 여러 투자 관련 문서에서 추출된 핵심 조건들을 바탕으로 다음 작업을 수행하세요.
+    const strategyPrompt = `당신은 제공된 원천 자료(문서, 영상)의 내용을 단 한 줄의 왜곡 없이 완벽하게 흡수하여, 해당 자료만의 독창적인 '투자 알고리즘'을 설계하는 **제로-베이스(Zero-base) 전략 분석가**입니다.
+
+### [1. 무제한 동적 카테고리 도출 지침]
+- 자료를 분석하여 발견되는 **모든 핵심 가치와 논리를 누락 없이 각각의 카테고리로 생성**하세요.
+- 카테고리 개수에 제한을 두지 않습니다. 자료에서 언급된 모든 유의미한 투자 기준을 당신이 새롭게 명명한 카테고리에 담으세요.
+- (예: '폭발적 이익의 전조', '무너질 수 없는 경제적 해자', '재무적 안전핀' 등 자료의 뉘앙스를 그대로 살린 명칭 사용)
+
+### [2. 필드별 데이터 결정 및 의무 준수 사항]
+
+1. **description (상세 설명):**
+   - **반드시 3문장 이내**로 작성하십시오.
+   - 수사적인 표현은 줄이고, 저자가 말한 "조건, 이유, 결과" 위주로 핵심만 간결하게 기록하세요.
+
+2. **weight (중요도 가중치):**
+   - 저자의 수식어와 강조 횟수에 따라 엄격히 결정 (0.1~1.0).
+   - **0.9~1.0**: '최우선순위', '가장 먼저 확인', '결정적 요인'
+   - **0.1~0.5**: '참고용', '부가적 힌트', '도움이 되는 지표'
+
+3. **isCritical (Critical 여부):**
+   - **True**: 저자가 "이 조건이 충족되지 않으면 무조건 탈락"이라 명시하거나 "실패의 결정적 원인"이라 한 경우에만 설정.
+   - **False**: 일반적인 평가 지표인 경우 무조건 False. (남발 금지)
+
+4. **quantification (계량화):**
+   - **target_metric**: 시스템 조회 명칭 (revenue_growth, debt_ratio, rsi, roe, net_income, current_ratio, quick_ratio, eps_growth, operating_margin 등)
+   - **condition & benchmark**: 자료에 숫자가 있다면 그 값을, 없다면 전문가로서 적정한 수치를 직접 제안하여 기입.
+
 추출된 핵심 조건들:
 ${docConditions}
 
-작업 1: 위 조건들을 아우르는 종합적인 핵심 투자 원칙 및 시장 분석 요약본(keyConditionsSummary)을 작성하세요. 5~10문장 내외로 상세하게 작성해 주세요.
-작업 2: 요약된 내용을 바탕으로 아래 JSON 구조를 채워주세요. 각 카테고리별 규칙을 최대한 구체적으로(각 카테고리당 5~15개 이상) 추출하세요. 특히 'rule' 필드는 문장 형태로 상세히 작성하세요.
-
-JSON 형식:
+### [3. 최종 출력 요구사항 - JSON 규격]
+**반드시 아래 구조로만 응답하세요. 다른 텍스트는 포함하지 마십시오.**
 {
-  "keyConditionsSummary": "종합 요약 내용...",
+  "keyConditionsSummary": "자료의 투자 철학 핵심 요약 (5문장 내외)",
+  "strategyType": "aggressive|moderate|stable",
   "strategy": {
-    "shortTermConditions": ["단기 상승 조건1", "..."],
-    "longTermConditions": ["장기 상승 조건1", "..."],
-    "winningPatterns": ["수익 패턴1", "..."],
-    "riskManagementRules": ["리스크 관리1", "..."]
+    "shortTermConditions": ["단기 조건 리스트..."],
+    "longTermConditions": ["장기 조건 리스트..."],
+    "winningPatterns": ["필승 패턴..."],
+    "riskManagementRules": ["리스크 관리 및 매도 원칙..."]
   },
-  "criteria": {
-    "goodCompanyRules": [{ "rule": "규칙", "weight": 0.1~1.0, "category": "fundamental"|"technical"|"market"|"unit_economics"|"lifecycle"|"timing"|"risk" }],
-    "idealMetricRanges": [{ "metric": "per"|"pbr"|"roe"|"dividendYield", "min": 0, "max": 0, "description": "..." }],
-    "principles": [{ "principle": "원칙", "category": "entry"|"exit"|"risk"|"general" }],
-    "technicalRules": [{ "indicator": "스토캐스틱|RSI|MACD", "rule": "규칙", "weight": 0.1~1.0 }],
-    "marketSizeRules": [{ "rule": "규칙", "weight": 0.1~1.0 }],
-    "unitEconomicsRules": [{ "metric": "CAC|LTV|공헌이익률", "rule": "규칙", "weight": 0.1~1.0 }],
-    "lifecycleRules": [{ "stage": "introduction|growth|maturity|decline", "rule": "규칙", "weight": 0.1~1.0 }],
-    "buyTimingRules": [{ "rule": "규칙", "weight": 0.1~1.0, "conditions": ["조건1", "..."] }]
-  }
+  "criterias": [
+    {
+      "name": "규칙 이름",
+      "category": "자료에서 추출하여 당신이 명명한 카테고리",
+      "weight": 0.1~1.0, 
+      "description": "핵심 로직 (3문장 이내)",
+      "quantification": {
+        "target_metric": "지표 영문명",
+        "condition": "> | < | >= | <= | ==",
+        "benchmark": 0,
+        "scoring_type": "binary|linear"
+      },
+      "isCritical": true|false, 
+      "source": { "fileName": "파일명", "location": "페이지/타임라인" }
+    }
+  ],
+  "principles": [
+    { "principle": "원칙 내용", "category": "entry|exit|risk|general", "source": { "fileName": "파일명", "location": "위치" } }
+  ]
 }`;
 
     const strategyText = await withRetry(async () => {
@@ -247,30 +280,51 @@ JSON 형식:
       riskManagementRules: strategyData.strategy?.riskManagementRules || [],
     };
 
-    const keyConditionsSummary = strategyData.keyConditionsSummary || '학습 데이터 분석을 통해 도출된 핵심 투자 전략 요약본입니다.';
-
     const criteria: LearnedInvestmentCriteria = {
-      goodCompanyRules: (strategyData.criteria?.goodCompanyRules || []).map((r: any) => ({ rule: r.rule, weight: r.weight || 0.5, source: defaultSource, category: r.category || 'fundamental' })),
-      idealMetricRanges: (strategyData.criteria?.idealMetricRanges || []).map((r: any) => ({ metric: r.metric, min: r.min, max: r.max, description: r.description || '', source: defaultSource })),
-      principles: (strategyData.criteria?.principles || []).map((p: any) => ({ principle: p.principle, category: p.category || 'general', source: defaultSource })),
-      technicalRules: (strategyData.criteria?.technicalRules || []).map((r: any) => ({ indicator: r.indicator, rule: r.rule, weight: r.weight || 0.5, source: defaultSource })),
-      marketSizeRules: (strategyData.criteria?.marketSizeRules || []).map((r: any) => ({ rule: r.rule, weight: r.weight || 0.5, source: defaultSource })),
-      unitEconomicsRules: (strategyData.criteria?.unitEconomicsRules || []).map((r: any) => ({ metric: r.metric, rule: r.rule, weight: r.weight || 0.5, source: defaultSource })),
-      lifecycleRules: (strategyData.criteria?.lifecycleRules || []).map((r: any) => ({ stage: r.stage || 'growth', rule: r.rule, weight: r.weight || 0.5, source: defaultSource })),
-      buyTimingRules: (strategyData.criteria?.buyTimingRules || []).map((r: any) => ({ rule: r.rule, weight: r.weight || 0.5, conditions: r.conditions || [], source: defaultSource })),
+      criterias: (strategyData.criterias || []).map((c: any) => ({
+        name: c.name,
+        category: c.category,
+        weight: c.weight || 0.5,
+        description: c.description || '',
+        quantification: {
+          target_metric: c.quantification?.target_metric || 'unknown',
+          condition: c.quantification?.condition || '>=',
+          benchmark: c.quantification?.benchmark || 0,
+          scoring_type: c.quantification?.scoring_type || 'binary'
+        },
+        isCritical: !!c.isCritical,
+        source: c.source ? {
+          fileName: c.source.fileName || 'unknown',
+          type: 'pdf',
+          pageOrTimestamp: c.source.location || '-',
+          content: c.description || ''
+        } : defaultSource
+      })),
+      principles: (strategyData.principles || []).map((p: any) => ({
+        principle: p.principle,
+        category: p.category || 'general',
+        source: p.source ? {
+          fileName: p.source.fileName || 'unknown',
+          type: 'pdf',
+          pageOrTimestamp: p.source.location || '-',
+          content: p.principle
+        } : defaultSource
+      })),
     };
 
     const knowledge: LearnedKnowledge = {
       fileAnalyses,
       criteria,
       strategy,
-      keyConditionsSummary,
+      strategyType: strategyData.strategyType || 'moderate',
+      keyConditionsSummary: strategyData.keyConditionsSummary || '분석 요약본입니다.',
       rawSummaries: targetFiles.map(f => ({ fileName: f.name, summary: '학습 완료' })),
       learnedAt: new Date(),
       sourceFiles: targetFiles.map(f => f.name),
     };
 
     return knowledge;
+
   } finally {
     learningStatus.isLearning = false;
     learningStatus.isCancelled = false;
@@ -295,11 +349,13 @@ export async function saveKnowledgeToDB(knowledge: LearnedKnowledge, title?: str
       title: title || `Learning Session ${new Date().toLocaleString()}`,
       content: knowledge as any,
       keyConditionsSummary: knowledge.keyConditionsSummary,
+      strategyType: knowledge.strategyType,
       files: knowledge.sourceFiles as any,
     }
   });
   return result.id;
 }
+
 
 export async function getActiveKnowledgeFromDB(): Promise<LearnedKnowledge | null> {
   const active = await prisma.learnedKnowledge.findFirst({

@@ -113,7 +113,6 @@ export function InvestmentInput({ onAnalyze, disabled }: InvestmentInputProps) {
               </button>
             ))}
           </div>
-          <span className="text-xs font-bold text-gray-400 ml-1">개사</span>
         </div>
 
         <Button
