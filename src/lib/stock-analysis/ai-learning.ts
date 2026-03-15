@@ -195,9 +195,18 @@ export async function runLearningPipeline(
     }
 
     const docConditions = fileAnalyses.flatMap(fa => fa.keyConditions).join('\n');
-    const strategyModelName = aiModels?.pdf || aiModels?.docx || aiModels?.xlsx || aiModels?.other || aiModels?.mp4;
+    // 전략 도출용 모델 선택 (PDF/문서 모델 우선, 없으면 '전체' 또는 선택된 모델 중 아무거나)
+    const strategyModelName = 
+      aiModels?.pdf || 
+      aiModels?.['전체'] || 
+      aiModels?.docx || 
+      aiModels?.xlsx || 
+      aiModels?.other || 
+      aiModels?.mp4 || 
+      Object.values(aiModels || {})[0];
+
     if (!strategyModelName) {
-      throw new Error('종합 전략 도출을 위한 AI 모델이 선택되지 않았습니다. PDF 또는 문서 모델을 선택해주세요.');
+      throw new Error('종합 전략 도출을 위한 AI 모델이 선택되지 않았습니다. 모델 탭에서 사용할 AI 모델을 선택해주세요.');
     }
     const strategyPrompt = `당신은 제공된 원천 자료(문서, 영상)의 내용을 단 한 줄의 왜곡 없이 완벽하게 흡수하여, 해당 자료만의 독창적인 '투자 알고리즘'을 설계하는 **제로-베이스(Zero-base) 전략 분석가**입니다.
 
