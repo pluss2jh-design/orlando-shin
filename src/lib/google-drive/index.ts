@@ -2,7 +2,8 @@ import { google } from 'googleapis';
 import { promises as fs } from 'fs';
 import path from 'path';
 
-const GOOGLE_DRIVE_FOLDER_ID = '1ODcnaY0yQgeFUWYUGOkxVxGKTXsB3t56';
+// .env에서 폴더 ID를 가져오거나 기본값을 사용합니다.
+const GOOGLE_DRIVE_FOLDER_ID = process.env.GOOGLE_DRIVE_FOLDER_ID || '1ODcnaY0yQgeFUWYUGOkxVxGKTXsB3t56';
 
 interface DriveFileInfo {
   id: string;
@@ -19,15 +20,30 @@ interface SyncResult {
   syncedAt: Date;
 }
 
-function parseServiceAccountKey(key: string): object {
+function parseServiceAccountKey(key: string): any {
   try {
-    return JSON.parse(key);
+    // 1. 기본적인 JSON 파싱 시도
+    let parsed = JSON.parse(key);
+    
+    // 2. private_key 내의 \\n 문자열을 실제 개행문자로 변환 (가장 빈번한 에러 원인)
+    if (parsed && typeof parsed.private_key === 'string') {
+      parsed.private_key = parsed.private_key.replace(/\\n/g, '\n');
+    }
+    
+    return parsed;
   } catch {
     try {
-      return JSON.parse(key.replace(/\n/g, '\\n'));
+      // .env 로더에 따라 따옴표나 개행 처리가 다를 수 있으므로 2차 시도
+      let sanitizedKey = key.replace(/\n/g, '\\n');
+      let parsed = JSON.parse(sanitizedKey);
+      
+      if (parsed && typeof parsed.private_key === 'string') {
+        parsed.private_key = parsed.private_key.replace(/\\n/g, '\n');
+      }
+      return parsed;
     } catch {
       throw new Error(
-        'GOOGLE_SERVICE_ACCOUNT_KEY 형식이 잘못되었습니다. 유효한 JSON 형식이어야 합니다.'
+        'GOOGLE_SERVICE_ACCOUNT_KEY 형식이 잘못되었습니다. 유효한 JSON 형식이어야 하며, .env 파일 내에서 올바르게 태그되었는지 확인하세요.'
       );
     }
   }
@@ -43,6 +59,7 @@ function getGoogleDriveClient() {
     });
     return google.drive({ version: 'v3', auth });
   }
+
 
   throw new Error(
     'GOOGLE_SERVICE_ACCOUNT_KEY 환경변수가 필요합니다.'
