@@ -21,19 +21,27 @@ interface SyncResult {
 }
 
 function parseServiceAccountKey(key: string): any {
+  console.log('[Drive] Attempting to parse service account key...');
   try {
     // 1. 기본적인 JSON 파싱 시도
     let parsed = JSON.parse(key);
     
-    // 2. private_key 내의 \\n 문자열을 실제 개행문자로 변환 (가장 빈번한 에러 원인)
     if (parsed && typeof parsed.private_key === 'string') {
-      parsed.private_key = parsed.private_key.replace(/\\n/g, '\n');
+      // 이미 파싱된 상태에서 \n (백슬래시+n) 문자열이 남아있을 수 있으므로 처리
+      // JSON.parse가 제대로 처리했다면 실제 개행문자가 들어있겠지만, 
+      // 이중 이스케이프 된 경우 literal '\n'이 들어있을 수 있음
+      if (parsed.private_key.includes('\\n')) {
+        console.log('[Drive] Found literal \\n in private_key, replacing with actual newlines.');
+        parsed.private_key = parsed.private_key.replace(/\\n/g, '\n');
+      }
     }
     
     return parsed;
-  } catch {
+  } catch (error: any) {
+    console.warn(`[Drive] First JSON.parse attempt failed: ${error.message}`);
     try {
-      // .env 로더에 따라 따옴표나 개행 처리가 다를 수 있으므로 2차 시도
+      // 2. 개행 문자열 처리 후 재시도
+      // .env 로더에서 실제 개행문자가 포함되어 JSON 구조가 깨진 경우를 대비
       let sanitizedKey = key.replace(/\n/g, '\\n');
       let parsed = JSON.parse(sanitizedKey);
       
@@ -41,13 +49,15 @@ function parseServiceAccountKey(key: string): any {
         parsed.private_key = parsed.private_key.replace(/\\n/g, '\n');
       }
       return parsed;
-    } catch {
+    } catch (e: any) {
+      console.error(`[Drive] Both JSON.parse attempts failed. Error: ${e.message}`);
       throw new Error(
-        'GOOGLE_SERVICE_ACCOUNT_KEY 형식이 잘못되었습니다. 유효한 JSON 형식이어야 하며, .env 파일 내에서 올바르게 태그되었는지 확인하세요.'
+        'GOOGLE_SERVICE_ACCOUNT_KEY 형식이 잘못되었습니다. 유효한 JSON 형식이어야 합니다. (ERR: ' + e.message + ')'
       );
     }
   }
 }
+
 
 function getGoogleDriveClient() {
   const credentials = process.env.GOOGLE_SERVICE_ACCOUNT_KEY;
