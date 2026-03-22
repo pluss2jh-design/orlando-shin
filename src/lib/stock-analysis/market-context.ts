@@ -6,6 +6,13 @@ const yahooFinance = new YahooFinance({
   suppressNotices: ['yahooSurvey'] 
 });
 
+// 야후 파이낸스 밸리데이션 에러 로그 억제 (로그 오염 방지)
+try {
+  (yahooFinance as any).setGlobalConfig({ validation: { logErrors: false } });
+} catch (e) {
+  console.warn('Failed to set global config for yahoo-finance2');
+}
+
 /**
  * 전세계 시장 거시 지표를 가져와 분석합니다.
  */
@@ -97,15 +104,26 @@ export async function analyzeStockSentiment(
     const finalApiKey = apiKey || process.env.GEMINI_API_KEY || '';
     if (!finalApiKey) throw new Error('GEMINI_API_KEY is missing');
     
-    const genAI = new GoogleGenAI({ apiKey: finalApiKey });
+    const client = new GoogleGenAI({ apiKey: finalApiKey });
     
-    // @google/genai SDK use models.generateContent
-    const result = await (genAI as any).models.generateContent({
+    const prompt = `Analyze the sentiment of the following news headlines for stock ticker ${ticker}. 
+    Return a JSON object with:
+    - score: integer from -10 (very negative) to 10 (very positive)
+    - label: 'Positive', 'Neutral', or 'Negative'
+    - summary: brief 1-sentence summary of the news impact
+    - riskHeadlines: array of headlines that suggest potential risks
+    
+    Headlines:
+    ${headlines.join('\n- ')}
+    
+    Return ONLY JSON.`;
+
+    const result = await client.models.generateContent({
       model: aiModel,
-      contents: [{ role: 'user', parts: [{ text: prompt }] }]
+      contents: [{ role: 'user', parts: [{ text: prompt }] }] as any
     });
     
-    const text = result.text || '';
+    const text = (result as any).text || '';
     
     // JSON 추출
     const jsonMatch = text.match(/\{[\s\S]*\}/);
@@ -151,14 +169,29 @@ export async function predictStockGrowth(
     const finalApiKey = apiKey || process.env.GEMINI_API_KEY || '';
     if (!finalApiKey) throw new Error('GEMINI_API_KEY is missing');
     
-    const genAI = new GoogleGenAI({ apiKey: finalApiKey });
+    const client = new GoogleGenAI({ apiKey: finalApiKey });
 
-    const result = await (genAI as any).models.generateContent({
+    const prompt = `Predict the 6-month growth potential for ${ticker} based on these factors:
+    1. Financial Metrics: PER ${metrics.trailingPE}, PBR ${metrics.priceToBook}, ROE ${metrics.returnOnEquity}
+    2. Macro Context: Market Mode ${macro.marketMode}, VIX ${macro.vixStatus}, 10Y Yield ${macro.yieldStatus}
+    3. Sentiment Score: ${sentiment.score}/10 (${sentiment.label})
+    
+    Return a JSON object with:
+    - growthPotential: 'Bullish', 'Neutral', or 'Bearish'
+    - sixMonthTargetPrice: numeric target price
+    - expectedReturn: percentage (0-100+)
+    - logic: brief explanation supporting the prediction
+    
+    Current Price: ${metrics.currentPrice} ${metrics.currency}
+    
+    Return ONLY JSON.`;
+
+    const result = await client.models.generateContent({
       model: aiModel,
-      contents: [{ role: 'user', parts: [{ text: prompt }] }]
+      contents: [{ role: 'user', parts: [{ text: prompt }] }] as any
     });
     
-    const text = result.text || '';
+    const text = (result as any).text || '';
     
     const jsonMatch = text.match(/\{[\s\S]*\}/);
     if (jsonMatch) {
