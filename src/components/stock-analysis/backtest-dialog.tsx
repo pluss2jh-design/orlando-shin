@@ -153,6 +153,16 @@ export function BacktestDialog({ ticker, isOpen, onClose }: BacktestDialogProps)
                   <p className="text-[9px] text-gray-400 mt-1 uppercase font-bold tracking-tighter">시장 평균 수익률</p>
                 </div>
 
+                <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm">
+                  <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 flex items-center gap-1">
+                    <Activity className="h-3 w-3" /> 기업 수익률
+                  </p>
+                  <p className={cn("text-xl font-black font-mono tracking-tight", (data.metrics.totalReturn >= 0 ? "text-emerald-500" : "text-rose-500"))}>
+                    {data.metrics.totalReturn > 0 ? '+' : ''}{data.metrics.totalReturn}%
+                  </p>
+                  <p className="text-[9px] text-gray-400 mt-1 uppercase font-bold tracking-tighter">{ticker} 보유 시 결과</p>
+                </div>
+
                 <div className="bg-blue-600 p-4 rounded-2xl shadow-lg shadow-blue-500/10">
                   <p className="text-[10px] font-black text-white/70 uppercase tracking-widest mb-1.5 flex items-center gap-1">
                     <Sparkles className="h-3 w-3 text-white" /> 알파 수익률
@@ -181,16 +191,6 @@ export function BacktestDialog({ ticker, isOpen, onClose }: BacktestDialogProps)
                     {data.metrics.endPrice.toLocaleString()} <span className="text-sm font-bold text-blue-400">{data.currency}</span>
                   </p>
                   <p className="text-[9px] text-gray-400 mt-1 uppercase font-bold tracking-tighter">{new Date(data.metrics.endDate).toLocaleDateString()}</p>
-                </div>
-
-                <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm">
-                  <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 flex items-center gap-1">
-                    <Activity className="h-3 w-3" /> 기업 수익률
-                  </p>
-                  <p className={cn("text-xl font-black font-mono tracking-tight", (data.metrics.totalReturn >= 0 ? "text-emerald-500" : "text-rose-500"))}>
-                    {data.metrics.totalReturn > 0 ? '+' : ''}{data.metrics.totalReturn}%
-                  </p>
-                  <p className="text-[9px] text-gray-400 mt-1 uppercase font-bold tracking-tighter">{ticker} 보유 시 결과</p>
                 </div>
               </div>
 
