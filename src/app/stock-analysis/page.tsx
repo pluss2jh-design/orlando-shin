@@ -41,7 +41,7 @@ export default function StockAnalysisPage() {
     progressMessage: string;
     excludedStockCount: number;
     excludedDetails: ExcludedStockDetail[];
-  }>( {
+  }>({
     conditions: null,
     results: [],
     isAnalyzing: false,
@@ -214,14 +214,14 @@ export default function StockAnalysisPage() {
 
       }));
 
-      setAnalysisState(prev => ({ 
-        ...prev, 
-        results, 
+      setAnalysisState(prev => ({
+        ...prev,
+        results,
         isAnalyzing: false,
         excludedStockCount: data.excludedStockCount || prev.excludedStockCount,
         excludedDetails: data.excludedDetails || prev.excludedDetails
       }));
-      
+
       if (data.universeCounts) {
         setUniverseStats(data.universeCounts);
       }
@@ -247,7 +247,6 @@ export default function StockAnalysisPage() {
   };
 
   const handleAnalyze = async (newConditions: InvestmentConditions & {
-    companyAiModel?: string; companyApiKey?: string;
     newsAiModel?: string; newsApiKey?: string; companyCount?: number;
   }) => {
     analysisAlerted.current = false;
@@ -265,8 +264,6 @@ export default function StockAnalysisPage() {
           style: 'moderate',
           conditions: {
             companyCount: newConditions.companyCount || 5,
-            companyAiModel: newConditions.companyAiModel,
-            companyApiKey: newConditions.companyApiKey,
             newsAiModel: newConditions.newsAiModel,
             newsApiKey: newConditions.newsApiKey,
             asOfDate: newConditions.asOfDate,
@@ -375,7 +372,7 @@ export default function StockAnalysisPage() {
       {/* ── 스캔 및 시뮬레이션 컨트롤 통합 서브바 ── */}
       <div className="sticky top-14 z-20 bg-white border-b border-gray-200 shadow-sm">
         <div className="mx-auto px-6 max-w-screen-2xl flex flex-col xl:flex-row items-stretch xl:items-center gap-3 py-3">
-          
+
           {/* 기업 스캔 컨트롤 */}
           <div className="flex-1 w-full">
             <InvestmentInput
@@ -383,14 +380,14 @@ export default function StockAnalysisPage() {
               disabled={analysisState.isAnalyzing}
             />
           </div>
-          
+
           {/* 수동 백테스트 컨트롤 - 바로 옆에 배치 */}
           <div className="flex items-center gap-3 shrink-0 h-12">
             <div className="hidden xl:block h-6 w-px bg-gray-200" /> {/* 구분선 */}
-            
+
             {showManualBacktest ? (
               <div className="flex items-center gap-2 animate-in slide-in-from-right-3 duration-300 w-full xl:w-auto">
-                <Input 
+                <Input
                   placeholder="Ticker (e.g. TSLA)"
                   value={manualTicker}
                   onChange={(e) => setManualTicker(e.target.value.toUpperCase())}
@@ -402,7 +399,7 @@ export default function StockAnalysisPage() {
                     }
                   }}
                 />
-                <Button 
+                <Button
                   size="sm"
                   className="h-12 px-6 bg-blue-600 hover:bg-blue-500 font-black text-xs uppercase tracking-widest rounded-xl shadow-lg shadow-blue-500/10"
                   onClick={() => {
@@ -414,9 +411,9 @@ export default function StockAnalysisPage() {
                 >
                   <Search className="h-4 w-4 mr-2" /> 시뮬레이션
                 </Button>
-                <Button 
-                  size="icon" 
-                  variant="ghost" 
+                <Button
+                  size="icon"
+                  variant="ghost"
                   className="h-12 w-12 rounded-xl text-gray-400 shrink-0"
                   onClick={() => setShowManualBacktest(false)}
                 >
@@ -424,8 +421,8 @@ export default function StockAnalysisPage() {
                 </Button>
               </div>
             ) : (
-              <Button 
-                variant="outline" 
+              <Button
+                variant="outline"
                 className="h-12 px-6 border-blue-100 text-blue-600 hover:bg-blue-50 font-black uppercase text-xs tracking-widest gap-2 rounded-xl w-full xl:w-auto"
                 onClick={() => setShowManualBacktest(true)}
               >
@@ -516,9 +513,9 @@ export default function StockAnalysisPage() {
 
         {universeStats && !analysisState.isAnalyzing && (
           <div className="mb-6 flex flex-col items-center gap-2">
-                <Badge variant="outline" className="bg-white/50 text-gray-500 border-gray-200 text-xs py-1 px-4 font-bold shadow-sm">
-                  분석 유니버스: 러셀1000({universeStats?.russellCount}) - 중복({universeStats?.overlapCount}) = {universeStats?.finalCount}개 기업 대상
-                </Badge>
+            <Badge variant="outline" className="bg-white/50 text-gray-500 border-gray-200 text-xs py-1 px-4 font-bold shadow-sm">
+              분석 유니버스: 러셀1000({universeStats?.russellCount}) - 중복({universeStats?.overlapCount}) = {universeStats?.finalCount}개 기업 대상
+            </Badge>
 
             <TooltipProvider>
               <Tooltip>
@@ -593,10 +590,10 @@ export default function StockAnalysisPage() {
         </div>
       )}
 
-      <BacktestDialog 
-        ticker={backtestTicker || ''} 
-        isOpen={!!backtestTicker} 
-        onClose={() => setBacktestTicker(null)} 
+      <BacktestDialog
+        ticker={backtestTicker || ''}
+        isOpen={!!backtestTicker}
+        onClose={() => setBacktestTicker(null)}
       />
     </div>
   );

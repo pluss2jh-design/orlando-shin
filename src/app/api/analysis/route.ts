@@ -4,7 +4,7 @@ import { StockService, userAnalysisJobs } from '@/lib/services/stock.service';
 import type { InvestmentStyle } from '@/types/stock-analysis';
 
 interface AnalysisRequestBody {
-  conditions?: { companyCount?: number; companyAiModel?: string; companyApiKey?: string; newsAiModel?: string; newsApiKey?: string; sector?: string; strategyType?: 'growth' | 'value' | 'all' };
+  conditions?: { companyCount?: number; newsAiModel?: string; newsApiKey?: string; sector?: string; strategyType?: 'growth' | 'value' | 'all' };
 
   style?: InvestmentStyle;
 }
@@ -49,12 +49,12 @@ export async function POST(request: NextRequest) {
     }
 
     const body = (await request.json()) as AnalysisRequestBody;
-    
+
     // 기본 뉴스 스캔 AI 모델 설정 (환경변수에서 읽어옴)
     if (body.conditions && !body.conditions.newsAiModel && process.env.NEWS_SCAN_AI_MODEL) {
       body.conditions.newsAiModel = process.env.NEWS_SCAN_AI_MODEL;
     }
-    
+
     // 비즈니스 로직을 StockService로 위임
     await StockService.startAnalysis(session.user.id, body);
 
