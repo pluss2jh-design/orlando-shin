@@ -44,27 +44,28 @@ export async function GET(req: NextRequest) {
     }
 
     // 수익률 및 성과 지표 계산
-    const quotes = (history.quotes as any[]).filter((q: any) => q.close !== null && q.close !== undefined);
-    const benchmarkQuotes = (benchmarkHistory?.quotes as any[] || []).filter((q: any) => q.close !== null && q.close !== undefined);
+    const quotes = (history.quotes as any[]).filter((q: any) => (q.adjclose !== null || q.close !== null));
+    const benchmarkQuotes = (benchmarkHistory?.quotes as any[] || []).filter((q: any) => (q.adjclose !== null || q.close !== null));
 
     if (quotes.length < 2) {
       return NextResponse.json({ error: 'Insufficient data for backtesting' }, { status: 400 });
     }
 
-    const first = quotes[0].close!;
-    const last = quotes[quotes.length - 1].close!;
+    const first = quotes[0].adjclose ?? quotes[0].close!;
+    const last = quotes[quotes.length - 1].adjclose ?? quotes[quotes.length - 1].close!;
     const totalReturn = ((last - first) / first) * 100;
 
-    const bFirst = benchmarkQuotes.length >= 2 ? benchmarkQuotes[0].close! : 0;
-    const bLast = benchmarkQuotes.length >= 2 ? benchmarkQuotes[benchmarkQuotes.length - 1].close! : 0;
+    const bFirst = benchmarkQuotes.length >= 2 ? (benchmarkQuotes[0].adjclose ?? benchmarkQuotes[0].close!) : 0;
+    const bLast = benchmarkQuotes.length >= 2 ? (benchmarkQuotes[benchmarkQuotes.length - 1].adjclose ?? benchmarkQuotes[benchmarkQuotes.length - 1].close!) : 0;
     const benchmarkReturn = bFirst > 0 ? ((bLast - bFirst) / bFirst) * 100 : 0;
 
     // 최대 낙폭(MDD) 계산
     let mdd = 0;
     let peak = -Infinity;
     for (const q of quotes) {
-      if (q.close! > peak) peak = q.close!;
-      const dd = (q.close! - peak) / peak;
+      const price = q.adjclose ?? q.close!;
+      if (price > peak) peak = price;
+      const dd = (price - peak) / peak;
       if (dd < mdd) mdd = dd;
     }
 
@@ -75,7 +76,7 @@ export async function GET(req: NextRequest) {
       currency: (quote as any)?.currency || 'USD',
       history: quotes.map(q => ({
         date: q.date.toISOString().split('T')[0],
-        close: q.close
+        close: q.adjclose ?? q.close
       })),
       metrics: {
         totalReturn: Number(totalReturn.toFixed(2)),
