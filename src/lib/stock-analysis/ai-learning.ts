@@ -18,6 +18,8 @@ import {
   downloadDriveFile,
   type DriveFileInfo,
 } from '@/lib/google-drive';
+import { videoProcessingService } from '../video-processing/processor';
+import { VideoProcessingResult } from '@/types/video-processing';
 
 export const learningStatus = {
   isLearning: false,
@@ -77,6 +79,25 @@ function isTextOrDocumentFile(file: DriveFileInfo): boolean {
     file.mimeType?.includes('spreadsheet') || false;
 }
 
+async function waitForVideoProcessing(fileId: string): Promise<VideoProcessingResult | undefined> {
+  let attempts = 0;
+  const maxAttempts = 60; // 5분 (5초 간격)
+  
+  while (attempts < maxAttempts) {
+    if (learningStatus.isCancelled) return undefined;
+    
+    const result = videoProcessingService.getProcessingResult(fileId);
+    if (result && (result.status === 'completed' || result.status === 'error')) {
+      return result;
+    }
+    
+    await new Promise(resolve => setTimeout(resolve, 5000));
+    attempts++;
+  }
+  
+  return undefined;
+}
+
 export async function runLearningPipeline(
   targetFileIds?: string[],
   aiModels?: Record<string, string>
@@ -120,17 +141,53 @@ export async function runLearningPipeline(
       try {
         let content = '';
         let inlineDataPart: any = null;
+        let visualHighlights: { timestamp: string; description: string; imageUrl?: string }[] = [];
 
-        if (isPDFFile(file) || isVideoFile(file)) {
+        if (isVideoFile(file)) {
+          console.log(`Analyzing video: ${file.name}`);
           const fileBuffer = await downloadDriveFile(file.id, file.name);
-          const mimeType = isVideoFile(file) ? 'video/mp4' : 'application/pdf';
+          
+          // 1. 영상 전처리 (STT + 프레임 추출)
+          const fileId = await videoProcessingService.processVideo(fileBuffer, file.name, {
+            extractAudio: true,
+            performStt: true,
+            captureFrames: true,
+            frameInterval: 10,
+            keyMomentDetection: true
+          });
+
+          // 상태 폴링 (최대 5분)
+          let result = await waitForVideoProcessing(fileId);
+          
+          if (result && result.status === 'completed') {
+            const sttText = result.transcript?.segments.map((s: any) => `[${s.startTime}s] ${s.text}`).join('\n') || '';
+            const visualText = result.keyMoments?.filter((m: any) => m.type === 'visual').map((m: any) => `[${m.timestamp}s] ${m.description}`).join('\n') || '';
+            
+            content = `[VIDEO_ANALYSIS]\n${file.name}\n\nSTT Transcript:\n${sttText}\n\nVisual Analysis:\n${visualText}`;
+            visualHighlights = (result.keyMoments || []).map((m: any) => ({
+              timestamp: `${m.timestamp}s`,
+              description: m.description
+            }));
+
+            // Gemini 멀티모달용 데이터
+            inlineDataPart = {
+              inlineData: {
+                data: fileBuffer.toString('base64'),
+                mimeType: 'video/mp4'
+              }
+            };
+          } else {
+            content = `[비디오 분석 실패: ${file.name}] STT/프레임 추출 오류`;
+          }
+        } else if (isPDFFile(file)) {
+          const fileBuffer = await downloadDriveFile(file.id, file.name);
           inlineDataPart = {
             inlineData: {
               data: fileBuffer.toString('base64'),
-              mimeType: mimeType
+              mimeType: 'application/pdf'
             }
           };
-          content = `[MEDIA_CONTENT]`;
+          content = `[PDF_CONTENT]`;
         } else {
           content = await extractFileContent(file);
         }
@@ -184,6 +241,7 @@ export async function runLearningPipeline(
           fileName: file.name,
           fileId: file.id,
           keyConditions: analysisResult.keyConditions || [],
+          visualHighlights,
           extractedAt: new Date(),
         });
 
@@ -208,60 +266,57 @@ export async function runLearningPipeline(
     if (!strategyModelName) {
       throw new Error('종합 전략 도출을 위한 AI 모델이 선택되지 않았습니다. 모델 탭에서 사용할 AI 모델을 선택해주세요.');
     }
-    const strategyPrompt = `당신은 제공된 원천 자료(문서, 영상)의 내용을 단 한 줄의 왜곡 없이 완벽하게 흡수하여, 해당 자료만의 독창적인 '투자 알고리즘'을 설계하는 **제로-베이스(Zero-base) 전략 분석가**입니다.
+    const strategyPrompt = `당신은 제공된 여러 개별 자료(문서, 영상)의 분석 결과를 완벽하게 통합하여, 하나의 일관된 '최종 투자 알고리즘'을 설계하는 **수석 전략 합성가(Head of Strategy Synthesis)**입니다.
 
-### [1. 무제한 동적 카테고리 도출 지침]
-- 자료를 분석하여 발견되는 **모든 핵심 가치와 논리를 누락 없이 각각의 카테고리로 생성**하세요.
-- 카테고리 개수에 제한을 두지 않습니다. 자료에서 언급된 모든 유의미한 투자 기준을 당신이 새롭게 명명한 카테고리에 담으세요.
-- (예: '폭발적 이익의 전조', '무너질 수 없는 경제적 해자', '재무적 안전핀' 등 자료의 뉘앙스를 그대로 살린 명칭 사용)
+### [1. 전문가 합의 및 논리 통합(Roadmap 3) 지침]
+- **논리 통합**: 여러 자료에서 동일한 지표를 강조하면 가중치를 높이고, 상충되는 의견이 있으면 더 보수적이거나 논리적인 근거가 강한 쪽을 채택하세요.
+- **합의 점수(Consensus Score)**: 전체 투자 전략의 일관성을 0~100점 사이로 산정하세요. (모든 자료가 한 방향을 가리키면 100점, 서로 다르면 낮게 측정)
+- **부재 데이터 보충**: 자료에서 구체적인 수치가 없더라도, 전문가로서 해당 지표의 보편적인 성공 기준(예: ROE 15% 이상)을 제안하십시오.
 
-### [2. 필드별 데이터 결정 및 의무 준수 사항]
+### [2. 동적 계량화 및 상대적 벤치마크(Roadmap 2) 지침]
+- **benchmark_type**:
+  - 'absolute': 고정된 수치 (예: PER 15 이하)
+  - 'sector_relative': 해당 업종 평균 대비 (예: 업종 평균보다 낮은 PER)
+  - 'sector_percentile': 업종 내 상위 % (예: 업종 내 ROE 상위 20% 이내)
+- 자료가 "업종에서 가장 잘 나가는" 혹은 "평균 이상" 같은 표현을 쓴다면 반드시 'sector_relative'나 'sector_percentile'을 사용하세요.
 
-1. **description (상세 설명):**
-   - **반드시 3문장 이내**로 작성하십시오.
-   - 수사적인 표현은 줄이고, 저자가 말한 "조건, 이유, 결과" 위주로 핵심만 간결하게 기록하세요.
+### [3. 필드별 의무 준수 사항]
+1. **description (상세 설명):** 반드시 3문장 이내. "조건, 이유, 결과" 위주.
+2. **weight (가중치):** 0.1~1.0. 여러 자료에서 공통 언급 시 0.1~0.2 가산.
+3. **isCritical (Critical 여부):** "이게 안 되면 절대 안 됨"인 경우만 True.
+4. **visualEvidence**: 만약 영상 분석 결과에서 차트나 화면 캡처 설명이 포함되어 있다면 그 내용을 짧게 요약해 기입.
 
-2. **weight (중요도 가중치):**
-   - 저자의 수식어와 강조 횟수에 따라 엄격히 결정 (0.1~1.0).
-   - **0.9~1.0**: '최우선순위', '가장 먼저 확인', '결정적 요인'
-   - **0.1~0.5**: '참고용', '부가적 힌트', '도움이 되는 지표'
-
-3. **isCritical (Critical 여부):**
-   - **True**: 저자가 "이 조건이 충족되지 않으면 무조건 탈락"이라 명시하거나 "실패의 결정적 원인"이라 한 경우에만 설정.
-   - **False**: 일반적인 평가 지표인 경우 무조건 False. (남발 금지)
-
-4. **quantification (계량화):**
-   - **target_metric**: 시스템 조회 명칭 (revenue_growth, debt_ratio, rsi, roe, net_income, current_ratio, quick_ratio, eps_growth, operating_margin 등)
-   - **condition & benchmark**: 자료에 숫자가 있다면 그 값을, 없다면 전문가로서 적정한 수치를 직접 제안하여 기입.
-
-추출된 핵심 조건들:
+추출된 개별 파일 분석 결과들:
 ${docConditions}
 
-### [3. 최종 출력 요구사항 - JSON 규격]
+### [4. 최종 출력 요구사항 - JSON 규격]
 **반드시 아래 구조로만 응답하세요. 다른 텍스트는 포함하지 마십시오.**
 {
-  "keyConditionsSummary": "자료의 투자 철학 핵심 요약 (5문장 내외)",
+  "keyConditionsSummary": "통합 투자 철학 핵심 요약 (5문장 내외)",
+  "consensusScore": 0~100,
   "strategyType": "aggressive|moderate|stable",
   "strategy": {
-    "shortTermConditions": ["단기 조건 리스트..."],
-    "longTermConditions": ["장기 조건 리스트..."],
+    "shortTermConditions": ["단기 조건..."],
+    "longTermConditions": ["장기 조건..."],
     "winningPatterns": ["필승 패턴..."],
-    "riskManagementRules": ["리스크 관리 및 매도 원칙..."]
+    "riskManagementRules": ["리스크 관리..."]
   },
   "criterias": [
     {
       "name": "규칙 이름",
-      "category": "자료에서 추출하여 당신이 명명한 카테고리",
+      "category": "카테고리명",
       "weight": 0.1~1.0, 
       "description": "핵심 로직 (3문장 이내)",
       "quantification": {
-        "target_metric": "지표 영문명",
-        "condition": "> | < | >= | <= | ==",
-        "benchmark": 0,
+        "target_metric": "지표명",
+        "condition": ">|<|>=|<=|==",
+        "benchmark": "수치 또는 'sector_avg' 등",
+        "benchmark_type": "absolute|sector_relative|sector_percentile",
         "scoring_type": "binary|linear"
       },
       "isCritical": true|false, 
-      "source": { "fileName": "파일명", "location": "페이지/타임라인" }
+      "visualEvidence": "시각적 근거 요약(있을 경우)",
+      "source": { "fileName": "파일명", "location": "위치" }
     }
   ],
   "principles": [
@@ -280,16 +335,17 @@ ${docConditions}
     const strategyJsonMatch = strategyText.match(/\{[\s\S]*\}/);
     const strategyData = strategyJsonMatch ? JSON.parse(strategyJsonMatch[0]) : {};
 
-    const defaultSource: SourceReference = { fileName: '종합 분석', type: 'pdf', pageOrTimestamp: '-', content: '학습 데이터 종합 분석 결과' };
-
+    const defaultSource: SourceReference = { fileName: '합성된 투자 원칙', type: 'pdf', pageOrTimestamp: 'System', content: '종합 분석 결과' };
     const strategy: InvestmentStrategy = {
       shortTermConditions: strategyData.strategy?.shortTermConditions || [],
       longTermConditions: strategyData.strategy?.longTermConditions || [],
       winningPatterns: strategyData.strategy?.winningPatterns || [],
       riskManagementRules: strategyData.strategy?.riskManagementRules || [],
+      consensusScore: strategyData.consensusScore || 80,
     };
 
     const criteria: LearnedInvestmentCriteria = {
+      consensusScore: strategyData.consensusScore || 85,
       criterias: (strategyData.criterias || []).map((c: any) => ({
         name: c.name,
         category: c.category,
@@ -299,15 +355,12 @@ ${docConditions}
           target_metric: c.quantification?.target_metric || 'unknown',
           condition: c.quantification?.condition || '>=',
           benchmark: c.quantification?.benchmark || 0,
-          scoring_type: c.quantification?.scoring_type || 'binary'
+          benchmark_type: c.quantification?.benchmark_type || 'absolute',
+          scoring_type: c.quantification?.scoring_type || 'linear',
         },
-        isCritical: !!c.isCritical,
-        source: c.source ? {
-          fileName: c.source.fileName || 'unknown',
-          type: 'pdf',
-          pageOrTimestamp: c.source.location || '-',
-          content: c.description || ''
-        } : defaultSource
+        isCritical: c.isCritical || false,
+        visualEvidence: c.visualEvidence || '',
+        source: c.source || defaultSource,
       })),
       principles: (strategyData.principles || []).map((p: any) => ({
         principle: p.principle,

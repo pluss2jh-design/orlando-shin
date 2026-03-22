@@ -104,6 +104,8 @@ export async function runAnalysisEngine(
     failureReason?: string;
   }> = [];
 
+  const sectorStats = calculateSectorStats(validStocks);
+
   // ── Phase 2: 상세 재무 데이터 + 점수 산정 ──
   let analyzedCount = 0;
   const chunkSize = 5;
@@ -159,7 +161,7 @@ export async function runAnalysisEngine(
         let failureReason = '';
 
         for (const rule of allRules) {
-          const scoreResult = evaluateQuantifiedRule(rule, fullData);
+          const scoreResult = evaluateQuantifiedRule(rule, fullData, sectorStats);
           ruleScores.push(scoreResult);
 
           // Critical Fail 체크 (Hard Gate)
@@ -263,9 +265,49 @@ export async function runAnalysisEngine(
 }
 
 /**
+ * 업종별 지표 통계를 계산합니다. (상대적 점수 산정용)
+ */
+function calculateSectorStats(allData: YahooFinanceData[]): Record<string, Record<string, { avg: number, p80: number }>> {
+  const stats: Record<string, Record<string, number[]>> = {};
+
+  allData.forEach(d => {
+    const sector = d.sector || 'Unknown';
+    if (!stats[sector]) stats[sector] = {};
+
+    const metrics = {
+      revenue_growth: (d as any).revenueGrowth !== undefined ? (d as any).revenueGrowth * 100 : undefined,
+      roe: d.returnOnEquity !== undefined ? d.returnOnEquity * 100 : undefined,
+      per: d.trailingPE,
+      pbr: d.priceToBook,
+      operating_margin: (d as any).operatingMargins !== undefined ? (d as any).operatingMargins * 100 : undefined,
+    };
+
+    Object.entries(metrics).forEach(([m, v]) => {
+      if (v !== undefined && !isNaN(v)) {
+        if (!stats[sector][m]) stats[sector][m] = [];
+        stats[sector][m].push(v);
+      }
+    });
+  });
+
+  const finalStats: Record<string, Record<string, { avg: number, p80: number }>> = {};
+  Object.keys(stats).forEach(sector => {
+    finalStats[sector] = {};
+    Object.keys(stats[sector]).forEach(metric => {
+      const vals = stats[sector][metric].sort((a, b) => a - b);
+      const avg = vals.reduce((a, b) => a + b, 0) / vals.length;
+      const p80 = vals[Math.floor(vals.length * 0.8)] || avg;
+      finalStats[sector][metric] = { avg, p80 };
+    });
+  });
+
+  return finalStats;
+}
+
+/**
  * AI가 추출한 계량화된 규칙을 바탕으로 실시간 데이터를 평가합니다.
  */
-function evaluateQuantifiedRule(rule: any, data: YahooFinanceData): RuleScore {
+function evaluateQuantifiedRule(rule: any, data: YahooFinanceData, sectorStats?: Record<string, Record<string, { avg: number, p80: number }>>): RuleScore {
   const q = rule.quantification;
   const metric = q.target_metric;
   const condition = q.condition;
@@ -297,35 +339,50 @@ function evaluateQuantifiedRule(rule: any, data: YahooFinanceData): RuleScore {
     return { rule: rule.name, score: 5, reason: `데이터 부재 (${metric})` };
   }
 
+  let targetBenchmark = benchmark;
+
+  // 상대적 벤치마크 처리
+  if (q.benchmark_type === 'sector_relative' || q.benchmark_type === 'sector_percentile') {
+    const s = data.sector || 'Unknown';
+    const m = metric.toLowerCase();
+    const stats = sectorStats?.[s]?.[m];
+    if (stats) {
+      targetBenchmark = q.benchmark_type === 'sector_relative' ? stats.avg : stats.p80;
+    }
+  }
+
   const passed = (function() {
     switch(condition) {
-      case '>': return actualValue > benchmark;
-      case '<': return actualValue < benchmark;
-      case '>=': return actualValue >= benchmark;
-      case '<=': return actualValue <= benchmark;
-      case '==': return actualValue === benchmark;
+      case '>': return actualValue > targetBenchmark;
+      case '<': return actualValue < targetBenchmark;
+      case '>=': return actualValue >= targetBenchmark;
+      case '<=': return actualValue <= targetBenchmark;
+      case '==': return actualValue === targetBenchmark;
       default: return false;
     }
   })();
+
+  const benchmarkDisplay = q.benchmark_type === 'sector_relative' ? '업종평균' : 
+                         q.benchmark_type === 'sector_percentile' ? '업종상위20%' : targetBenchmark;
 
   if (scoringType === 'binary') {
     return {
       rule: rule.name,
       score: passed ? 10 : 0,
-      reason: `${actualValue.toFixed(1)} ${condition} ${benchmark} (${passed ? '만족' : '미달'})`
+      reason: `${actualValue.toFixed(1)} ${condition} ${benchmarkDisplay} (${passed ? '만족' : '미달'})`
     };
   } else {
-    // Linear (임시 로직: 방향성에 따라 점수 산정)
+    // Linear
     let score = 5;
     if (condition === '>' || condition === '>=') {
-      score = actualValue >= benchmark ? 10 : (actualValue / benchmark) * 10;
+      score = actualValue >= targetBenchmark ? 10 : (actualValue / (targetBenchmark || 1)) * 10;
     } else {
-      score = actualValue <= benchmark ? 10 : (benchmark / actualValue) * 10;
+      score = actualValue <= targetBenchmark ? 10 : (targetBenchmark / (actualValue || 1)) * 10;
     }
     return {
       rule: rule.name,
       score: Math.min(10, Math.max(0, Number(score.toFixed(1)))),
-      reason: `${actualValue.toFixed(1)} (기준: ${benchmark})`
+      reason: `${actualValue.toFixed(1)} (기준: ${benchmarkDisplay})`
     };
   }
 }

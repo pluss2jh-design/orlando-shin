@@ -6,7 +6,7 @@ import { auth } from '@/lib/auth';
 export async function POST(req: NextRequest) {
     try {
         const session = await auth();
-        if (!session?.user) {
+        if (!session?.user?.id) {
             return NextResponse.json({ error: '인증이 필요합니다.' }, { status: 401 });
         }
 

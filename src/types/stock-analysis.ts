@@ -152,6 +152,7 @@ export interface ExtractedMetrics {
 
 /** 교육 자료에서 학습한 투자 판단 기준 */
 export interface LearnedInvestmentCriteria {
+  consensusScore?: number; // How consistent the advice is across sources
   criterias: {
     name: string;
     category: string;
@@ -160,11 +161,13 @@ export interface LearnedInvestmentCriteria {
     quantification: {
       target_metric: string;
       condition: '>' | '<' | '>=' | '<=' | '==';
-      benchmark: number;
+      benchmark: number | string; // 15 or 'sector_avg'
+      benchmark_type?: 'absolute' | 'sector_relative' | 'sector_percentile';
       scoring_type: 'binary' | 'linear';
     };
     isCritical: boolean;
     source: SourceReference;
+    visualEvidence?: string; // OCR data or Frame visual description
   }[];
 
   principles: {
@@ -179,12 +182,14 @@ export interface InvestmentStrategy {
   longTermConditions: string[];
   winningPatterns: string[];
   riskManagementRules: string[];
+  consensusScore?: number; // How consistent the advice is across sources
 }
 
 export interface FileAnalysis {
   fileName: string;
   fileId: string;
   keyConditions: string[];
+  visualHighlights?: { timestamp: string; description: string; imageUrl?: string }[];
   extractedAt: Date;
 }
 
