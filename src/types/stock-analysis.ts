@@ -129,6 +129,9 @@ export interface ExtractedCompanyAnalysis {
   stopLossPrice?: number;
 
   metrics: ExtractedMetrics;
+  
+  sentimentSummary?: string;
+  macroStatus?: string;
 
   investmentThesis: string;
   riskFactors: string[];
@@ -317,6 +320,40 @@ export interface FilteredCandidate {
   totalRuleScore?: number;
   maxPossibleScore?: number;
   tenbaggerScore?: TenbaggerScoreResult;
+  
+  // 고도화 항목: 매크로, 감성, 예측
+  macroContext?: MacroContext;
+  sentiment?: SentimentAnalysis;
+  prediction?: PredictiveAnalysis;
+  backtestResult?: {
+    pastOneYearReturn: number;
+    winRateVsS_P500: number;
+  };
+}
+
+export interface MacroContext {
+  vix: number;
+  vixStatus: 'Low' | 'Moderate' | 'High' | 'Extreme';
+  treasuryYield10Y: number;
+  yieldStatus: 'Bearish' | 'Neutral' | 'Bullish';
+  sp500Trend: 'Uptrend' | 'Downtrend' | 'Sideways';
+  marketMode: 'Greed' | 'Fear' | 'Neutral';
+  extractedAt: Date;
+}
+
+export interface SentimentAnalysis {
+  score: number; // -10 to 10
+  label: 'Positive' | 'Negative' | 'Neutral';
+  summary: string;
+  recentHeadlines: string[];
+  riskHeadlines: string[];
+}
+
+export interface PredictiveAnalysis {
+  growthPotential: 'Bullish' | 'Neutral' | 'Bearish';
+  sixMonthTargetPrice: number;
+  expectedReturn: number;
+  logic: string;
 }
 
 // ===========================
@@ -361,6 +398,7 @@ export interface RecommendationResult {
   processedAt: Date;
   summary: string;
   allSourcesUsed: SourceReference[];
+  macroContext?: MacroContext;
   queriedTickers: string[];
   excludedStockCount?: number;
   excludedDetails?: ExcludedStockDetail[];

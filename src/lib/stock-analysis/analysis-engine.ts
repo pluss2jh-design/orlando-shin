@@ -17,9 +17,14 @@ import type {
 import { fetchExchangeRate } from './currency';
 import {
   fetchYahooFinanceData,
-  fetchBatchQuotes, // Ensure fetchBatchQuotes is imported
+  fetchBatchQuotes, 
 } from './yahoo-finance';
 import { getStockUniverse } from './universe';
+import { 
+  fetchMarketMacroContext, 
+  analyzeStockSentiment, 
+  predictStockGrowth 
+} from './market-context';
 
 /**
  * 기업 분석 엔진 메인 함수
@@ -41,8 +46,9 @@ export async function runAnalysisEngine(
 
   console.log(`Starting analysis: full Russell 1000 7-Step scan...`);
 
-  if (onProgress) onProgress(2, 'Russell 1000 유니버스 실시간 로딩 중...');
+  if (onProgress) onProgress(2, '시장 매크로 환경 및 Russell 1000 유니버스 로딩 중...');
   const exchangeRate = await fetchExchangeRate();
+  const macroContext = await fetchMarketMacroContext();
 
   // Russell 1000 실시간 조회 (S&P 500 제외) — async
   const { tickers: universe, universeCounts } = await getStockUniverse();
@@ -102,6 +108,8 @@ export async function runAnalysisEngine(
     totalScore: number;
     failedCritical?: boolean;
     failureReason?: string;
+    sentiment?: any;
+    prediction?: any;
   }> = [];
 
   const sectorStats = calculateSectorStats(validStocks);
@@ -146,6 +154,8 @@ export async function runAnalysisEngine(
             pbr: fullData.priceToBook,
             roe: fullData.returnOnEquity ? fullData.returnOnEquity * 100 : undefined,
           },
+          sentimentSummary: '', // Added for display
+          macroStatus: macroContext.marketMode,
           investmentThesis: '',
           riskFactors: [],
           investmentStyle: style,
@@ -153,6 +163,11 @@ export async function runAnalysisEngine(
           extractedAt: new Date(),
           confidence: 0.8,
         };
+
+        const [sentiment, prediction] = await Promise.all([
+          analyzeStockSentiment(stock.ticker, newsAiModel, newsApiKey),
+          predictStockGrowth(stock.ticker, fullData, macroContext, { score: 0, label: 'Neutral', summary: '', recentHeadlines: [], riskHeadlines: [] }, companyAiModel, companyApiKey)
+        ]);
 
         const ruleScores: RuleScore[] = [];
         let weightedScoreSum = 0;
@@ -177,6 +192,13 @@ export async function runAnalysisEngine(
 
         let finalScore = totalWeightSum > 0 ? (weightedScoreSum / totalWeightSum) : 0;
         
+        // 감성 점수 보정 (Sentiment Calibration)
+        if (sentiment.score > 5) finalScore += 0.5;
+        if (sentiment.score < -3) finalScore -= 1.0;
+
+        // 매크로 환경 보정
+        if (macroContext.vixStatus === 'High' && (fullData as any).debtToEquity > 150) finalScore -= 0.5;
+
         // 전략 보너스
         if (knowledge.strategyType === 'aggressive' && periodReturn > 20) finalScore += 1;
         if (knowledge.strategyType === 'stable' && (fullData.dividendYield || 0) > 0.03) finalScore += 1;
@@ -189,7 +211,9 @@ export async function runAnalysisEngine(
           ruleScores,
           totalScore: failedCritical ? 0 : Number(finalScore.toFixed(2)),
           failedCritical,
-          failureReason
+          failureReason,
+          sentiment,
+          prediction
         });
       } catch (err) {
         console.error(`Analysis failed for ${stock.ticker}:`, err);
@@ -210,7 +234,7 @@ export async function runAnalysisEngine(
     .map((stock) => {
       const riskLevel = stock.periodReturn > 50 ? 'high' : stock.periodReturn > 20 ? 'medium' : 'low';
       
-      // 텐배거 7단계 스코어 산정 (레거시 유지하되 종합 점수 위주로 필터링)
+      const backtestResult = calculateBacktestResult(stock.yahooData);
       const tenbaggerScore = calculateTenbaggerScore(stock);
 
       let thesis = '';
@@ -218,9 +242,13 @@ export async function runAnalysisEngine(
         thesis = `[투자 주의] ${stock.failureReason}. 다른 지표가 우수함에도 불구하고 자료에서 정의한 필수 조건을 충족하지 못했습니다.`;
       } else {
         const topRules = [...stock.ruleScores].sort((a, b) => b.score - a.score).slice(0, 3);
+        const sentimentInfo = stock.sentiment ? `\n[시장 분위기] ${stock.sentiment.label} (${stock.sentiment.score}/10) - ${stock.sentiment.summary}` : '';
+        const macroInfo = `\n[매크로 환경] 현재 시장은 ${macroContext.marketMode} 모드이며, VIX 지수 ${macroContext.vixStatus} 상태입니다.`;
+
         thesis = `${stock.ticker}는 통합 투자 로직 점수 ${stock.totalScore.toFixed(1)}/10점을 기록했습니다. ` +
           `특히 ${topRules.map(r => r.rule).join(', ')} 분야에서 강력한 부합성을 보입니다. ` +
-          `실시간 PER ${stock.yahooData.trailingPE?.toFixed(1) || 'N/A'}, ROE ${stock.yahooData.returnOnEquity ? (stock.yahooData.returnOnEquity * 100).toFixed(1) : 'N/A'}%`;
+          `실시간 PER ${stock.yahooData.trailingPE?.toFixed(1) || 'N/A'}, ROE ${stock.yahooData.returnOnEquity ? (stock.yahooData.returnOnEquity * 100).toFixed(1) : 'N/A'}%` +
+          sentimentInfo + macroInfo;
       }
 
       return {
@@ -245,6 +273,10 @@ export async function runAnalysisEngine(
         totalRuleScore: stock.totalScore,
         maxPossibleScore: 10,
         tenbaggerScore,
+        macroContext,
+        sentiment: stock.sentiment,
+        prediction: stock.prediction,
+        backtestResult,
       };
     });
 
@@ -257,10 +289,41 @@ export async function runAnalysisEngine(
     processedAt: new Date(),
     summary: `시장 유니버스에서 필수 조건을 검증하고 동적 로직으로 상위 기업을 선별했습니다.`,
     allSourcesUsed: deduplicateSources(allRules.map(r => r.source).filter(Boolean)),
+    macroContext,
     queriedTickers: universe,
     excludedStockCount,
     excludedDetails,
     universeCounts
+  };
+}
+
+/**
+ * 과거 1년치 수익률과 S&P 500 대비 성과를 계산합니다. (백테스팅)
+ */
+function calculateBacktestResult(data: YahooFinanceData) {
+  const history = data.priceHistory || [];
+  if (history.length < 2) return undefined;
+
+  const now = history[history.length - 1].close;
+  
+  // 1년 전 데이터 찾기
+  const oneYearAgo = new Date();
+  oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
+  
+  const entryOneYearAgo = history.find(h => h.date >= oneYearAgo) || history[0];
+  const pastPrice = entryOneYearAgo.close;
+
+  if (pastPrice <= 0) return undefined;
+
+  const pastOneYearReturn = ((now - pastPrice) / pastPrice) * 100;
+  
+  // S&P 500 1년 수익률 (간단히 15%로 가정하거나 나중에 실시간 연동)
+  const sp500OneYearReturn = 15; 
+  const winRateVsS_P500 = pastOneYearReturn - sp500OneYearReturn;
+
+  return {
+    pastOneYearReturn: Number(pastOneYearReturn.toFixed(2)),
+    winRateVsS_P500: Number(winRateVsS_P500.toFixed(2))
   };
 }
 
