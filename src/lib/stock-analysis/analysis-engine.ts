@@ -17,13 +17,13 @@ import type {
 import { fetchExchangeRate } from './currency';
 import {
   fetchYahooFinanceData,
-  fetchBatchQuotes, 
+  fetchBatchQuotes,
 } from './yahoo-finance';
 import { getStockUniverse } from './universe';
-import { 
-  fetchMarketMacroContext, 
-  analyzeStockSentiment, 
-  predictStockGrowth 
+import {
+  fetchMarketMacroContext,
+  analyzeStockSentiment,
+  predictStockGrowth
 } from './market-context';
 
 /**
@@ -36,8 +36,6 @@ export async function runAnalysisEngine(
   style: InvestmentStyle = 'moderate',
   companyCount: number = 5,
 
-  companyAiModel?: string,
-  companyApiKey?: string,
   newsAiModel?: string,
   newsApiKey?: string,
   onProgress?: (progress: number, message: string, meta?: { excludedStockCount?: number; excludedDetails?: ExcludedStockDetail[] }) => void
@@ -78,14 +76,14 @@ export async function runAnalysisEngine(
         try {
           const singleQuote = await fetchBatchQuotes([ticker]);
           allYahooData.push(...singleQuote);
-        } catch (e) {}
+        } catch (e) { }
       }
     }
   }
 
   const validStocks = allYahooData.filter(d => d.ticker && (d.currentPrice > 0 || d.previousClose > 0));
   const validTickerSet = new Set(validStocks.map(s => s.ticker));
-  
+
   const excludedDetails: ExcludedStockDetail[] = [];
   universe.forEach(ticker => {
     if (!validTickerSet.has(ticker)) {
@@ -179,7 +177,7 @@ export async function runAnalysisEngine(
           if (rule.isCritical && scoreResult.score < 5) {
             failedCritical = true;
             failureReason = `자료에서 강조된 필수 조건(${rule.name}) 미달: ${scoreResult.reason}`;
-            break; 
+            break;
           }
 
           weightedScoreSum += scoreResult.score * rule.weight;
@@ -187,7 +185,7 @@ export async function runAnalysisEngine(
         }
 
         let finalScore = totalWeightSum > 0 ? (weightedScoreSum / totalWeightSum) : 0;
-        
+
         // 매크로 환경 보정
         if (macroContext.vixStatus === 'High' && (fullData as any).debtToEquity > 150) finalScore -= 0.5;
 
@@ -222,11 +220,11 @@ export async function runAnalysisEngine(
     .slice(0, Math.min(companyCount + 10, 20)); // 상위 20개 선정
 
   const topPicks: FilteredCandidate[] = [];
-  
+
   for (let i = 0; i < preSorted.length; i++) {
     const stock = preSorted[i];
     const itemPct = 85 + Math.floor((i / preSorted.length) * 10);
-    if (onProgress) onProgress(itemPct, `AI 정밀 분석 진행 중 (${newsAiModel || 'default'}): ${stock.ticker} (${i+1}/${preSorted.length})`);
+    if (onProgress) onProgress(itemPct, `AI 정밀 분석 진행 중 (${newsAiModel || 'default'}): ${stock.ticker} (${i + 1}/${preSorted.length})`);
 
     try {
       // 상위권에게만 AI 감성 분석 및 주가 예측 수행
@@ -320,20 +318,20 @@ function calculateBacktestResult(data: YahooFinanceData) {
   if (history.length < 2) return undefined;
 
   const now = history[history.length - 1].close;
-  
+
   // 1년 전 데이터 찾기
   const oneYearAgo = new Date();
   oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
-  
+
   const entryOneYearAgo = history.find(h => h.date >= oneYearAgo) || history[0];
   const pastPrice = entryOneYearAgo.close;
 
   if (pastPrice <= 0) return undefined;
 
   const pastOneYearReturn = ((now - pastPrice) / pastPrice) * 100;
-  
+
   // S&P 500 1년 수익률 (간단히 15%로 가정하거나 나중에 실시간 연동)
-  const sp500OneYearReturn = 15; 
+  const sp500OneYearReturn = 15;
   const winRateVsS_P500 = pastOneYearReturn - sp500OneYearReturn;
 
   return {
@@ -393,7 +391,7 @@ function evaluateQuantifiedRule(rule: any, data: YahooFinanceData, sectorStats?:
   const scoringType = q.scoring_type;
 
   let actualValue: number | undefined;
-  
+
   // 지표 매핑 로직
   switch (metric.toLowerCase()) {
     case 'revenue_growth': actualValue = (data as any).revenueGrowth !== undefined ? (data as any).revenueGrowth * 100 : undefined; break;
@@ -412,7 +410,7 @@ function evaluateQuantifiedRule(rule: any, data: YahooFinanceData, sectorStats?:
       if (metric.includes('revenue')) actualValue = (data as any).revenueGrowth !== undefined ? (data as any).revenueGrowth * 100 : undefined;
       else if (metric.includes('profit')) actualValue = (data as any).operatingMargins !== undefined ? (data as any).operatingMargins * 100 : undefined;
   }
-  
+
   if (actualValue === undefined || isNaN(actualValue)) {
     return { rule: rule.name, score: 5, reason: `데이터 부재 (${metric})` };
   }
@@ -429,8 +427,8 @@ function evaluateQuantifiedRule(rule: any, data: YahooFinanceData, sectorStats?:
     }
   }
 
-  const passed = (function() {
-    switch(condition) {
+  const passed = (function () {
+    switch (condition) {
       case '>': return actualValue > targetBenchmark;
       case '<': return actualValue < targetBenchmark;
       case '>=': return actualValue >= targetBenchmark;
@@ -440,8 +438,8 @@ function evaluateQuantifiedRule(rule: any, data: YahooFinanceData, sectorStats?:
     }
   })();
 
-  const benchmarkDisplay = q.benchmark_type === 'sector_relative' ? '업종평균' : 
-                         q.benchmark_type === 'sector_percentile' ? '업종상위20%' : targetBenchmark;
+  const benchmarkDisplay = q.benchmark_type === 'sector_relative' ? '업종평균' :
+    q.benchmark_type === 'sector_percentile' ? '업종상위20%' : targetBenchmark;
 
   if (scoringType === 'binary') {
     return {
@@ -463,108 +461,6 @@ function evaluateQuantifiedRule(rule: any, data: YahooFinanceData, sectorStats?:
       reason: `${actualValue.toFixed(1)} (기준: ${benchmarkDisplay})`
     };
   }
-}
-
-
-
-
-/**
- * 개별 투자 규칙에 대한 기업의 부합 정도를 0-10점 사이로 산정합니다.
- */
-function calculateRuleScore(rule: string, data: YahooFinanceData, company: ExtractedCompanyAnalysis): RuleScore {
-  const ruleLower = rule.toLowerCase();
-
-  // ROE 평가 (수익성)
-  if (ruleLower.includes('roe')) {
-    const val = (data.returnOnEquity || 0) * 100;
-    if (val <= 0) return { rule, score: 0, reason: 'ROE 마이너스' };
-    if (val >= 25) return { rule, score: 10, reason: `ROE ${val.toFixed(1)}% (최상)` };
-    if (val >= 15) return { rule, score: 9, reason: `ROE ${val.toFixed(1)}% (우수)` };
-    if (val >= 8) return { rule, score: 6, reason: `ROE ${val.toFixed(1)}% (보통)` };
-    return { rule, score: 3, reason: `ROE ${val.toFixed(1)}% (저조)` };
-  }
-
-  // PER 평가 (밸류에이션)
-  if (ruleLower.includes('per')) {
-    const val = data.trailingPE;
-    if (!val) return { rule, score: 5, reason: 'PER 데이터 없음' };
-    if (val > 0 && val <= 12) return { rule, score: 10, reason: `PER ${val.toFixed(1)} (저평가 매력)` };
-    if (val <= 20) return { rule, score: 8, reason: `PER ${val.toFixed(1)} (적정)` };
-    if (val <= 35) return { rule, score: 4, reason: `PER ${val.toFixed(1)} (고평가 영역)` };
-    return { rule, score: 1, reason: `PER ${val.toFixed(1)} (과도한 고평가)` };
-  }
-
-  // PBR 평가 (자산가치)
-  if (ruleLower.includes('pbr')) {
-    const val = data.priceToBook;
-    if (!val) return { rule, score: 5, reason: 'PBR 데이터 없음' };
-    if (val > 0 && val <= 1.2) return { rule, score: 10, reason: `PBR ${val.toFixed(1)} (자산가치 저평가)` };
-    if (val <= 2.5) return { rule, score: 7, reason: `PBR ${val.toFixed(1)} (보통)` };
-    return { rule, score: 3, reason: `PBR ${val.toFixed(1)} (자산가치 대비 고평가)` };
-  }
-
-  // 기술적 지표 (스토캐스틱, RSI 등)
-  if (ruleLower.includes('스토캐스틱') || ruleLower.includes('stochastic') || ruleLower.includes('rsi')) {
-    if (data.priceHistory && data.priceHistory.length >= 14) {
-      const recent = data.priceHistory.slice(-14);
-      const low = Math.min(...recent.map(p => p.close));
-      const high = Math.max(...recent.map(p => p.close));
-      const k = high === low ? 50 : ((data.currentPrice - low) / (high - low)) * 100;
-      if (k < 25) return { rule, score: 10, reason: `지표 ${k.toFixed(0)} (과매도 구간)` };
-      if (k < 45) return { rule, score: 8, reason: `지표 ${k.toFixed(0)} (바닥권 확인)` };
-      if (k > 75) return { rule, score: 2, reason: `지표 ${k.toFixed(0)} (과매수 구간 주의)` };
-      return { rule, score: 6, reason: `지표 ${k.toFixed(0)} (중립)` };
-    }
-  }
-
-  // 시장 지배력 (Market Cap 활용)
-  if (ruleLower.includes('tam') || ruleLower.includes('시장') || ruleLower.includes('규모') || ruleLower.includes('점유율')) {
-    const cap = data.marketCap || 0;
-    if (cap > 500e9) return { rule, score: 10, reason: '글로벌 초거대 기업' };
-    if (cap > 100e9) return { rule, score: 8, reason: '대형 시장 선도 기업' };
-    if (cap > 20e9) return { rule, score: 6, reason: '중대형 우량 기업' };
-    return { rule, score: 4, reason: '성장 잠재력 탐색 단계' };
-  }
-
-  // 수익성 구조 (Operating Margin 활용)
-  if (ruleLower.includes('마진') || ruleLower.includes('수익성') || ruleLower.includes('단위 경제') || ruleLower.includes('ltv') || ruleLower.includes('cac')) {
-    const margin = (data as any).operatingMargins || 0;
-    if (margin > 0.3) return { rule, score: 10, reason: `영업이익률 ${(margin * 100).toFixed(1)}% (최상위권)` };
-    if (margin > 0.15) return { rule, score: 8, reason: `영업이익률 ${(margin * 100).toFixed(1)}% (우수)` };
-    if (margin > 0.05) return { rule, score: 5, reason: `영업이익률 ${(margin * 100).toFixed(1)}% (보통)` };
-    return { rule, score: 2, reason: '수익성 개선 필요' };
-  }
-
-  // 성장 단계 (Revenue Growth 활용)
-  if (ruleLower.includes('성장') || ruleLower.includes('도입') || ruleLower.includes('성숙') || ruleLower.includes('growth')) {
-    const growth = (data as any).revenueGrowth || 0;
-    if (growth > 0.25) return { rule, score: 10, reason: `매출성장률 ${(growth * 100).toFixed(1)}% (폭발적 성장)` };
-    if (growth > 0.1) return { rule, score: 8, reason: `매출성장률 ${(growth * 100).toFixed(1)}% (양호한 성장)` };
-    if (growth > 0) return { rule, score: 6, reason: `매출성장률 ${(growth * 100).toFixed(1)}% (안정적 성장)` };
-    // 전략 및 문장형 규칙 평가 (InvestmentStrategy 등)
-    if (ruleLower.length > 20 || ruleLower.includes('패턴') || ruleLower.includes('상승') || ruleLower.includes('조건')) {
-      // Yahoo Finance 데이터에 기반한 간단한 텍스트 기반 추론 (예시)
-      if (ruleLower.includes('상승') && data.currentPrice > data.previousClose) return { rule, score: 8, reason: '단기 상승 추세 확인됨' };
-      if (ruleLower.includes('거래량') && data.priceHistory && data.priceHistory.length > 0) {
-        const lastVol = data.priceHistory[data.priceHistory.length - 1].volume;
-        if (lastVol > 1000000) return { rule, score: 9, reason: '대량 거래량 동반' };
-      }
-      return { rule, score: 7, reason: '학습된 전략 패턴 부합 (기본 점수)' };
-    }
-
-    // 현금 흐름 및 재무 안정성
-  }
-
-  // 현금 흐름 및 재무 안정성
-  if (ruleLower.includes('현금') || ruleLower.includes('fcf') || ruleLower.includes('부채')) {
-    const d2e = (data as any).debtToEquity || 0;
-    if (d2e > 0 && d2e < 50) return { rule, score: 10, reason: '부채비율 매우 낮음 (재무 건전성 최상)' };
-    if (d2e < 100) return { rule, score: 8, reason: '재무 안정성 양호' };
-    if (d2e > 200) return { rule, score: 2, reason: '부채 비율 높음 주의' };
-  }
-
-  // 기본값 (규칙 존재 시 최소 점수 부여)
-  return { rule, score: 5, reason: '기본 규칙 부합성 확인' };
 }
 
 function deduplicateSources(sources: SourceReference[]): SourceReference[] {

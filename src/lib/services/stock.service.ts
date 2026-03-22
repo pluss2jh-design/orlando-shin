@@ -149,8 +149,6 @@ export class StockService {
           knowledge,
           options.style || 'moderate',
           options.conditions?.companyCount || 5,
-          options.conditions?.companyAiModel,
-          options.conditions?.companyApiKey,
           options.conditions?.newsAiModel,
           options.conditions?.newsApiKey,
           (progress, message, meta) => {

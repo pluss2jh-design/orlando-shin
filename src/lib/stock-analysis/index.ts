@@ -9,7 +9,5 @@ export {
 export {
   resolveTickerSymbol,
   fetchYahooFinanceData,
-  calculateMonthlyReturns,
-  calculateHistoricalVolatility,
 } from './yahoo-finance';
 export { formatFileSize, formatDuration, getFileType, generateId } from './utils';

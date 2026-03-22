@@ -49,7 +49,6 @@ export async function POST(request: NextRequest) {
 
         // Update or add keys
         const lines = envContent.split('\n');
-        const updatedKeys = new Set<string>();
 
         for (const [key, value] of Object.entries(keys)) {
             const valueStr = value as string;
@@ -60,14 +59,12 @@ export async function POST(request: NextRequest) {
                 if (lines[i].startsWith(`${key}=`)) {
                     lines[i] = `${key}=${valueStr}`;
                     found = true;
-                    updatedKeys.add(key);
                     break;
                 }
             }
 
             if (!found) {
                 lines.push(`${key}=${valueStr}`);
-                updatedKeys.add(key);
             }
         }
 
