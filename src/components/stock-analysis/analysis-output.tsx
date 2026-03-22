@@ -465,6 +465,11 @@ export function AnalysisOutput({ results, conditions, isLoading, onSendEmail }: 
             </div>
           </CardContent>
         </Card>
+        <BacktestDialog 
+          ticker={backtestTicker || ''} 
+          isOpen={!!backtestTicker} 
+          onClose={() => setBacktestTicker(null)} 
+        />
       </div>
     );
   }
@@ -505,14 +510,6 @@ export function AnalysisOutput({ results, conditions, isLoading, onSendEmail }: 
             </div>
 
             <div className="flex gap-2">
-              <Button 
-                variant="outline" 
-                className="h-12 px-6 rounded-2xl bg-white border-blue-100 text-blue-600 hover:bg-blue-50 font-black uppercase tracking-widest text-[11px] group"
-                onClick={() => setBacktestTicker(result.ticker || null)}
-              >
-                <History className="h-4 w-4 mr-2 transition-transform group-hover:rotate-[-45deg]" />
-                Full Backtest Simulation
-              </Button>
             </div>
 
 

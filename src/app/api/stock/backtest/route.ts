@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import yahooFinance from 'yahoo-finance2';
+import YahooFinance from 'yahoo-finance2';
+
+const yahooFinance = new YahooFinance({ 
+    suppressNotices: ['yahooSurvey'] 
+});
 
 export async function GET(req: NextRequest) {
   try {
@@ -12,7 +16,7 @@ export async function GET(req: NextRequest) {
 
     // 야후 파이낸스 밸리데이션 로그 억제
     try {
-      (yahooFinance as any).setGlobalConfig({ validation: { logErrors: false } });
+      // (yahooFinance as any).setGlobalConfig({ validation: { logErrors: false } });
     } catch (e) {}
 
     // 과거 데이터 조회 (기본 1년)
