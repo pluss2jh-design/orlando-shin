@@ -1,3 +1,10 @@
+### 2026-03-23: 포트 충돌 해결 및 완전한 코드 정리
+- **포트 충돌 해결**: 3000번 포트를 점유하고 있던 프로세스를 종료하고 `npm run dev`를 재실행하여 개발 서버를 정상화했습니다.
+- **코드 완전 정리**:
+  - `api/analysis/route.ts`, `stock.service.ts`, `page.tsx` 등에서 잔존하던 `companyAiModel` 및 `companyApiKey` 관련 로직과 타입을 완전히 제거했습니다.
+  - 불필요한 공백 및 코드 스타일을 정리하여 가독성을 높였습니다.
+- **버전 관리**: 수정된 모든 소스 코드를 Git 저장소에 푸시 완료했습니다 (커밋: `Refactor: complete removal of companyAiModel/companyApiKey and UI cleanup`).
+
 ### 2026-03-23: 기업 분석 뉴스 스캔 AI 모델 설정 및 최적화
 - **뉴스 스캔 AI 모델 설정**: 관리자 시스템 설정 페이지에서 기업 분석 후 뉴스 스캔에 사용할 AI 모델을 직접 선택하도록 기능을 추가했습니다.
 - **분석 프로세스 최적화**:

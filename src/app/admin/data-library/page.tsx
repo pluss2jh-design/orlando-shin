@@ -530,18 +530,18 @@ export default function DataLibraryPage() {
                 <div className="bg-blue-600/20 border border-blue-500/50 rounded-xl p-4 flex items-center gap-4 animate-pulse shadow-lg shadow-blue-900/20">
                     <RefreshCw className="h-6 w-6 text-blue-400 animate-spin" />
                     <div className="flex-1">
-                        <h3 className="text-white font-bold text-sm tracking-wide">{isRequesting ? 'AI 엔진 학습 요청 중...' : 'AI 엔진 딥러닝 진행 중...'}</h3>
-                        <p className="text-blue-400 text-xs mt-1 font-medium">백그라운드에서 데이터를 분석하고 핵심 투자 로직을 추출하고 있습니다. 잠시만 기다려주세요.</p>
+                        <h3 className="text-blue-900 font-bold text-sm tracking-wide">{isRequesting ? 'AI 엔진 학습 요청 중...' : 'AI 엔진 딥러닝 진행 중...'}</h3>
+                        <p className="text-blue-700 text-xs mt-1 font-medium">백그라운드에서 데이터를 분석하고 핵심 투자 로직을 추출하고 있습니다. 잠시만 기다려주세요.</p>
                     </div>
                 </div>
             )}
             <div className="flex items-center justify-between">
                 <div>
-                    <h1 className="text-4xl font-black text-white mb-2 tracking-tighter">데이터 라이브러리</h1>
-                    <p className="text-gray-400 font-medium">Google Drive 기반 AI 지식 베이스 구축 및 투자 로직 관리</p>
+                    <h1 className="text-4xl font-black text-gray-900 mb-2 tracking-tighter">데이터 라이브러리</h1>
+                    <p className="text-gray-500 font-medium">Google Drive 기반 AI 지식 베이스 구축 및 투자 로직 관리</p>
                 </div>
                 <div className="flex gap-3">
-                    <Button onClick={handleSync} disabled={syncing} variant="outline" className="border-gray-800 text-gray-300 hover:bg-gray-800">
+                    <Button onClick={handleSync} disabled={syncing} variant="outline" className="border-gray-300 text-gray-700 hover:bg-gray-200">
                         <RefreshCw className={`h-4 w-4 mr-2 ${syncing ? 'animate-spin' : ''}`} />
                         Drive 동기화
                     </Button>

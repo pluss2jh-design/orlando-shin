@@ -115,8 +115,8 @@ export default function SettingsPage() {
     return (
         <div className="p-8 space-y-6">
             <div>
-                <h1 className="text-3xl font-bold text-white mb-2">시스템 설정</h1>
-                <p className="text-gray-400">API 키 및 시스템 설정을 관리하세요</p>
+                <h1 className="text-3xl font-bold text-gray-900 mb-2">시스템 설정</h1>
+                <p className="text-gray-500 font-medium">API 키 및 시스템 설정을 관리하세요</p>
             </div>
 
             {message && (
