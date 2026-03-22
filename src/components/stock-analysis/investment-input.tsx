@@ -5,6 +5,7 @@ import { Search, Sparkles, Info, Zap } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { InvestmentConditions } from '@/types/stock-analysis';
+import { cn } from '@/lib/utils';
 
 interface ExtendedInvestmentConditions extends InvestmentConditions {
   companyCount?: number;
@@ -64,7 +65,6 @@ export function InvestmentInput({ onAnalyze, disabled }: InvestmentInputProps) {
     });
   };
 
-
   const isLimitReached =
     userFeatures !== null &&
     userFeatures.weeklyAnalysisLimit !== -1 &&
@@ -73,41 +73,45 @@ export function InvestmentInput({ onAnalyze, disabled }: InvestmentInputProps) {
   const COUNTS = [3, 5, 10, 20];
 
   return (
-    <div className="flex flex-col gap-4">
-      {/* 현재 로직 표시 */}
-      <div className="flex items-center gap-2 px-4 py-2.5 bg-blue-50 rounded-xl border border-blue-100">
-        <Info className="h-4 w-4 text-blue-500 shrink-0" />
-        <span className="text-xs text-gray-600 font-semibold">
-          ACTIVE LOGIC:{' '}
-          <span className="text-blue-600 uppercase font-black">
-            {activeKnowledge?.title || '시스템 통합 로직'}
+    <div className="flex flex-col lg:flex-row items-stretch lg:items-center gap-3 w-full">
+      {/* 현재 로직 표시 - 상시 노출되는 상태바 컨셉 */}
+      <div className="flex items-center gap-3 px-3 py-2 bg-blue-50/50 rounded-xl border border-blue-100 shrink-0 h-12">
+        <div className="p-1.5 bg-blue-500 rounded-lg">
+           <Zap className="h-3.5 w-3.5 text-white" />
+        </div>
+        <div className="flex flex-col">
+          <span className="text-[9px] text-blue-500 font-bold uppercase tracking-wider leading-none mb-0.5">Active Logic</span>
+          <span className="text-[11px] text-gray-900 font-black uppercase truncate max-w-[120px]">
+            {activeKnowledge?.title || 'System Logic'}
           </span>
-        </span>
+        </div>
         {userFeatures && (
-          <Badge
-            variant={isLimitReached ? 'destructive' : 'secondary'}
-            className="ml-auto font-black text-[10px] px-2 py-0.5 bg-white border border-gray-200 text-gray-700 shadow-sm shrink-0"
-          >
-            {userFeatures.weeklyAnalysisLimit === -1
-              ? '∞ UNLIMITED'
-              : `${userFeatures.remainingAnalysis} / ${userFeatures.weeklyAnalysisLimit} 남음`}
-          </Badge>
+          <div className="ml-2 pl-3 border-l border-blue-200">
+             <span className={cn(
+               "text-[10px] font-black font-mono",
+               isLimitReached ? "text-rose-500" : "text-blue-600"
+             )}>
+                {userFeatures.weeklyAnalysisLimit === -1 ? '∞' : userFeatures.remainingAnalysis} 남음
+             </span>
+          </div>
         )}
       </div>
 
-      {/* 분석 기업 수 선택 + 스캔 버튼 (한 줄) */}
-      <div className="flex items-center gap-3">
-        <div className="flex items-center gap-1.5 bg-white border border-gray-200 rounded-xl px-4 py-2.5 shadow-sm">
-          <span className="text-xs font-black text-gray-500 uppercase tracking-widest whitespace-nowrap">TOP</span>
+      <div className="flex items-center gap-3 flex-1 lg:flex-initial">
+        {/* 분석 기업 수 선택 */}
+        <div className="flex items-center gap-1.5 bg-white border border-gray-200 rounded-xl px-2 py-1.5 shadow-sm h-12">
+          <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest pl-2">TOP</span>
           <div className="flex gap-1">
             {COUNTS.map((n) => (
               <button
                 key={n}
                 onClick={() => setCompanyCount(n)}
-                className={`w-8 h-8 rounded-lg text-sm font-black transition-all ${companyCount === n
-                  ? 'bg-blue-600 text-white shadow-sm'
-                  : 'text-gray-500 hover:bg-gray-100'
-                  }`}
+                className={cn(
+                  "w-8 h-8 rounded-lg text-xs font-black transition-all",
+                  companyCount === n
+                    ? "bg-blue-600 text-white shadow-sm"
+                    : "text-gray-500 hover:bg-gray-100"
+                )}
               >
                 {n}
               </button>
@@ -115,17 +119,14 @@ export function InvestmentInput({ onAnalyze, disabled }: InvestmentInputProps) {
           </div>
         </div>
 
+        {/* 메인 스캔 버튼 */}
         <Button
           onClick={handleAnalyze}
           disabled={disabled || isLimitReached}
-          className="flex-1 h-12 bg-black hover:bg-gray-800 text-white font-black shadow-lg shadow-black/10 transition-all transform hover:-translate-y-0.5 active:scale-[0.99] rounded-xl text-base gap-2"
+          className="flex-1 lg:flex-none lg:min-w-[180px] h-12 bg-black hover:bg-gray-800 text-white font-black shadow-lg shadow-black/10 transition-all transform hover:-translate-y-0.5 active:scale-[0.99] rounded-xl text-sm gap-2 px-6 uppercase tracking-widest"
         >
-          <Zap className="h-5 w-5" />
-          {disabled
-            ? '분석 중...'
-            : isLimitReached
-              ? 'WEEKLY LIMIT REACHED'
-              : `SCAN FOR ALPHA`}
+          <Sparkles className="h-4 w-4" />
+          {disabled ? 'Scanning...' : 'Scan Alpha'}
         </Button>
       </div>
     </div>

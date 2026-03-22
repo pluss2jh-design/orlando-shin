@@ -371,9 +371,11 @@ export default function StockAnalysisPage() {
         </div>
       </header>
 
-      {/* ── 스캔 컨트롤 서브바 ── */}
+      {/* ── 스캔 및 시뮬레이션 컨트롤 통합 서브바 ── */}
       <div className="sticky top-14 z-20 bg-white border-b border-gray-200 shadow-sm">
-        <div className="mx-auto px-6 max-w-screen-2xl flex flex-col md:flex-row items-center gap-4 py-3">
+        <div className="mx-auto px-6 max-w-screen-2xl flex flex-col xl:flex-row items-stretch xl:items-center gap-3 py-3">
+          
+          {/* 기업 스캔 컨트롤 */}
           <div className="flex-1 w-full">
             <InvestmentInput
               onAnalyze={handleAnalyze}
@@ -381,14 +383,17 @@ export default function StockAnalysisPage() {
             />
           </div>
           
-          <div className="flex items-center gap-2 shrink-0">
+          {/* 수동 백테스트 컨트롤 - 바로 옆에 배치 */}
+          <div className="flex items-center gap-3 shrink-0 h-12">
+            <div className="hidden xl:block h-6 w-px bg-gray-200" /> {/* 구분선 */}
+            
             {showManualBacktest ? (
-              <div className="flex items-center gap-2 animate-in slide-in-from-right-2 duration-300">
+              <div className="flex items-center gap-2 animate-in slide-in-from-right-3 duration-300 w-full xl:w-auto">
                 <Input 
-                  placeholder="티커 입력 (예: TSLA)"
+                  placeholder="Ticker (e.g. TSLA)"
                   value={manualTicker}
                   onChange={(e) => setManualTicker(e.target.value.toUpperCase())}
-                  className="w-32 h-10 bg-gray-50 font-bold uppercase"
+                  className="w-full xl:w-40 h-12 bg-gray-50 font-black uppercase text-xs tracking-widest border-blue-100 focus:border-blue-500 rounded-xl"
                   onKeyDown={(e) => {
                     if (e.key === 'Enter' && manualTicker) {
                       setBacktestTicker(manualTicker);
@@ -398,7 +403,7 @@ export default function StockAnalysisPage() {
                 />
                 <Button 
                   size="sm"
-                  className="h-10 px-4 bg-blue-600 hover:bg-blue-500 font-black text-xs"
+                  className="h-12 px-6 bg-blue-600 hover:bg-blue-500 font-black text-xs uppercase tracking-widest rounded-xl shadow-lg shadow-blue-500/10"
                   onClick={() => {
                     if (manualTicker) {
                       setBacktestTicker(manualTicker);
@@ -406,12 +411,12 @@ export default function StockAnalysisPage() {
                     }
                   }}
                 >
-                  <Search className="h-4 w-4 mr-1.5" /> 시뮬레이션
+                  <Search className="h-4 w-4 mr-2" /> 시뮬레이션
                 </Button>
                 <Button 
                   size="icon" 
                   variant="ghost" 
-                  className="h-10 w-10 text-gray-400"
+                  className="h-12 w-12 rounded-xl text-gray-400 shrink-0"
                   onClick={() => setShowManualBacktest(false)}
                 >
                   <X className="h-5 w-5" />
@@ -420,7 +425,7 @@ export default function StockAnalysisPage() {
             ) : (
               <Button 
                 variant="outline" 
-                className="h-10 px-4 border-blue-100 text-blue-600 hover:bg-blue-50 font-black uppercase text-xs tracking-widest gap-2"
+                className="h-12 px-6 border-blue-100 text-blue-600 hover:bg-blue-50 font-black uppercase text-xs tracking-widest gap-2 rounded-xl w-full xl:w-auto"
                 onClick={() => setShowManualBacktest(true)}
               >
                 <History className="h-4 w-4" />
