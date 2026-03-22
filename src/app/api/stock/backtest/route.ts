@@ -9,20 +9,23 @@ export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
     const ticker = searchParams.get('ticker');
+    const period = searchParams.get('period') || '1y';
 
     if (!ticker) {
       return NextResponse.json({ error: 'Ticker is required' }, { status: 400 });
     }
 
-    // 야후 파이낸스 밸리데이션 로그 억제
-    try {
-      // (yahooFinance as any).setGlobalConfig({ validation: { logErrors: false } });
-    } catch (e) {}
-
-    // 과거 데이터 조회 (기본 1년)
+    // 과거 데이터 조회 기간 설정
     const end = new Date();
     const start = new Date();
-    start.setFullYear(end.getFullYear() - 1);
+    
+    switch (period) {
+      case '3m': start.setMonth(end.getMonth() - 3); break;
+      case '6m': start.setMonth(end.getMonth() - 6); break;
+      case '1y': start.setFullYear(end.getFullYear() - 1); break;
+      case '3y': start.setFullYear(end.getFullYear() - 3); break;
+      default: start.setFullYear(end.getFullYear() - 1);
+    }
 
     const queryOptions = {
       period1: start,

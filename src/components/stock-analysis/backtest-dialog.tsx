@@ -37,22 +37,30 @@ interface BacktestDialogProps {
   onClose: () => void;
 }
 
+const PERIODS = [
+  { id: '3m', label: '3개월' },
+  { id: '6m', label: '6개월' },
+  { id: '1y', label: '1년' },
+  { id: '3y', label: '3년' },
+];
+
 export function BacktestDialog({ ticker, isOpen, onClose }: BacktestDialogProps) {
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
+  const [period, setPeriod] = useState('1y');
 
   useEffect(() => {
     if (isOpen && ticker) {
       fetchBacktestData();
     }
-  }, [isOpen, ticker]);
+  }, [isOpen, ticker, period]);
 
   const fetchBacktestData = async () => {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`/api/stock/backtest?ticker=${ticker}`);
+      const res = await fetch(`/api/stock/backtest?ticker=${ticker}&period=${period}`);
       if (!res.ok) {
         const err = await res.json();
         throw new Error(err.error || '백테스트 데이터를 가져오지 못했습니다.');
@@ -89,17 +97,35 @@ export function BacktestDialog({ ticker, isOpen, onClose }: BacktestDialogProps)
             <div>
               <div className="flex items-center gap-2">
                 <h2 className="text-2xl font-black text-gray-900 tracking-tight">{ticker}</h2>
-                <Badge variant="outline" className="bg-blue-50 text-blue-600 border-blue-200 font-bold">1-YEAR BACKTEST</Badge>
+                <Badge variant="outline" className="bg-blue-50 text-blue-600 border-blue-200 font-bold">과거 수익률 백테스트</Badge>
               </div>
-              <p className="text-sm text-gray-500 font-medium">{data?.name || 'Loading company info...'}</p>
+              <p className="text-sm text-gray-500 font-medium">{data?.name || '기업 정보를 불러오는 중...'}</p>
             </div>
           </div>
-          <button 
-            onClick={onClose}
-            className="p-2 rounded-full hover:bg-gray-100 text-gray-400 hover:text-gray-900 transition-colors"
-          >
-            <X className="h-6 w-6" />
-          </button>
+          <div className="flex items-center gap-2">
+            <div className="flex bg-gray-100 p-1 rounded-xl mr-4">
+              {PERIODS.map((p) => (
+                <button
+                  key={p.id}
+                  onClick={() => setPeriod(p.id)}
+                  className={cn(
+                    "px-4 py-1.5 text-xs font-black rounded-lg transition-all",
+                    period === p.id 
+                      ? "bg-white text-blue-600 shadow-sm" 
+                      : "text-gray-400 hover:text-gray-600"
+                  )}
+                >
+                  {p.label}
+                </button>
+              ))}
+            </div>
+            <button 
+              onClick={onClose}
+              className="p-2 rounded-full hover:bg-gray-100 text-gray-400 hover:text-gray-900 transition-colors"
+            >
+              <X className="h-6 w-6" />
+            </button>
+          </div>
         </div>
 
         {/* Scrollable Body */}
@@ -124,7 +150,7 @@ export function BacktestDialog({ ticker, isOpen, onClose }: BacktestDialogProps)
                 <Card className="bg-white border-gray-100 shadow-sm rounded-2xl">
                   <CardContent className="p-5">
                     <div className="flex justify-between items-start mb-2">
-                      <p className="text-xs font-black text-gray-400 uppercase tracking-widest">Total Return</p>
+                      <p className="text-xs font-black text-gray-400 uppercase tracking-widest text-[10px]">총 수익률</p>
                       <div className={cn(
                         "p-1.5 rounded-lg",
                         data.metrics.totalReturn >= 0 ? "bg-emerald-50 text-emerald-500" : "bg-rose-50 text-rose-500"
@@ -138,14 +164,14 @@ export function BacktestDialog({ ticker, isOpen, onClose }: BacktestDialogProps)
                     )}>
                       {data.metrics.totalReturn > 0 ? '+' : ''}{data.metrics.totalReturn}%
                     </p>
-                    <p className="text-[10px] text-gray-400 mt-1">vs S&P 500 (Base: 15%)</p>
+                    <p className="text-[10px] text-gray-400 mt-1">벤치마크 (S&P 500) 대비</p>
                   </CardContent>
                 </Card>
 
                 <Card className="bg-white border-gray-100 shadow-sm rounded-2xl">
                   <CardContent className="p-5">
                     <div className="flex justify-between items-start mb-2">
-                      <p className="text-xs font-black text-gray-400 uppercase tracking-widest">Max Drawdown</p>
+                      <p className="text-xs font-black text-gray-400 uppercase tracking-widest text-[10px]">최대 낙폭 (MDD)</p>
                       <div className="p-1.5 rounded-lg bg-rose-50 text-rose-500">
                         <Activity className="h-3.5 w-3.5" />
                       </div>
@@ -153,14 +179,14 @@ export function BacktestDialog({ ticker, isOpen, onClose }: BacktestDialogProps)
                     <p className="text-3xl font-black font-mono tracking-tighter text-rose-500">
                       {data.metrics.mdd}%
                     </p>
-                    <p className="text-[10px] text-gray-400 mt-1">최대 낙폭 지수</p>
+                    <p className="text-[10px] text-gray-400 mt-1">고점 대비 최하락폭 지수</p>
                   </CardContent>
                 </Card>
 
                 <Card className="bg-white border-gray-100 shadow-sm rounded-2xl">
                   <CardContent className="p-5">
                     <div className="flex justify-between items-start mb-2">
-                      <p className="text-xs font-black text-gray-400 uppercase tracking-widest">Start Price</p>
+                      <p className="text-xs font-black text-gray-400 uppercase tracking-widest text-[10px]">시작 주가</p>
                       <div className="p-1.5 rounded-lg bg-gray-50 text-gray-500">
                         <DollarSign className="h-3.5 w-3.5" />
                       </div>
@@ -175,7 +201,7 @@ export function BacktestDialog({ ticker, isOpen, onClose }: BacktestDialogProps)
                 <Card className="bg-white border-gray-100 shadow-sm rounded-2xl">
                   <CardContent className="p-5">
                     <div className="flex justify-between items-start mb-2">
-                      <p className="text-xs font-black text-gray-400 uppercase tracking-widest">Latest Price</p>
+                      <p className="text-xs font-black text-gray-400 uppercase tracking-widest text-[10px]">현재 주가</p>
                       <div className="p-1.5 rounded-lg bg-blue-50 text-blue-500">
                         <Target className="h-3.5 w-3.5" />
                       </div>
@@ -193,11 +219,11 @@ export function BacktestDialog({ ticker, isOpen, onClose }: BacktestDialogProps)
                 <div className="flex items-center justify-between mb-8">
                   <div className="flex items-center gap-3">
                     <div className="w-2 h-8 bg-blue-600 rounded-full" />
-                    <h3 className="text-lg font-black text-gray-900">PRICE HISTORY & SIMULATION</h3>
+                    <h3 className="text-lg font-black text-gray-900 uppercase">주가 변동 추이 및 시뮬레이션</h3>
                   </div>
                   <div className="flex gap-2">
-                    <Badge variant="secondary" className="bg-gray-100 text-gray-500 border-none font-bold">1D INTERVAL</Badge>
-                    <Badge variant="secondary" className="bg-gray-100 text-gray-500 border-none font-bold">1Y PERIOD</Badge>
+                    <Badge variant="secondary" className="bg-gray-100 text-gray-500 border-none font-bold">1일 간격</Badge>
+                    <Badge variant="secondary" className="bg-gray-100 text-gray-500 border-none font-bold">{PERIODS.find(p => p.id === period)?.label}</Badge>
                   </div>
                 </div>
 
@@ -236,6 +262,8 @@ export function BacktestDialog({ ticker, isOpen, onClose }: BacktestDialogProps)
                           color: '#111827'
                         }}
                         labelStyle={{ color: '#6b7280', marginBottom: '4px' }}
+                        formatter={(value: any) => [`${value.toLocaleString()} ${data.currency}`, '종가']}
+                        labelFormatter={(label) => `${label}`}
                       />
                       <Area 
                         type="monotone" 
@@ -256,20 +284,20 @@ export function BacktestDialog({ ticker, isOpen, onClose }: BacktestDialogProps)
                 <div className="p-6 rounded-3xl bg-blue-600 text-white space-y-4">
                   <div className="flex items-center gap-3">
                     <Sparkles className="h-5 w-5" />
-                    <h3 className="text-lg font-black uppercase">Alpha Strategy Insight</h3>
+                    <h3 className="text-lg font-black uppercase">알파 전략 인사이트</h3>
                   </div>
                   <p className="text-sm leading-loose opacity-90 font-medium whitespace-pre-line text-justify">
-                    {ticker}는 지난 1년 동안 {data.metrics.totalReturn}%의 수익률을 보였습니다. 
+                    {ticker}는 지난 {PERIODS.find(p => p.id === period)?.label} 동안 {data.metrics.totalReturn}%의 수익률을 보였습니다. 
                     특히 {data.metrics.mdd}%의 최대 낙폭 지수를 고려할 때, {(data.metrics.mdd > -15) ? '안정적인 방어력을 보유한 것으로 판단됩니다.' : '변동성이 큰 편이지만 고수익 기회를 추구하는 전략에 적합합니다.'}
                     
-                    현재 주가는 {data.metrics.endPrice.toLocaleString()} {data.currency}로, 1년 전 시작가인 {data.metrics.startPrice.toLocaleString()} 대비 {data.metrics.totalReturn > 0 ? '상승' : '하락'} 추세에 있습니다.
+                    현재 주가는 {data.metrics.endPrice.toLocaleString()} {data.currency}로, 해당 기간 시작가인 {data.metrics.startPrice.toLocaleString()} 대비 {data.metrics.totalReturn > 0 ? '상승' : '하락'} 추세에 있습니다.
                   </p>
                 </div>
 
                 <div className="p-6 rounded-3xl border border-gray-200 bg-white space-y-4">
                   <div className="flex items-center gap-3">
                     <BarChart3 className="h-5 w-5 text-gray-500" />
-                    <h3 className="text-lg font-black uppercase text-gray-900">Simulation Logic</h3>
+                    <h3 className="text-lg font-black uppercase text-gray-900">시뮬레이션 로직</h3>
                   </div>
                   <div className="space-y-3">
                     <div className="flex items-center justify-between p-3 rounded-xl bg-gray-50 border border-gray-100">
@@ -277,8 +305,8 @@ export function BacktestDialog({ ticker, isOpen, onClose }: BacktestDialogProps)
                       <span className="text-xs font-bold text-gray-900">+15.0%</span>
                     </div>
                     <div className="flex items-center justify-between p-3 rounded-xl bg-gray-50 border border-gray-100">
-                      <span className="text-xs font-black text-gray-500">베타 계수 (추정)</span>
-                      <span className="text-xs font-bold text-gray-900">1.24</span>
+                      <span className="text-xs font-black text-gray-500">기간 구분</span>
+                      <span className="text-xs font-bold text-gray-900">{PERIODS.find(p => p.id === period)?.label} 시뮬레이션</span>
                     </div>
                     <div className="flex items-center justify-between p-3 rounded-xl bg-emerald-50 border border-emerald-100">
                       <span className="text-xs font-black text-emerald-600 text-gray-500">알파 수익률 (초과)</span>
@@ -296,10 +324,10 @@ export function BacktestDialog({ ticker, isOpen, onClose }: BacktestDialogProps)
         {/* Footer */}
         <div className="p-6 bg-white border-t border-gray-100 flex items-center justify-between">
           <p className="text-[10px] text-gray-400 font-bold uppercase tracking-[0.2em]">
-            Data Source: Yahoo Finance Real-time Simulation Platform
+            자료 출처: 야후 파이낸스 실시간 시뮬레이션 플랫폼
           </p>
           <Button onClick={onClose} className="rounded-xl px-8 font-black uppercase text-xs tracking-widest">
-            Close Analysis
+            분석 종료
           </Button>
         </div>
       </div>
