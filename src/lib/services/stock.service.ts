@@ -111,7 +111,7 @@ export class StockService {
    * 분석을 시작합니다 (백그라운드 실행).
    */
   static async startAnalysis(userId: string, options: {
-    conditions?: { companyCount?: number; companyAiModel?: string; companyApiKey?: string; newsAiModel?: string; newsApiKey?: string; sector?: string; strategyType?: 'growth' | 'value' | 'all' };
+    conditions?: { companyCount?: number; companyAiModel?: string; companyApiKey?: string; newsAiModel?: string; newsApiKey?: string; sector?: string; strategyType?: 'growth' | 'value' | 'all'; asOfDate?: string | Date };
 
     style?: InvestmentStyle;
   }) {
@@ -142,7 +142,8 @@ export class StockService {
           {
             amount: 0,
             sector: options.conditions?.sector,
-            strategyType: options.conditions?.strategyType
+            strategyType: options.conditions?.strategyType,
+            asOfDate: options.conditions?.asOfDate ? new Date(options.conditions.asOfDate) : undefined
           },
 
           knowledge,
@@ -262,13 +263,21 @@ export class StockService {
   private static countTotalRules(knowledge: KnowledgeContentShape | LearnedKnowledge) {
     const criteria = knowledge.criteria;
     if (!criteria) return 0;
+
+    // 1. 새로운 동적 구조 확인
+    if ('criterias' in criteria && Array.isArray(criteria.criterias)) {
+      return criteria.criterias.length;
+    }
+
+    // 2. 레거시 고정 구조 확인 (캐스팅 후 접근)
+    const leg = criteria as any;
     return (
-      (criteria.goodCompanyRules?.length || 0) +
-      (criteria.technicalRules?.length || 0) +
-      (criteria.marketSizeRules?.length || 0) +
-      (criteria.unitEconomicsRules?.length || 0) +
-      (criteria.lifecycleRules?.length || 0) +
-      (criteria.buyTimingRules?.length || 0)
+      (leg.goodCompanyRules?.length || 0) +
+      (leg.technicalRules?.length || 0) +
+      (leg.marketSizeRules?.length || 0) +
+      (leg.unitEconomicsRules?.length || 0) +
+      (leg.lifecycleRules?.length || 0) +
+      (leg.buyTimingRules?.length || 0)
     );
   }
 }

@@ -269,6 +269,7 @@ export default function StockAnalysisPage() {
             companyApiKey: newConditions.companyApiKey,
             newsAiModel: newConditions.newsAiModel,
             newsApiKey: newConditions.newsApiKey,
+            asOfDate: newConditions.asOfDate,
           },
         }),
 

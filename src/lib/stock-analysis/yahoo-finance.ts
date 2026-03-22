@@ -112,10 +112,14 @@ export async function fetchBatchQuotes(tickers: string[]): Promise<YahooFinanceD
 }
 
 export async function fetchYahooFinanceData(
-  ticker: string
+  ticker: string,
+  asOfDate?: Date
 ): Promise<YahooFinanceData> {
-  // 2년치 차트 기간
-  const period1 = new Date();
+  const effectiveEnd = asOfDate || new Date();
+  const effectiveEndStr = effectiveEnd.toISOString().split('T')[0];
+
+  // 2년치 차트 기간 (asOfDate 기준 역산)
+  const period1 = new Date(effectiveEnd);
   period1.setFullYear(period1.getFullYear() - 2);
   const period1Str = period1.toISOString().split('T')[0];
 
@@ -132,7 +136,7 @@ export async function fetchYahooFinanceData(
   let chartQuotes: any[] = [];
   let ftsData: any[] = [];
 
-  // ── 1. 기본 Summary ──
+  // ── 1. 기본 Summary (asOfDate가 현재일 경우만 최신 데이터 활용) ──
   try {
     summaryResult = await withTimeout(
       yahooFinance.quoteSummary(ticker, {
@@ -162,10 +166,10 @@ export async function fetchYahooFinanceData(
     }
   }
 
-  // ── 2. 주가 이력 — chart() (historical 대체) ──
+  // ── 2. 주가 이력 — chart() ──
   try {
     const chartResult: any = await withTimeout(
-      yahooFinance.chart(ticker, { period1: period1Str, interval: '1d' }, { validateResult: false }),
+      yahooFinance.chart(ticker, { period1: period1Str, period2: effectiveEnd, interval: '1d' }, { validateResult: false }),
       20000,
       `chart(${ticker})`
     );
@@ -180,6 +184,7 @@ export async function fetchYahooFinanceData(
     const fts = await withTimeout(
       yahooFinance.fundamentalsTimeSeries(ticker, {
         period1: period1Str,
+        period2: effectiveEnd, // asOfDate까지만 조회
         type: 'annual',
         module: 'financials',
       }, { validateResult: false }),
@@ -206,19 +211,28 @@ export async function fetchYahooFinanceData(
       volume: q.volume ?? 0,
     }));
 
+  // asOfDate 시점의 실시간 가격 시뮬레이션
+  let currentPrice = price?.regularMarketPrice ?? financial?.currentPrice ?? 0;
+  if (asOfDate && priceHistory.length > 0) {
+    // asOfDate와 가장 가까운(이전) 종가를 현재가로 간주
+    const pastEntries = priceHistory.filter(h => h.date <= asOfDate).sort((a,b) => b.date.getTime() - a.date.getTime());
+    if (pastEntries.length > 0) {
+      currentPrice = pastEntries[0].close;
+    }
+  }
+
   const returnRates: any = {};
-  const now = new Date();
   const intervals = [
     { label: 'oneYear', months: 12 },
     { label: 'sixMonths', months: 6 },
     { label: 'threeMonths', months: 3 },
     { label: 'oneMonth', months: 1 },
   ];
-  const currentPrice = price?.regularMarketPrice ?? financial?.currentPrice ?? 0;
+  
   if (priceHistory.length > 0 && currentPrice > 0) {
     intervals.forEach(({ label, months }) => {
-      const targetDate = new Date();
-      targetDate.setMonth(now.getMonth() - months);
+      const targetDate = new Date(effectiveEnd);
+      targetDate.setMonth(targetDate.getMonth() - months);
       const pastEntry = priceHistory
         .filter(h => h.date <= targetDate)
         .sort((a, b) => b.date.getTime() - a.date.getTime())[0];
@@ -245,6 +259,19 @@ export async function fetchYahooFinanceData(
     };
   }).reverse();
 
+  // 지표 보정 (asOfDate가 과거일 경우 현재가 반영하여 PER/PBR 재계산)
+  let trailingPE = summaryDetail?.trailingPE;
+  let priceToBook = keyStats?.priceToBook;
+
+  if (asOfDate && currentPrice > 0) {
+    // 단순화: 최신 EPS/BPS와 과거 주가로 PER/PBR 추정 (실제 과거 데이터를 완벽히 복원하긴 어려우나 흐름 파악용)
+    const eps = financial?.trailingEps || (currentPrice / (trailingPE || 1));
+    if (eps > 0) trailingPE = currentPrice / eps;
+
+    const bookValue = (price?.regularMarketPrice || currentPrice) / (priceToBook || 1);
+    if (bookValue > 0) priceToBook = currentPrice / bookValue;
+  }
+
   return {
     ticker,
     currency,
@@ -255,13 +282,15 @@ export async function fetchYahooFinanceData(
     targetMeanPrice: financial?.targetMeanPrice,
     targetHighPrice: financial?.targetHighPrice,
     targetLowPrice: financial?.targetLowPrice,
-    trailingPE: summaryDetail?.trailingPE,
+    trailingPE,
     forwardPE: summaryDetail?.forwardPE ?? keyStats?.forwardPE,
-    priceToBook: keyStats?.priceToBook,
+    priceToBook,
     returnOnEquity: financial?.returnOnEquity,
     trailingEps: summaryDetail?.trailingAnnualDividendYield,
     dividendYield: summaryDetail?.dividendYield,
-    marketCap: price?.marketCap,
+    marketCap: (asOfDate && currentPrice > 0 && price?.marketCap) 
+      ? (price.marketCap * (currentPrice / (price.regularMarketPrice || currentPrice)))
+      : price?.marketCap,
     sector: assetProfile?.sector,
     revenueGrowth: financial?.revenueGrowth,
     priceHistory,

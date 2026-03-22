@@ -16,17 +16,39 @@ try {
 /**
  * 전세계 시장 거시 지표를 가져와 분석합니다.
  */
-export async function fetchMarketMacroContext(): Promise<MacroContext> {
+export async function fetchMarketMacroContext(asOfDate?: Date): Promise<MacroContext> {
   try {
-    const symbols = ['^VIX', '^TNX', '^GSPC', 'USDKRW=X'];
-    const quotes = await yahooFinance.quote(symbols, {}, { validateResult: false }) as any[];
+    const effectiveEnd = asOfDate || new Date();
+    const effectiveEndStr = effectiveEnd.toISOString().split('T')[0];
     
-    const vixEntry = quotes.find((q: any) => q.symbol === '^VIX');
-    const tnxEntry = quotes.find((q: any) => q.symbol === '^TNX');
-    const sp500Entry = quotes.find((q: any) => q.symbol === '^GSPC');
+    // 1개월치 데이터를 가져와서 asOfDate 당일의 값을 찾음
+    const period1 = new Date(effectiveEnd);
+    period1.setMonth(period1.getMonth() - 1);
+    const period1Str = period1.toISOString().split('T')[0];
+
+    const symbols = ['^VIX', '^TNX', '^GSPC'];
     
-    const vix = vixEntry?.regularMarketPrice || 15;
-    const treasuryYield10Y = tnxEntry?.regularMarketPrice || 4.2;
+    const results = await Promise.all(symbols.map(async (s) => {
+      try {
+        const chart = await yahooFinance.chart(s, { period1: period1Str, period2: effectiveEndStr, interval: '1d' }, { validateResult: false }) as any;
+        const quotes = chart?.quotes || [];
+        // asOfDate 이전 또는 당일 마지막 데이터 찾기
+        const past = quotes.filter((q: any) => q.close != null && q.date <= effectiveEnd).sort((a: any, b: any) => b.date.getTime() - a.date.getTime());
+        if (past.length > 0) {
+          return { symbol: s, price: past[0].close, prevPrice: past[1]?.close || past[0].close };
+        }
+        return { symbol: s, price: 0, prevPrice: 0 };
+      } catch (e) {
+        return { symbol: s, price: 0, prevPrice: 0 };
+      }
+    }));
+
+    const vixData = results.find(r => r.symbol === '^VIX');
+    const tnxData = results.find(r => r.symbol === '^TNX');
+    const sp500Data = results.find(r => r.symbol === '^GSPC');
+
+    const vix = vixData?.price || 15;
+    const treasuryYield10Y = tnxData?.price || 4.2;
     
     // VIX 상태
     let vixStatus: MacroContext['vixStatus'] = 'Moderate';
@@ -34,14 +56,14 @@ export async function fetchMarketMacroContext(): Promise<MacroContext> {
     else if (vix > 25) vixStatus = 'High';
     else if (vix > 35) vixStatus = 'Extreme';
     
-    // 금리 상태 (최근 추세 반영은 생략하고 절대치로 판정)
+    // 금리 상태 (절대치로 판정)
     let yieldStatus: MacroContext['yieldStatus'] = 'Neutral';
     if (treasuryYield10Y > 4.5) yieldStatus = 'Bearish';
     else if (treasuryYield10Y < 3.5) yieldStatus = 'Bullish';
     
-    // S&P 500 추세 (간단히 전일 대비로 판정 - 실제론 이동평균선 확인 권장)
-    const sp500Price = (sp500Entry as any)?.regularMarketPrice || 0;
-    const sp500Prev = (sp500Entry as any)?.regularMarketPreviousClose || 0;
+    // S&P 500 추세
+    const sp500Price = sp500Data?.price || 0;
+    const sp500Prev = sp500Data?.prevPrice || 0;
     const sp500Chg = sp500Prev > 0 ? (sp500Price - sp500Prev) / sp500Prev : 0;
     
     let sp500Trend: MacroContext['sp500Trend'] = 'Sideways';
@@ -60,7 +82,7 @@ export async function fetchMarketMacroContext(): Promise<MacroContext> {
       yieldStatus,
       sp500Trend,
       marketMode,
-      extractedAt: new Date(),
+      extractedAt: effectiveEnd,
     };
   } catch (error) {
     console.warn('Macro fetch failed, using fallback:', error);

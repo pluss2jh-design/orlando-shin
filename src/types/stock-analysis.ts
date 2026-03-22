@@ -17,6 +17,7 @@ export interface InvestmentConditions {
   amount: number;
   sector?: string;
   strategyType?: 'growth' | 'value' | 'all';
+  asOfDate?: Date;
 }
 
 

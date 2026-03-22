@@ -43,38 +43,37 @@ export async function runAnalysisEngine(
   onProgress?: (progress: number, message: string, meta?: { excludedStockCount?: number; excludedDetails?: ExcludedStockDetail[] }) => void
 ): Promise<RecommendationResult> {
 
+  const asOfDate = conditions.asOfDate || new Date();
+  const isHistorical = !!conditions.asOfDate;
 
-  console.log(`Starting analysis: full Russell 1000 7-Step scan...`);
+  console.log(`Starting analysis: full Russell 1000 7-Step scan (As of: ${asOfDate.toISOString()})...`);
 
-  if (onProgress) onProgress(2, '시장 매크로 환경 및 Russell 1000 유니버스 로딩 중...');
+  if (onProgress) onProgress(2, `시장 매크로 환경 및 Russell 1000 유니버스 로딩 중 (${isHistorical ? asOfDate.toLocaleDateString() : '현재'})`);
   const exchangeRate = await fetchExchangeRate();
-  const macroContext = await fetchMarketMacroContext();
+  const macroContext = await fetchMarketMacroContext(asOfDate);
 
   // Russell 1000 실시간 조회 (S&P 500 제외) — async
   const { tickers: universe, universeCounts } = await getStockUniverse();
   const totalCount = universe.length;
-  console.log(`Universe size: ${totalCount} tickers (Russell 1000 - S&P 500)`);
+  console.log(`Universe size: ${totalCount} tickers`);
 
 
-  // 모든 규칙 카테고리 통합 (새로운 동적 구조 적용)
+  // 모든 규칙 카테고리 통합
   const allRules = knowledge.criteria.criterias || [];
 
-  console.log(`Evaluating ${allRules.length} rules for each company.`);
-
-  // ── Phase 1: 배치 시세 조회 ──
+  // ── Phase 1: 배치 시세 조회 (과거 분석 시에도 유니버스 필터링용으로 최신 시세 일단 활용) ──
   const batchSize = 25;
   const allYahooData: YahooFinanceData[] = [];
 
   for (let i = 0; i < universe.length; i += batchSize) {
     const pct = 3 + Math.floor((i / totalCount) * 15);
-    if (onProgress) onProgress(pct, `[1/2] 시세 수집 중... ${i} / ${totalCount}개`);
+    if (onProgress) onProgress(pct, `[1/2] 유니버스 시세 수집 중... ${i} / ${totalCount}개`);
     const batch = universe.slice(i, i + batchSize);
     try {
       const quotes = await fetchBatchQuotes(batch);
       allYahooData.push(...quotes);
       await new Promise(resolve => setTimeout(resolve, 200));
     } catch (error) {
-      console.warn(`Batch fetch failed for ${batch.join(',')}`);
       for (const ticker of batch) {
         try {
           const singleQuote = await fetchBatchQuotes([ticker]);
@@ -90,13 +89,13 @@ export async function runAnalysisEngine(
   const excludedDetails: ExcludedStockDetail[] = [];
   universe.forEach(ticker => {
     if (!validTickerSet.has(ticker)) {
-      excludedDetails.push({ ticker, reason: '시세 정보 또는 유효 데이터 없음' });
+      excludedDetails.push({ ticker, reason: '시세 정보 누락' });
     }
   });
 
   const excludedStockCount = excludedDetails.length;
   if (onProgress) {
-    onProgress(20, `[1/2] 시세 수집 완료 (분석 제외 ${excludedStockCount}개)`, { excludedStockCount, excludedDetails });
+    onProgress(20, `[1/2] 기초 시세 수집 완료 (분석 가능 ${validStocks.length}개)`, { excludedStockCount, excludedDetails });
   }
 
   const stocksWithScores: Array<{
@@ -121,7 +120,7 @@ export async function runAnalysisEngine(
     const chunk = validStocks.slice(i, i + chunkSize);
     await Promise.all(chunk.map(async (stock) => {
       try {
-        const fullData = await fetchYahooFinanceData(stock.ticker);
+        const fullData = await fetchYahooFinanceData(stock.ticker, asOfDate);
 
         // 섹터 필터
         if (conditions.sector && conditions.sector !== 'ALL') {
@@ -135,12 +134,14 @@ export async function runAnalysisEngine(
 
         analyzedCount++;
         const donePct = 18 + Math.floor((analyzedCount / validStocks.length) * 79);
-        if (onProgress) onProgress(donePct, `[2/2] 상세 지표 분석 중... ${analyzedCount} / ${validStocks.length}개 완료`);
+        if (onProgress) onProgress(donePct, `[2/2] ${isHistorical ? '과거' : '상세'} 지표 분석 중... ${analyzedCount} / ${validStocks.length}개 완료`);
 
         let periodReturn = 0;
         if (fullData.priceHistory && fullData.priceHistory.length >= 2) {
-          const startPrice = fullData.priceHistory[0].close;
-          const endPrice = fullData.priceHistory[fullData.priceHistory.length - 1].close;
+          // asOfDate 시점 기준 1년 전 수익률 계산 (백엔드 로직 일치)
+          const startIdx = Math.max(0, fullData.priceHistory.length - 250); // 약 1년치
+          const startPrice = fullData.priceHistory[startIdx].close;
+          const endPrice = fullData.currentPrice; // fetchYahooFinanceData에서 asOfDate 가격으로 이미 설정됨
           if (startPrice > 0) periodReturn = ((endPrice - startPrice) / startPrice) * 100;
         }
 
