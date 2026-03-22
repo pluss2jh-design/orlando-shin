@@ -33,8 +33,9 @@ export async function GET(req: NextRequest) {
       interval: '1d' as const,
     };
 
-    const [history, quote] = await Promise.all([
+    const [history, benchmarkHistory, quote] = await Promise.all([
       yahooFinance.chart(ticker, queryOptions, { validateResult: false }) as any,
+      yahooFinance.chart('^GSPC', queryOptions, { validateResult: false }) as any,
       yahooFinance.quote(ticker, {}, { validateResult: false })
     ]);
 
@@ -44,6 +45,8 @@ export async function GET(req: NextRequest) {
 
     // 수익률 및 성과 지표 계산
     const quotes = (history.quotes as any[]).filter((q: any) => q.close !== null && q.close !== undefined);
+    const benchmarkQuotes = (benchmarkHistory?.quotes as any[] || []).filter((q: any) => q.close !== null && q.close !== undefined);
+
     if (quotes.length < 2) {
       return NextResponse.json({ error: 'Insufficient data for backtesting' }, { status: 400 });
     }
@@ -51,6 +54,14 @@ export async function GET(req: NextRequest) {
     const first = quotes[0].close!;
     const last = quotes[quotes.length - 1].close!;
     const totalReturn = ((last - first) / first) * 100;
+
+    // 벤치마크 수익률 계산
+    let benchmarkReturn = 0;
+    if (benchmarkQuotes.length >= 2) {
+      const bFirst = benchmarkQuotes[0].close!;
+      const bLast = benchmarkQuotes[benchmarkQuotes.length - 1].close!;
+      benchmarkReturn = ((bLast - bFirst) / bFirst) * 100;
+    }
 
     // 최대 낙폭(MDD) 계산
     let mdd = 0;
@@ -72,6 +83,7 @@ export async function GET(req: NextRequest) {
       })),
       metrics: {
         totalReturn: Number(totalReturn.toFixed(2)),
+        benchmarkReturn: Number(benchmarkReturn.toFixed(2)),
         mdd: Number((mdd * 100).toFixed(2)),
         startPrice: first,
         endPrice: last,

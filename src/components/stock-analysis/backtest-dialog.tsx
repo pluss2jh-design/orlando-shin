@@ -5,19 +5,15 @@ import {
   TrendingUp, 
   TrendingDown, 
   X, 
-  Calendar, 
   BarChart3, 
-  ArrowUpRight, 
-  ArrowDownRight,
   Loader2,
   Activity,
   DollarSign,
   Target,
-  Sparkles
+  Sparkles,
+  ArrowRight
 } from 'lucide-react';
 import { 
-  LineChart, 
-  Line, 
   XAxis, 
   YAxis, 
   CartesianGrid, 
@@ -26,7 +22,7 @@ import {
   AreaChart, 
   Area 
 } from 'recharts';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
@@ -77,16 +73,16 @@ export function BacktestDialog({ ticker, isOpen, onClose }: BacktestDialogProps)
 
   if (!isOpen) return null;
 
+  const alphaReturn = data ? Number((data.metrics.totalReturn - data.metrics.benchmarkReturn).toFixed(2)) : 0;
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6">
-      {/* Backdrop */}
       <div 
         className="absolute inset-0 bg-black/60 backdrop-blur-sm animate-in fade-in duration-300"
         onClick={onClose}
       />
       
-      {/* Modal Content */}
-      <div className="relative w-full max-w-5xl max-h-[90vh] bg-white rounded-3xl shadow-2xl overflow-hidden flex flex-col animate-in zoom-in-95 duration-300 border border-gray-200">
+      <div className="relative w-full max-w-5xl max-h-[95vh] bg-white rounded-3xl shadow-2xl overflow-hidden flex flex-col animate-in zoom-in-95 duration-300 border border-gray-200">
         
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-gray-100 bg-white">
@@ -97,9 +93,9 @@ export function BacktestDialog({ ticker, isOpen, onClose }: BacktestDialogProps)
             <div>
               <div className="flex items-center gap-2">
                 <h2 className="text-2xl font-black text-gray-900 tracking-tight">{ticker}</h2>
-                <Badge variant="outline" className="bg-blue-50 text-blue-600 border-blue-200 font-bold">과거 수익률 백테스트</Badge>
+                <Badge variant="outline" className="bg-blue-50 text-blue-600 border-blue-200 font-bold">수익률 시뮬레이션</Badge>
               </div>
-              <p className="text-sm text-gray-500 font-medium">{data?.name || '기업 정보를 불러오는 중...'}</p>
+              <p className="text-sm text-gray-500 font-medium">{data?.name || '기업 정보 로딩 중...'}</p>
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -129,11 +125,11 @@ export function BacktestDialog({ ticker, isOpen, onClose }: BacktestDialogProps)
         </div>
 
         {/* Scrollable Body */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-8 bg-gray-50/30">
+        <div className="flex-1 overflow-y-auto p-6 space-y-6 bg-gray-50/30">
           {loading ? (
             <div className="flex flex-col items-center justify-center py-32 space-y-4">
               <Loader2 className="h-10 w-10 text-blue-600 animate-spin" />
-              <p className="text-sm font-bold text-gray-500 animate-pulse">상세 데이터 시뮬레이션 중...</p>
+              <p className="text-sm font-bold text-gray-500 animate-pulse">데이터 분석 중...</p>
             </div>
           ) : error ? (
             <div className="flex flex-col items-center justify-center py-32 space-y-4 text-center">
@@ -145,86 +141,64 @@ export function BacktestDialog({ ticker, isOpen, onClose }: BacktestDialogProps)
             </div>
           ) : (
             <>
-              {/* Stats Cards */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                <Card className="bg-white border-gray-100 shadow-sm rounded-2xl">
-                  <CardContent className="p-5">
-                    <div className="flex justify-between items-start mb-2">
-                      <p className="text-xs font-black text-gray-400 uppercase tracking-widest text-[10px]">총 수익률</p>
-                      <div className={cn(
-                        "p-1.5 rounded-lg",
-                        data.metrics.totalReturn >= 0 ? "bg-emerald-50 text-emerald-500" : "bg-rose-50 text-rose-500"
-                      )}>
-                        {data.metrics.totalReturn >= 0 ? <TrendingUp className="h-3.5 w-3.5" /> : <TrendingDown className="h-3.5 w-3.5" />}
-                      </div>
-                    </div>
-                    <p className={cn(
-                      "text-3xl font-black font-mono tracking-tighter",
-                      data.metrics.totalReturn >= 0 ? "text-emerald-500" : "text-rose-500"
-                    )}>
-                      {data.metrics.totalReturn > 0 ? '+' : ''}{data.metrics.totalReturn}%
-                    </p>
-                    <p className="text-[10px] text-gray-400 mt-1">벤치마크 (S&P 500) 대비</p>
-                  </CardContent>
-                </Card>
+              {/* Top 5 Metrics - Redesigned to be primary above chart */}
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+                <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm">
+                  <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 flex items-center gap-1">
+                    <TrendingUp className="h-3 w-3" /> 벤치마크 (S&P500)
+                  </p>
+                  <p className={cn("text-xl font-black font-mono tracking-tight", (data.metrics.benchmarkReturn >= 0 ? "text-emerald-500" : "text-rose-500"))}>
+                    {data.metrics.benchmarkReturn > 0 ? '+' : ''}{data.metrics.benchmarkReturn}%
+                  </p>
+                  <p className="text-[9px] text-gray-400 mt-1 uppercase font-bold tracking-tighter">시장 평균 수익률</p>
+                </div>
 
-                <Card className="bg-white border-gray-100 shadow-sm rounded-2xl">
-                  <CardContent className="p-5">
-                    <div className="flex justify-between items-start mb-2">
-                      <p className="text-xs font-black text-gray-400 uppercase tracking-widest text-[10px]">최대 낙폭 (MDD)</p>
-                      <div className="p-1.5 rounded-lg bg-rose-50 text-rose-500">
-                        <Activity className="h-3.5 w-3.5" />
-                      </div>
-                    </div>
-                    <p className="text-3xl font-black font-mono tracking-tighter text-rose-500">
-                      {data.metrics.mdd}%
-                    </p>
-                    <p className="text-[10px] text-gray-400 mt-1">고점 대비 최하락폭 지수</p>
-                  </CardContent>
-                </Card>
+                <div className="bg-blue-600 p-4 rounded-2xl shadow-lg shadow-blue-500/10">
+                  <p className="text-[10px] font-black text-white/70 uppercase tracking-widest mb-1.5 flex items-center gap-1">
+                    <Sparkles className="h-3 w-3 text-white" /> 알파 수익률
+                  </p>
+                  <p className="text-xl font-black font-mono tracking-tight text-white">
+                    {alphaReturn > 0 ? '+' : ''}{alphaReturn}%
+                  </p>
+                  <p className="text-[9px] text-white/70 mt-1 uppercase font-bold tracking-tighter">시장 대비 초과 성과</p>
+                </div>
 
-                <Card className="bg-white border-gray-100 shadow-sm rounded-2xl">
-                  <CardContent className="p-5">
-                    <div className="flex justify-between items-start mb-2">
-                      <p className="text-xs font-black text-gray-400 uppercase tracking-widest text-[10px]">시작 주가</p>
-                      <div className="p-1.5 rounded-lg bg-gray-50 text-gray-500">
-                        <DollarSign className="h-3.5 w-3.5" />
-                      </div>
-                    </div>
-                    <p className="text-2xl font-black font-mono tracking-tighter text-gray-900">
-                      {data.metrics.startPrice.toLocaleString()} <span className="text-sm font-medium">{data.currency}</span>
-                    </p>
-                    <p className="text-[10px] text-gray-400 mt-1">{new Date(data.metrics.startDate).toLocaleDateString()} 기준</p>
-                  </CardContent>
-                </Card>
+                <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm">
+                  <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 flex items-center gap-1">
+                    <DollarSign className="h-3 w-3" /> 시작 주가
+                  </p>
+                  <p className="text-xl font-black font-mono tracking-tight text-gray-900">
+                    {data.metrics.startPrice.toLocaleString()} <span className="text-sm font-bold text-gray-400">{data.currency}</span>
+                  </p>
+                  <p className="text-[9px] text-gray-400 mt-1 uppercase font-bold tracking-tighter">{new Date(data.metrics.startDate).toLocaleDateString()}</p>
+                </div>
 
-                <Card className="bg-white border-gray-100 shadow-sm rounded-2xl">
-                  <CardContent className="p-5">
-                    <div className="flex justify-between items-start mb-2">
-                      <p className="text-xs font-black text-gray-400 uppercase tracking-widest text-[10px]">현재 주가</p>
-                      <div className="p-1.5 rounded-lg bg-blue-50 text-blue-500">
-                        <Target className="h-3.5 w-3.5" />
-                      </div>
-                    </div>
-                    <p className="text-2xl font-black font-mono tracking-tighter text-blue-600">
-                      {data.metrics.endPrice.toLocaleString()} <span className="text-sm font-medium">{data.currency}</span>
-                    </p>
-                    <p className="text-[10px] text-gray-400 mt-1">{new Date(data.metrics.endDate).toLocaleDateString()} 기준</p>
-                  </CardContent>
-                </Card>
+                <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm">
+                  <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 flex items-center gap-1">
+                    <Target className="h-3 w-3 text-blue-500" /> 현재 주가
+                  </p>
+                  <p className="text-xl font-black font-mono tracking-tight text-blue-600">
+                    {data.metrics.endPrice.toLocaleString()} <span className="text-sm font-bold text-blue-400">{data.currency}</span>
+                  </p>
+                  <p className="text-[9px] text-gray-400 mt-1 uppercase font-bold tracking-tighter">{new Date(data.metrics.endDate).toLocaleDateString()}</p>
+                </div>
+
+                <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm">
+                  <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 flex items-center gap-1">
+                    <Activity className="h-3 w-3" /> 기업 수익률
+                  </p>
+                  <p className={cn("text-xl font-black font-mono tracking-tight", (data.metrics.totalReturn >= 0 ? "text-emerald-500" : "text-rose-500"))}>
+                    {data.metrics.totalReturn > 0 ? '+' : ''}{data.metrics.totalReturn}%
+                  </p>
+                  <p className="text-[9px] text-gray-400 mt-1 uppercase font-bold tracking-tighter">{ticker} 보유 시 결과</p>
+                </div>
               </div>
 
               {/* Chart */}
               <Card className="bg-white border-gray-100 shadow-sm rounded-3xl p-6">
-                <div className="flex items-center justify-between mb-8">
-                  <div className="flex items-center gap-3">
-                    <div className="w-2 h-8 bg-blue-600 rounded-full" />
-                    <h3 className="text-lg font-black text-gray-900 uppercase">주가 변동 추이 및 시뮬레이션</h3>
-                  </div>
-                  <div className="flex gap-2">
-                    <Badge variant="secondary" className="bg-gray-100 text-gray-500 border-none font-bold">1일 간격</Badge>
-                    <Badge variant="secondary" className="bg-gray-100 text-gray-500 border-none font-bold">{PERIODS.find(p => p.id === period)?.label}</Badge>
-                  </div>
+                <div className="flex items-center gap-3 mb-8">
+                  <div className="w-2 h-8 bg-blue-600 rounded-full" />
+                  <h3 className="text-lg font-black text-gray-900 uppercase">주가 변동 추이</h3>
                 </div>
 
                 <div className="h-[400px] w-full">
@@ -263,7 +237,6 @@ export function BacktestDialog({ ticker, isOpen, onClose }: BacktestDialogProps)
                         }}
                         labelStyle={{ color: '#6b7280', marginBottom: '4px' }}
                         formatter={(value: any) => [`${value.toLocaleString()} ${data.currency}`, '종가']}
-                        labelFormatter={(label) => `${label}`}
                       />
                       <Area 
                         type="monotone" 
@@ -279,42 +252,47 @@ export function BacktestDialog({ ticker, isOpen, onClose }: BacktestDialogProps)
                 </div>
               </Card>
 
-              {/* Analysis Text */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <div className="p-6 rounded-3xl bg-blue-600 text-white space-y-4">
-                  <div className="flex items-center gap-3">
+              {/* MDD & Insight Section */}
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                <Card className="lg:col-span-4 bg-white border-gray-100 shadow-sm rounded-2xl">
+                  <CardContent className="p-6">
+                    <div className="flex justify-between items-start mb-4">
+                      <div>
+                        <p className="text-xs font-black text-gray-400 uppercase tracking-widest text-[10px]">최대 낙폭 (MDD)</p>
+                        <p className="text-3xl font-black font-mono tracking-tighter text-rose-500 mt-1">
+                          {data.metrics.mdd}%
+                        </p>
+                      </div>
+                      <div className="p-2 rounded-xl bg-rose-50 text-rose-500">
+                        <Activity className="h-5 w-5" />
+                      </div>
+                    </div>
+                    <div className="w-full bg-gray-100 h-2 rounded-full overflow-hidden">
+                       <div className="bg-rose-500 h-full rounded-full" style={{ width: `${Math.abs(data.metrics.mdd)}%` }} />
+                    </div>
+                    <p className="text-[11px] text-gray-500 mt-3 font-medium leading-relaxed">
+                      이 지수가 낮을수록(0에 가까울수록) 하락장에서도 잘 버텨낸 기업임을 의미합니다.
+                    </p>
+                  </CardContent>
+                </Card>
+
+                <div className="lg:col-span-8 p-6 rounded-3xl bg-blue-600 text-white space-y-3 relative overflow-hidden group">
+                  <div className="absolute top-0 right-0 p-16 bg-white/5 blur-[40px] rounded-full pointer-events-none" />
+                  <div className="flex items-center gap-3 relative z-10">
                     <Sparkles className="h-5 w-5" />
                     <h3 className="text-lg font-black uppercase">알파 전략 인사이트</h3>
                   </div>
-                  <p className="text-sm leading-loose opacity-90 font-medium whitespace-pre-line text-justify">
+                  <p className="text-sm leading-loose opacity-90 font-medium whitespace-pre-line text-justify relative z-10">
                     {ticker}는 지난 {PERIODS.find(p => p.id === period)?.label} 동안 {data.metrics.totalReturn}%의 수익률을 보였습니다. 
-                    특히 {data.metrics.mdd}%의 최대 낙폭 지수를 고려할 때, {(data.metrics.mdd > -15) ? '안정적인 방어력을 보유한 것으로 판단됩니다.' : '변동성이 큰 편이지만 고수익 기회를 추구하는 전략에 적합합니다.'}
-                    
-                    현재 주가는 {data.metrics.endPrice.toLocaleString()} {data.currency}로, 해당 기간 시작가인 {data.metrics.startPrice.toLocaleString()} 대비 {data.metrics.totalReturn > 0 ? '상승' : '하락'} 추세에 있습니다.
+                    {alphaReturn > 0 
+                      ? `시장을 ${alphaReturn}% 상회하는 탁월한 성과를 기록했습니다.` 
+                      : `시장 수익률인 ${data.metrics.benchmarkReturn}% 대비 다소 보수적인 흐름을 보였으나, 기회 요인을 탐색 중입니다.`
+                    }
+                    {data.metrics.mdd > -15 
+                      ? ' 특히 큰 하락 없이 안정적으로 우상향하며 높은 심리적 안전성을 제공했습니다.' 
+                      : ' 다만 분석된 하락폭을 고려했을 때, 진입 시점 분할 매수를 통한 리스크 관리가 권장되는 구간입니다.'
+                    }
                   </p>
-                </div>
-
-                <div className="p-6 rounded-3xl border border-gray-200 bg-white space-y-4">
-                  <div className="flex items-center gap-3">
-                    <BarChart3 className="h-5 w-5 text-gray-500" />
-                    <h3 className="text-lg font-black uppercase text-gray-900">시뮬레이션 로직</h3>
-                  </div>
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between p-3 rounded-xl bg-gray-50 border border-gray-100">
-                      <span className="text-xs font-black text-gray-500">벤치마크 (S&P 500)</span>
-                      <span className="text-xs font-bold text-gray-900">+15.0%</span>
-                    </div>
-                    <div className="flex items-center justify-between p-3 rounded-xl bg-gray-50 border border-gray-100">
-                      <span className="text-xs font-black text-gray-500">기간 구분</span>
-                      <span className="text-xs font-bold text-gray-900">{PERIODS.find(p => p.id === period)?.label} 시뮬레이션</span>
-                    </div>
-                    <div className="flex items-center justify-between p-3 rounded-xl bg-emerald-50 border border-emerald-100">
-                      <span className="text-xs font-black text-emerald-600 text-gray-500">알파 수익률 (초과)</span>
-                      <span className="text-xs font-black text-emerald-600">
-                        {data.metrics.totalReturn - 15 > 0 ? '+' : ''}{(data.metrics.totalReturn - 15).toFixed(1)}%
-                      </span>
-                    </div>
-                  </div>
                 </div>
               </div>
             </>
@@ -326,7 +304,7 @@ export function BacktestDialog({ ticker, isOpen, onClose }: BacktestDialogProps)
           <p className="text-[10px] text-gray-400 font-bold uppercase tracking-[0.2em]">
             자료 출처: 야후 파이낸스 실시간 시뮬레이션 플랫폼
           </p>
-          <Button onClick={onClose} className="rounded-xl px-8 font-black uppercase text-xs tracking-widest">
+          <Button onClick={onClose} className="rounded-xl px-10 h-12 bg-gray-900 border-none font-black uppercase text-xs tracking-widest hover:bg-black transition-colors">
             분석 종료
           </Button>
         </div>
