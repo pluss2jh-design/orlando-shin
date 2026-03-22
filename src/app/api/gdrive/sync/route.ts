@@ -15,6 +15,7 @@ export async function POST() {
         size: f.size,
         modifiedTime: f.modifiedTime,
         durationMillis: f.durationMillis,
+        parentId: f.parentId,
       })),
       totalCount: result.totalCount,
       syncedAt: result.syncedAt,

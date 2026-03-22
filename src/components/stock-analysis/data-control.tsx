@@ -1,9 +1,9 @@
 'use client';
 
-import React, { useCallback, useState, useEffect } from 'react';
+import React, { useCallback, useState, useEffect, useMemo } from 'react';
 import { 
   Upload, File, Video, FileText, X, Cloud, Check, Loader2, BookOpen, ListChecks, 
-  Settings2, ChevronUp, ChevronDown, AlertCircle, Eye 
+  Settings2, ChevronUp, ChevronDown, AlertCircle, Eye, Folder, ChevronRight
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -22,6 +22,7 @@ interface DriveFileInfo {
   mimeType: string;
   size: string;
   modifiedTime: string;
+  parentId?: string;
 }
 
 interface DataControlProps {
@@ -39,6 +40,8 @@ export function DataControl({ onFilesChange, onSyncStatusChange, onLearningCompl
   const [learnedKnowledge, setLearnedKnowledge] = useState<LearnedKnowledge | null>(null);
   const [showRules, setShowRules] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
+  const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set());
+  const [rootFolderId, setRootFolderId] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchKnowledge = async () => {
@@ -91,7 +94,7 @@ export function DataControl({ onFilesChange, onSyncStatusChange, onLearningCompl
     const uploadedFiles: UploadedFile[] = validFiles.map(file => ({
       id: generateId(),
       name: file.name,
-      type: getFileType(file.name),
+      type: getFileType(file.name) as any,
       size: file.size,
       uploadedAt: new Date(),
       status: 'pending',
@@ -148,13 +151,25 @@ export function DataControl({ onFilesChange, onSyncStatusChange, onLearningCompl
             ? ('pdf' as const)
             : f.mimeType.includes('video')
               ? ('mp4' as const)
-              : ('other' as const),
+              : f.mimeType === 'application/vnd.google-apps.folder'
+                ? ('folder' as const)
+                : ('other' as const),
           size: parseInt(f.size || '0', 10),
           uploadedAt: new Date(f.modifiedTime),
           status: 'completed' as const,
           url: undefined,
+          parentId: f.parentId,
         })
       );
+
+      // Determine root folder ID (the one that is not a parent of anyone in the current list, or the parent of the first few items)
+      // Actually, listDriveFiles returns items with parentId. The very first items' parentId is the root folder.
+      if (driveFiles.length > 0) {
+        // We find the parentId that is not present in the list of IDs
+        const ids = new Set(driveFiles.map(f => f.id));
+        const firstParentId = driveFiles.find(f => f.parentId && !ids.has(f.parentId))?.parentId;
+        if (firstParentId) setRootFolderId(firstParentId);
+      }
 
       setFiles(driveFiles);
       onFilesChange?.(driveFiles);
@@ -209,6 +224,94 @@ export function DataControl({ onFilesChange, onSyncStatusChange, onLearningCompl
     } finally {
       setIsLearning(false);
     }
+  };
+
+  const toggleFolder = (id: string) => {
+    setExpandedFolders(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const renderFileTree = (parentId: string | null, level: number = 0) => {
+    const children = files
+      .filter(f => f.parentId === parentId || (parentId === rootFolderId && f.parentId === parentId) || (!f.parentId && parentId === null))
+      .sort((a, b) => {
+        if (a.type === 'folder' && b.type !== 'folder') return -1;
+        if (a.type !== 'folder' && b.type === 'folder') return 1;
+        return a.name.localeCompare(b.name);
+      });
+
+    // If we're at the very root and the filter above didn't catch anything (e.g. because rootFolderId is set but parentId mismatch)
+    // We try to find items whose parentId is not in the set of IDs
+    let itemsToRender = children;
+    if (level === 0 && children.length === 0 && files.length > 0) {
+      const ids = new Set(files.map(f => f.id));
+      itemsToRender = files.filter(f => !f.parentId || !ids.has(f.parentId)).sort((a,b) => {
+          if (a.type === 'folder' && b.type !== 'folder') return -1;
+          if (a.type !== 'folder' && b.type === 'folder') return 1;
+          return a.name.localeCompare(b.name);
+      });
+    }
+
+    return itemsToRender.map(file => (
+      <React.Fragment key={file.id}>
+        <div 
+          className={cn(
+            "flex items-center justify-between p-2 rounded-lg transition-colors group",
+            file.type === 'folder' ? "hover:bg-muted/50 cursor-pointer" : "hover:bg-muted/30 border border-transparent hover:border-muted",
+            level > 0 && "ml-4 border-l pl-4"
+          )}
+          onClick={() => file.type === 'folder' && toggleFolder(file.id)}
+        >
+          <div className="flex items-center gap-2 overflow-hidden">
+            {file.type === 'folder' && (
+              expandedFolders.has(file.id) ? <ChevronDown className="h-3 w-3 text-muted-foreground" /> : <ChevronRight className="h-3 w-3 text-muted-foreground" />
+            )}
+            <div className={cn(
+              "p-1.5 rounded-md shrink-0",
+              file.type === 'mp4' ? "bg-blue-500/10 text-blue-500" : 
+              file.type === 'pdf' ? "bg-red-500/10 text-red-500" :
+              file.type === 'folder' ? "bg-yellow-500/10 text-yellow-500" :
+              "bg-gray-500/10 text-gray-500"
+            )}>
+              {file.type === 'mp4' ? <Video className="h-3.5 w-3.5" /> : 
+               file.type === 'pdf' ? <FileText className="h-3.5 w-3.5" /> : 
+               file.type === 'folder' ? <Folder className="h-3.5 w-3.5" /> :
+               <File className="h-3.5 w-3.5" />}
+            </div>
+            <div className="overflow-hidden">
+              <p className="text-xs font-medium truncate">{file.name}</p>
+              {file.type !== 'folder' && (
+                <p className="text-[10px] text-muted-foreground">{formatFileSize(file.size)} • {file.type.toUpperCase()}</p>
+              )}
+            </div>
+          </div>
+          <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+            {file.type !== 'folder' && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-6 w-6"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setFiles(files.filter(f => f.id !== file.id));
+                }}
+              >
+                <X className="h-3 w-3" />
+              </Button>
+            )}
+          </div>
+        </div>
+        {file.type === 'folder' && expandedFolders.has(file.id) && (
+          <div className="mt-1">
+            {renderFileTree(file.id, level + 1)}
+          </div>
+        )}
+      </React.Fragment>
+    ));
   };
 
   return (
@@ -283,36 +386,13 @@ export function DataControl({ onFilesChange, onSyncStatusChange, onLearningCompl
         </div>
 
         {files.length > 0 && (
-          <div className="space-y-2">
+          <div className="space-y-3">
             <div className="flex items-center justify-between px-1">
-              <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wider">업로드 대기 중 ({files.length})</h4>
+              <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wider">원천 데이터 원격 저장소 ({files.length})</h4>
               <Button variant="ghost" size="xs" onClick={() => setFiles([])} className="h-6 text-[10px]">전체 삭제</Button>
             </div>
-            <div className="grid grid-cols-1 gap-2">
-              {files.map(file => (
-                <div key={file.id} className="flex items-center justify-between p-3 rounded-lg bg-muted/30 border border-muted group hover:bg-muted/50 transition-colors">
-                  <div className="flex items-center gap-3">
-                    <div className={cn(
-                      "p-2 rounded-md",
-                      file.type === 'mp4' ? "bg-blue-500/10 text-blue-500" : "bg-red-500/10 text-red-500"
-                    )}>
-                      {file.type === 'mp4' ? <Video className="h-4 w-4" /> : <FileText className="h-4 w-4" />}
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium line-clamp-1">{file.name}</p>
-                      <p className="text-[10px] text-muted-foreground">{formatFileSize(file.size)} • {file.type.toUpperCase()}</p>
-                    </div>
-                  </div>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity"
-                    onClick={() => setFiles(files.filter(f => f.id !== file.id))}
-                  >
-                    <X className="h-3 w-3" />
-                  </Button>
-                </div>
-              ))}
+            <div className="max-h-[300px] overflow-y-auto pr-1 custom-scrollbar space-y-1">
+              {renderFileTree(null)}
             </div>
           </div>
         )}

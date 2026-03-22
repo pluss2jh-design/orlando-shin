@@ -5,11 +5,12 @@
 export interface UploadedFile {
   id: string;
   name: string;
-  type: 'pdf' | 'mp4' | 'other';
+  type: 'pdf' | 'mp4' | 'folder' | 'other';
   size: number;
   uploadedAt: Date;
   status: 'pending' | 'uploading' | 'completed' | 'error';
   url?: string;
+  parentId?: string;
 }
 
 export interface InvestmentConditions {

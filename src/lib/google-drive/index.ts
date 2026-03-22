@@ -11,6 +11,7 @@ interface DriveFileInfo {
   mimeType: string;
   size: string;
   modifiedTime: string;
+  parentId?: string;
   durationMillis?: string;
 }
 
@@ -93,7 +94,7 @@ function getGoogleDriveClient() {
 }
 
 export async function listDriveFiles(
-  folderId: string = GOOGLE_DRIVE_FOLDER_ID,
+  folderId: string = GOOGLE_DRIVE_FOLDER_ID || 'root',
   depth: number = 0
 ): Promise<SyncResult> {
   if (depth > 5) return { files: [], totalCount: 0, syncedAt: new Date() };
@@ -129,18 +130,24 @@ export async function listDriveFiles(
 
       for (const f of driveFiles) {
         console.log(`  - [${f.mimeType}] ${f.name} (ID: ${f.id})`);
+        
+        const fileInfo: DriveFileInfo = {
+          id: f.id || '',
+          name: f.name || '',
+          mimeType: f.mimeType || '',
+          size: f.size || '0',
+          modifiedTime: f.modifiedTime || '',
+          parentId: folderId,
+          durationMillis: f.videoMediaMetadata?.durationMillis,
+        };
+
         if (f.mimeType === 'application/vnd.google-apps.folder') {
+          // 폴더 자체 정보도 리스트에 추가합니다 (UI에서 구조 노출을 위해)
+          allFiles.push(fileInfo);
           const subFiles = await listDriveFiles(f.id!, depth + 1);
           allFiles.push(...subFiles.files);
         } else {
-          allFiles.push({
-            id: f.id || '',
-            name: f.name || '',
-            mimeType: f.mimeType || '',
-            size: f.size || '0',
-            modifiedTime: f.modifiedTime || '',
-            durationMillis: f.videoMediaMetadata?.durationMillis,
-          });
+          allFiles.push(fileInfo);
         }
       }
       nextPageToken = response.data.nextPageToken;
