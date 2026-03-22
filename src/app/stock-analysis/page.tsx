@@ -7,8 +7,11 @@ import { useRouter } from 'next/navigation';
 import { InvestmentInput } from '@/components/stock-analysis/investment-input';
 import { AnalysisOutput } from '@/components/stock-analysis/analysis-output';
 import { NewsSection } from '@/components/stock-analysis/news-section';
+import { BacktestDialog } from '@/components/stock-analysis/backtest-dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { History, Search, X } from 'lucide-react';
+import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   InvestmentConditions,
@@ -64,6 +67,10 @@ export default function StockAnalysisPage() {
     overlapCount: number;
     finalCount: number;
   } | null>(null);
+
+  const [backtestTicker, setBacktestTicker] = useState<string | null>(null);
+  const [showManualBacktest, setShowManualBacktest] = useState(false);
+  const [manualTicker, setManualTicker] = useState('');
 
 
 
@@ -366,11 +373,61 @@ export default function StockAnalysisPage() {
 
       {/* ── 스캔 컨트롤 서브바 ── */}
       <div className="sticky top-14 z-20 bg-white border-b border-gray-200 shadow-sm">
-        <div className="mx-auto px-6 max-w-screen-2xl py-3">
-          <InvestmentInput
-            onAnalyze={handleAnalyze}
-            disabled={analysisState.isAnalyzing}
-          />
+        <div className="mx-auto px-6 max-w-screen-2xl flex flex-col md:flex-row items-center gap-4 py-3">
+          <div className="flex-1 w-full">
+            <InvestmentInput
+              onAnalyze={handleAnalyze}
+              disabled={analysisState.isAnalyzing}
+            />
+          </div>
+          
+          <div className="flex items-center gap-2 shrink-0">
+            {showManualBacktest ? (
+              <div className="flex items-center gap-2 animate-in slide-in-from-right-2 duration-300">
+                <Input 
+                  placeholder="티커 입력 (예: TSLA)"
+                  value={manualTicker}
+                  onChange={(e) => setManualTicker(e.target.value.toUpperCase())}
+                  className="w-32 h-10 bg-gray-50 font-bold uppercase"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && manualTicker) {
+                      setBacktestTicker(manualTicker);
+                      setShowManualBacktest(false);
+                    }
+                  }}
+                />
+                <Button 
+                  size="sm"
+                  className="h-10 px-4 bg-blue-600 hover:bg-blue-500 font-black text-xs"
+                  onClick={() => {
+                    if (manualTicker) {
+                      setBacktestTicker(manualTicker);
+                      setShowManualBacktest(false);
+                    }
+                  }}
+                >
+                  <Search className="h-4 w-4 mr-1.5" /> 시뮬레이션
+                </Button>
+                <Button 
+                  size="icon" 
+                  variant="ghost" 
+                  className="h-10 w-10 text-gray-400"
+                  onClick={() => setShowManualBacktest(false)}
+                >
+                  <X className="h-5 w-5" />
+                </Button>
+              </div>
+            ) : (
+              <Button 
+                variant="outline" 
+                className="h-10 px-4 border-blue-100 text-blue-600 hover:bg-blue-50 font-black uppercase text-xs tracking-widest gap-2"
+                onClick={() => setShowManualBacktest(true)}
+              >
+                <History className="h-4 w-4" />
+                Manual Backtest
+              </Button>
+            )}
+          </div>
         </div>
       </div>
 
@@ -453,9 +510,9 @@ export default function StockAnalysisPage() {
 
         {universeStats && !analysisState.isAnalyzing && (
           <div className="mb-6 flex flex-col items-center gap-2">
-            <Badge variant="outline" className="bg-white/50 text-gray-500 border-gray-200 text-xs py-1 px-4 font-bold shadow-sm">
-              분석 유니버스: 러셀1000({universeStats.russellCount}) - 중복({universeStats.overlapCount}) = {universeStats.finalCount}개 기업 대상
-            </Badge>
+                <Badge variant="outline" className="bg-white/50 text-gray-500 border-gray-200 text-xs py-1 px-4 font-bold shadow-sm">
+                  분석 유니버스: 러셀1000({universeStats?.russellCount}) - 중복({universeStats?.overlapCount}) = {universeStats?.finalCount}개 기업 대상
+                </Badge>
 
             <TooltipProvider>
               <Tooltip>
@@ -529,6 +586,12 @@ export default function StockAnalysisPage() {
           </Card>
         </div>
       )}
+
+      <BacktestDialog 
+        ticker={backtestTicker || ''} 
+        isOpen={!!backtestTicker} 
+        onClose={() => setBacktestTicker(null)} 
+      />
     </div>
   );
 }

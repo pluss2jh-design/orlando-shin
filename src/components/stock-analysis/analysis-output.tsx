@@ -12,6 +12,8 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { AnalysisResult, InvestmentConditions, TenbaggerScoreResult, TenbaggerStepResult, TenbaggerStepSource } from '@/types/stock-analysis';
 import { cn } from '@/lib/utils';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, Legend } from 'recharts';
+import { BacktestDialog } from './backtest-dialog';
+import { History } from 'lucide-react';
 
 const STEP_ICONS = [Target, TrendingUp, Activity, CheckCircle, Zap, TrendingDown, Sparkles];
 
@@ -155,6 +157,7 @@ export function AnalysisOutput({ results, conditions, isLoading, onSendEmail }: 
   const [plan, setPlan] = useState<string>('FREE');
   const [selectedCompanyIndex, setSelectedCompanyIndex] = useState<number | null>(null);
   const [isScoreExpanded, setIsScoreExpanded] = useState(false);
+  const [backtestTicker, setBacktestTicker] = useState<string | null>(null);
 
   useEffect(() => {
     const checkFeatures = async () => {
@@ -387,8 +390,22 @@ export function AnalysisOutput({ results, conditions, isLoading, onSendEmail }: 
                       )}
                       {result.tenbaggerScore && <p className="text-[10px] font-bold text-blue-500 mt-0.5">{result.tenbaggerScore.allocationLabel}</p>}
                     </div>
-                    <div className="w-8 h-8 rounded-full bg-gray-50 group-hover:bg-blue-50 flex items-center justify-center transition-colors shadow-sm border border-gray-100 group-hover:border-blue-100">
-                      <ArrowRight className="h-4 w-4 text-gray-400 group-hover:text-blue-500 transition-colors" />
+                    <div className="flex items-center gap-2 pt-3 border-t border-gray-100">
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        className="flex-1 h-8 text-[10px] font-black uppercase tracking-widest border-blue-100 hover:bg-blue-50 text-blue-600 rounded-lg group/btn"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setBacktestTicker(result.ticker || null);
+                        }}
+                      >
+                        <History className="h-3.5 w-3.5 mr-1.5 transition-transform group-hover/btn:rotate-[-45deg]" />
+                        Backtest
+                      </Button>
+                      <div className="w-8 h-8 rounded-full bg-gray-50 group-hover:bg-blue-50 flex items-center justify-center transition-colors shadow-sm border border-gray-100 group-hover:border-blue-100 shrink-0">
+                        <ArrowRight className="h-4 w-4 text-gray-400 group-hover:text-blue-500 transition-colors" />
+                      </div>
                     </div>
                   </div>
                 </CardContent>
@@ -485,6 +502,17 @@ export function AnalysisOutput({ results, conditions, isLoading, onSendEmail }: 
                 <span className="text-gray-600">•</span>
                 <span className="text-emerald-500/80 flex items-center gap-1"><Activity className="h-3 w-3" /> LIVE DATA CONNECTED</span>
               </div>
+            </div>
+
+            <div className="flex gap-2">
+              <Button 
+                variant="outline" 
+                className="h-12 px-6 rounded-2xl bg-white border-blue-100 text-blue-600 hover:bg-blue-50 font-black uppercase tracking-widest text-[11px] group"
+                onClick={() => setBacktestTicker(result.ticker || null)}
+              >
+                <History className="h-4 w-4 mr-2 transition-transform group-hover:rotate-[-45deg]" />
+                Full Backtest Simulation
+              </Button>
             </div>
 
 
@@ -632,6 +660,12 @@ export function AnalysisOutput({ results, conditions, isLoading, onSendEmail }: 
           </div>
         </CardContent>
       </Card>
+
+      <BacktestDialog 
+        ticker={backtestTicker || ''} 
+        isOpen={!!backtestTicker} 
+        onClose={() => setBacktestTicker(null)} 
+      />
     </div>
   );
 }
