@@ -226,7 +226,7 @@ export async function runAnalysisEngine(
   for (let i = 0; i < preSorted.length; i++) {
     const stock = preSorted[i];
     const itemPct = 85 + Math.floor((i / preSorted.length) * 10);
-    if (onProgress) onProgress(itemPct, `AI 정밀 분석 진행 중: ${stock.ticker} (${i+1}/${preSorted.length})`);
+    if (onProgress) onProgress(itemPct, `AI 정밀 분석 진행 중 (${newsAiModel || 'default'}): ${stock.ticker} (${i+1}/${preSorted.length})`);
 
     try {
       // 상위권에게만 AI 감성 분석 및 주가 예측 수행

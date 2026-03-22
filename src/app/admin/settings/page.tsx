@@ -1,17 +1,36 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Save, RefreshCw, Key, AlertCircle, CheckCircle, Eye, EyeOff } from 'lucide-react';
+import { Save, RefreshCw, Key, AlertCircle, CheckCircle, Eye, EyeOff, Sparkles } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
+import { Badge } from '@/components/ui/badge';
 
 interface ApiKeys {
     GEMINI_API_KEY: string;
     OPENAI_API_KEY: string;
     CLAUDE_API_KEY: string;
     YAHOO_FINANCE_API_KEY: string;
+    NEWS_SCAN_AI_MODEL: string;
+}
+
+/** AI 모델 정보 */
+interface AIModel {
+    value: string;
+    label: string;
+    reqKey: string;
+    supportsPDF: boolean;
+    supportsVideo: boolean;
+    provider: string; // 추가됨
 }
 
 export default function SettingsPage() {
@@ -20,19 +39,37 @@ export default function SettingsPage() {
         OPENAI_API_KEY: '',
         CLAUDE_API_KEY: '',
         YAHOO_FINANCE_API_KEY: '',
+        NEWS_SCAN_AI_MODEL: '',
     });
+    const [availableModels, setAvailableModels] = useState<AIModel[]>([]);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
     const [showKeys, setShowKeys] = useState<{ [key: string]: boolean }>({});
 
     useEffect(() => {
-        fetchSettings();
+        const init = async () => {
+            setLoading(true);
+            await Promise.all([fetchSettings(), fetchModels()]);
+            setLoading(false);
+        };
+        init();
     }, []);
+
+    const fetchModels = async () => {
+        try {
+            const response = await fetch('/api/admin/models', { cache: 'no-store' });
+            if (response.ok) {
+                const data = await response.json();
+                setAvailableModels(data.models || []);
+            }
+        } catch (error) {
+            console.error('Failed to fetch models:', error);
+        }
+    };
 
     const fetchSettings = async () => {
         try {
-            setLoading(true);
             const response = await fetch('/api/admin/settings');
             if (response.ok) {
                 const data = await response.json();
@@ -40,8 +77,6 @@ export default function SettingsPage() {
             }
         } catch (error) {
             console.error('Failed to fetch settings:', error);
-        } finally {
-            setLoading(false);
         }
     };
 
@@ -245,42 +280,90 @@ export default function SettingsPage() {
                                     </p>
                                 </div>
                             </div>
-
-                            <div className="pt-4">
-                                <Button
-                                    onClick={handleSave}
-                                    disabled={saving}
-                                    className="bg-blue-600 hover:bg-blue-700 w-full"
-                                >
-                                    {saving ? (
-                                        <>
-                                            <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-                                            저장 중...
-                                        </>
-                                    ) : (
-                                        <>
-                                            <Save className="h-4 w-4 mr-2" />
-                                            저장하기
-                                        </>
-                                    )}
-                                </Button>
-                            </div>
                         </>
                     )}
                 </CardContent>
             </Card>
 
-            <div className="bg-yellow-500/10 border border-yellow-500/50 rounded-lg p-4">
-                <div className="flex gap-3">
-                    <AlertCircle className="h-5 w-5 text-yellow-500 flex-shrink-0 mt-0.5" />
-                    <div>
-                        <h3 className="text-yellow-500 font-semibold mb-1">보안 주의사항</h3>
-                        <p className="text-yellow-500/80 text-sm">
-                            API 키는 암호화되어 서버에 저장됩니다. 절대 다른 사람과 공유하지 마세요.
+            <div className="space-y-6">
+            <Card className="bg-gray-900 border-gray-800">
+                <CardHeader>
+                    <CardTitle className="text-white flex items-center gap-2">
+                        <Sparkles className="h-5 w-5 text-blue-500" />
+                        AI 모델 설정
+                    </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                    <div className="space-y-2">
+                        <label className="text-sm font-medium text-gray-300">
+                            기업 분석 후 뉴스 스캔용 AI 모델
+                        </label>
+                        <Select 
+                            value={keys.NEWS_SCAN_AI_MODEL} 
+                            onValueChange={(val) => handleChange('NEWS_SCAN_AI_MODEL', val)}
+                        >
+                            <SelectTrigger className="bg-gray-950 border-gray-800 text-white focus:ring-blue-500/50 focus:border-blue-500 transition-all">
+                                <SelectValue placeholder="AI 모델을 선택해주세요" />
+                            </SelectTrigger>
+                            <SelectContent className="bg-gray-900 border-gray-800">
+                                {availableModels.length > 0 ? (
+                                    availableModels.map((model) => {
+                                        const hasKey = keys[model.reqKey as keyof ApiKeys];
+                                        const isMasked = typeof hasKey === 'string' && hasKey.startsWith('••••');
+                                        const isRegistered = isMasked || (hasKey && hasKey.length > 0);
+                                        
+                                        return (
+                                            <SelectItem 
+                                                key={model.value} 
+                                                value={model.value}
+                                                disabled={!isRegistered}
+                                                className="text-white hover:bg-gray-800 cursor-pointer"
+                                            >
+                                                <div className="flex items-center justify-between gap-4 w-full">
+                                                    <span>{model.label}</span>
+                                                    {!isRegistered && (
+                                                        <Badge variant="outline" className="text-[10px] border-red-500/50 text-red-500">
+                                                            API 키 미등록
+                                                        </Badge>
+                                                    )}
+                                                </div>
+                                            </SelectItem>
+                                        );
+                                    })
+                                ) : (
+                                    <div className="p-4 text-center text-sm text-gray-500">
+                                        사용 가능한 모델이 없습니다. 먼저 API 키를 등록해주세요.
+                                    </div>
+                                )}
+                            </SelectContent>
+                        </Select>
+                        <p className="text-xs text-gray-500">
+                            상위 n개 기업의 실시간 뉴스 분석 및 감성 점수 산정에 사용될 모델입니다
                         </p>
                     </div>
-                </div>
+                </CardContent>
+            </Card>
+
+            <div className="pt-4">
+                <Button
+                    onClick={handleSave}
+                    disabled={saving}
+                    className="bg-blue-600 hover:bg-blue-700 w-full"
+                >
+                    {saving ? (
+                        <>
+                            <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                            저장 중...
+                        </>
+                    ) : (
+                        <>
+                            <Save className="h-4 w-4 mr-2" />
+                            저장하기
+                        </>
+                    )}
+                </Button>
             </div>
         </div>
-    );
+    </div>
+);
 }

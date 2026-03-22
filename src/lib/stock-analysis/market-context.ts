@@ -1,6 +1,8 @@
 import { MacroContext, SentimentAnalysis, PredictiveAnalysis, YahooFinanceData } from '@/types/stock-analysis';
 import YahooFinance from 'yahoo-finance2';
 import { GoogleGenAI } from '@google/genai';
+import OpenAI from 'openai';
+import Anthropic from '@anthropic-ai/sdk';
 
 const yahooFinance = new YahooFinance({ 
   suppressNotices: ['yahooSurvey'] 
@@ -123,11 +125,6 @@ export async function analyzeStockSentiment(
     }
 
     // 2. AI 감성 분석
-    const finalApiKey = apiKey || process.env.GEMINI_API_KEY || '';
-    if (!finalApiKey) throw new Error('GEMINI_API_KEY is missing');
-    
-    const client = new GoogleGenAI({ apiKey: finalApiKey });
-    
     const prompt = `Analyze the sentiment of the following news headlines for stock ticker ${ticker}. 
     Return a JSON object with:
     - score: integer from -10 (very negative) to 10 (very positive)
@@ -140,12 +137,41 @@ export async function analyzeStockSentiment(
     
     Return ONLY JSON.`;
 
-    const result = await client.models.generateContent({
-      model: aiModel,
-      contents: [{ role: 'user', parts: [{ text: prompt }] }] as any
-    });
-    
-    const text = (result as any).text || '';
+    let text = '';
+    const modelLower = aiModel.toLowerCase();
+
+    // Provider 분기
+    if (modelLower.includes('gpt-') || modelLower.includes('o1-')) {
+      const gptApiKey = apiKey || process.env.OPENAI_API_KEY;
+      if (!gptApiKey) throw new Error('OPENAI_API_KEY is missing');
+      const openai = new OpenAI({ apiKey: gptApiKey });
+      const response = await openai.chat.completions.create({
+        model: aiModel,
+        messages: [{ role: 'user', content: prompt }],
+        response_format: { type: 'json_object' }
+      });
+      text = response.choices[0].message.content || '';
+    } else if (modelLower.includes('claude-')) {
+      const claudeApiKey = apiKey || process.env.CLAUDE_API_KEY;
+      if (!claudeApiKey) throw new Error('CLAUDE_API_KEY is missing');
+      const anthropic = new Anthropic({ apiKey: claudeApiKey });
+      const response = await anthropic.messages.create({
+        model: aiModel,
+        max_tokens: 1024,
+        messages: [{ role: 'user', content: prompt }]
+      });
+      text = (response.content[0] as any).text || '';
+    } else {
+      // Default: Gemini (@google/genai 사용)
+      const geminiApiKey = apiKey || process.env.GEMINI_API_KEY;
+      if (!geminiApiKey) throw new Error('GEMINI_API_KEY is missing');
+      const client = new GoogleGenAI({ apiKey: geminiApiKey });
+      const result = await client.models.generateContent({
+        model: aiModel,
+        contents: [{ role: 'user', parts: [{ text: prompt }] }] as any
+      });
+      text = (result as any).text || '';
+    }
     
     // JSON 추출
     const jsonMatch = text.match(/\{[\s\S]*\}/);
@@ -188,11 +214,6 @@ export async function predictStockGrowth(
   apiKey?: string
 ): Promise<PredictiveAnalysis> {
   try {
-    const finalApiKey = apiKey || process.env.GEMINI_API_KEY || '';
-    if (!finalApiKey) throw new Error('GEMINI_API_KEY is missing');
-    
-    const client = new GoogleGenAI({ apiKey: finalApiKey });
-
     const prompt = `Predict the 6-month growth potential for ${ticker} based on these factors:
     1. Financial Metrics: PER ${metrics.trailingPE}, PBR ${metrics.priceToBook}, ROE ${metrics.returnOnEquity}
     2. Macro Context: Market Mode ${macro.marketMode}, VIX ${macro.vixStatus}, 10Y Yield ${macro.yieldStatus}
@@ -208,12 +229,40 @@ export async function predictStockGrowth(
     
     Return ONLY JSON.`;
 
-    const result = await client.models.generateContent({
-      model: aiModel,
-      contents: [{ role: 'user', parts: [{ text: prompt }] }] as any
-    });
-    
-    const text = (result as any).text || '';
+    let text = '';
+    const modelLower = aiModel.toLowerCase();
+
+    if (modelLower.includes('gpt-') || modelLower.includes('o1-')) {
+      const gptApiKey = apiKey || process.env.OPENAI_API_KEY;
+      if (!gptApiKey) throw new Error('OPENAI_API_KEY is missing');
+      const openai = new OpenAI({ apiKey: gptApiKey });
+      const response = await openai.chat.completions.create({
+        model: aiModel,
+        messages: [{ role: 'user', content: prompt }],
+        response_format: { type: 'json_object' }
+      });
+      text = response.choices[0].message.content || '';
+    } else if (modelLower.includes('claude-')) {
+      const claudeApiKey = apiKey || process.env.CLAUDE_API_KEY;
+      if (!claudeApiKey) throw new Error('CLAUDE_API_KEY is missing');
+      const anthropic = new Anthropic({ apiKey: claudeApiKey });
+      const response = await anthropic.messages.create({
+        model: aiModel,
+        max_tokens: 1024,
+        messages: [{ role: 'user', content: prompt }]
+      });
+      text = (response.content[0] as any).text || '';
+    } else {
+      // Default: Gemini
+      const geminiApiKey = apiKey || process.env.GEMINI_API_KEY;
+      if (!geminiApiKey) throw new Error('GEMINI_API_KEY is missing');
+      const client = new GoogleGenAI({ apiKey: geminiApiKey });
+      const result = await client.models.generateContent({
+        model: aiModel,
+        contents: [{ role: 'user', parts: [{ text: prompt }] }] as any
+      });
+      text = (result as any).text || '';
+    }
     
     const jsonMatch = text.match(/\{[\s\S]*\}/);
     if (jsonMatch) {
