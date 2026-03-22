@@ -11,6 +11,8 @@ import {
     Brain,
     Database,
     Trash2,
+    Folder,
+    ChevronDown,
     ChevronRight,
     Search,
     Sparkles,
@@ -43,6 +45,7 @@ interface DriveFile {
     modifiedTime: string;
     durationMillis?: string;
     learnStatus: 'completed' | 'pending' | 'processing';
+    parentId?: string;
 }
 
 /** Prisma JSON 필드에서 조회한 지식 콘텐츠 구조 */
@@ -166,6 +169,7 @@ export default function DataLibraryPage() {
     const [aiModels, setAiModels] = useState<Record<string, string>>({});
     const [availableModels, setAvailableModels] = useState<AIModel[]>([]);
     const [keys, setKeys] = useState<{ GEMINI_API_KEY?: string, OPENAI_API_KEY?: string, CLAUDE_API_KEY?: string } | null>(null);
+    const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set());
 
     useEffect(() => {
         fetchInitialData();
@@ -270,11 +274,18 @@ export default function DataLibraryPage() {
     };
 
     const getFileExt = (name: string, mime: string) => {
+        if (mime === 'application/vnd.google-apps.folder') return 'folder';
         if (mime.includes('video') || name.toLowerCase().endsWith('.mp4')) return 'mp4';
         if (name.toLowerCase().endsWith('.pdf') || mime.includes('pdf')) return 'pdf';
-        if (name.toLowerCase().endsWith('.docx') || name.toLowerCase().endsWith('.doc')) return 'docx';
-        if (name.toLowerCase().endsWith('.xlsx') || name.toLowerCase().endsWith('.xls') || name.toLowerCase().endsWith('.csv')) return 'xlsx';
-        return 'other';
+        
+        const parts = name.split('.');
+        if (parts.length > 1) {
+            const ext = parts[parts.length - 1].toLowerCase();
+            // 너무 긴 확장자나 숫자로만 된 것은 '파일'로 처리
+            if (ext.length > 5 || /^\d+$/.test(ext)) return '파일';
+            return ext;
+        }
+        return '파일';
     };
 
     const handleSync = async () => {
@@ -407,10 +418,11 @@ export default function DataLibraryPage() {
         } catch (error) { console.error('삭제 실패:', error); }
     };
 
-    const getFileIcon = (mimeType: string) => {
+    const getFileIcon = (mimeType: string, name: string) => {
+        if (mimeType === 'application/vnd.google-apps.folder') return <Folder className="h-5 w-5 text-amber-500" />;
         if (mimeType.includes('pdf')) return <FileText className="h-5 w-5 text-red-500" />;
-        if (mimeType.includes('video')) return <Film className="h-5 w-5 text-purple-500" />;
-        return <FileText className="h-5 w-5 text-gray-400" />;
+        if (mimeType.includes('video') || name.toLowerCase().endsWith('.mp4')) return <Film className="h-5 w-5 text-purple-500" />;
+        return <Database className="h-5 w-5 text-gray-500" />;
     };
 
     const formatFileSize = (bytes?: number) => {
@@ -438,6 +450,74 @@ export default function DataLibraryPage() {
             if (!aiModels[ext]) return false;
         }
         return true;
+    };
+
+    const renderFileTreeView = (parentId: string | null, allItems: DriveFile[], level: number = 0) => {
+        const children = allItems.filter(f => {
+            if (parentId === null) {
+                const allIds = new Set(allItems.map(i => i.id));
+                return !f.parentId || !allIds.has(f.parentId);
+            }
+            return f.parentId === parentId;
+        }).sort((a, b) => {
+            if (a.mimeType.includes('folder') && !b.mimeType.includes('folder')) return -1;
+            if (!a.mimeType.includes('folder') && b.mimeType.includes('folder')) return 1;
+            return a.name.localeCompare(b.name);
+        });
+
+        return children.map(file => {
+            const isFolder = file.mimeType === 'application/vnd.google-apps.folder';
+            const isExpanded = expandedFolders.has(file.id);
+
+            return (
+                <div key={file.id}>
+                    <div 
+                        className={`flex items-center gap-4 p-4 hover:bg-gray-800/20 transition-all cursor-pointer group ${selectedFileIds.has(file.id) ? 'bg-blue-500/5' : ''}`}
+                        style={{ paddingLeft: `${level * 24 + 16}px` }}
+                        onClick={() => {
+                            if (isFolder) {
+                                setExpandedFolders(prev => {
+                                    const next = new Set(prev);
+                                    if (next.has(file.id)) next.delete(file.id);
+                                    else next.add(file.id);
+                                    return next;
+                                });
+                            } else {
+                                handleToggleFileSelection(file.id);
+                            }
+                        }}
+                    >
+                        {!isFolder && (
+                            <Checkbox checked={selectedFileIds.has(file.id)} onCheckedChange={() => handleToggleFileSelection(file.id)} onClick={(e) => e.stopPropagation()} />
+                        )}
+                        {isFolder && (
+                            isExpanded ? <ChevronDown className="h-4 w-4 text-gray-500" /> : <ChevronRight className="h-4 w-4 text-gray-500" />
+                        )}
+                        <div className="p-2 bg-gray-950 rounded-lg group-hover:scale-110 transition-transform">
+                            {getFileIcon(file.mimeType, file.name)}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                            <h4 className="text-white font-bold truncate text-sm">{file.name}</h4>
+                            <p className="text-xs flex items-center gap-2 text-gray-500 font-medium">
+                                {!isFolder && <span>{formatFileSize(file.size)}</span>}
+                                {!isFolder && <span>•</span>}
+                                <span>{new Date(file.modifiedTime).toLocaleDateString('ko-KR')}</span>
+                            </p>
+                        </div>
+                        {file.learnStatus === 'completed' && !isFolder && (
+                            <Badge className="bg-emerald-500/10 text-emerald-500 border-none">
+                                <CheckCircle className="h-3 w-3 mr-1" /> PROCESSED
+                            </Badge>
+                        )}
+                    </div>
+                    {isFolder && isExpanded && (
+                        <div className="border-l border-gray-800 ml-6">
+                            {renderFileTreeView(file.id, allItems, level + 1)}
+                        </div>
+                    )}
+                </div>
+            );
+        });
     };
 
     if (loading && files.length === 0) {
@@ -498,6 +578,7 @@ export default function DataLibraryPage() {
                                 const filteredFiles = files.filter(f => f.name.toLowerCase().includes(searchTerm.toLowerCase()));
                                 const groupedFiles = filteredFiles.reduce((acc, file) => {
                                     const ext = getFileExt(file.name, file.mimeType);
+                                    if (ext === 'folder') return acc;
                                     if (!acc[ext]) acc[ext] = [];
                                     acc[ext].push(file);
                                     return acc;
@@ -553,36 +634,40 @@ export default function DataLibraryPage() {
                                                     <span className="text-xs text-gray-500 font-bold">{groupedFiles[ext].length}개 파일</span>
                                                     <Button variant="ghost" size="sm" className="h-7 text-xs font-bold text-blue-400 hover:text-blue-300"
                                                         onClick={() => {
-                                                            const allExtIds = groupedFiles[ext].map(f => f.id);
+                                                            const allExtIds = groupedFiles[ext].filter(f => f.mimeType !== 'application/vnd.google-apps.folder').map(f => f.id);
                                                             const allExtSelected = allExtIds.every(id => selectedFileIds.has(id));
                                                             handleSelectAllExt(groupedFiles[ext], !allExtSelected);
                                                         }}>
-                                                        {groupedFiles[ext].map(f => f.id).every(id => selectedFileIds.has(id)) ? '현재 확장자 전체 해제' : '현재 확장자 전체 선택'}
+                                                        {groupedFiles[ext].filter(f => f.mimeType !== 'application/vnd.google-apps.folder').map(f => f.id).every(id => selectedFileIds.has(id)) ? '현재 확장자 전체 해제' : '현재 확장자 전체 선택'}
                                                     </Button>
                                                 </div>
 
-                                                <ScrollArea className="h-[380px]">
+                                                <ScrollArea className="h-[450px]">
                                                     <div className="divide-y divide-gray-800/50">
-                                                        {groupedFiles[ext].map((file) => (
-                                                            <div key={file.id} className={`flex items-center gap-4 p-4 hover:bg-gray-800/20 transition-all cursor-pointer group ${selectedFileIds.has(file.id) ? 'bg-blue-500/5' : ''}`}
-                                                                onClick={() => handleToggleFileSelection(file.id)}>
-                                                                <Checkbox checked={selectedFileIds.has(file.id)} onCheckedChange={() => handleToggleFileSelection(file.id)} onClick={(e) => e.stopPropagation()} />
-                                                                <div className="p-2 bg-gray-950 rounded-lg group-hover:scale-110 transition-transform">{getFileIcon(file.mimeType)}</div>
-                                                                <div className="flex-1 min-w-0">
-                                                                    <h4 className="text-white font-bold truncate text-sm">{file.name}</h4>
-                                                                    <p className="text-xs flex items-center gap-2 text-gray-500 font-medium">
-                                                                        <span>{formatFileSize(file.size)}</span>
-                                                                        <span>•</span>
-                                                                        <span>{new Date(file.modifiedTime).toLocaleDateString('ko-KR')}</span>
-                                                                    </p>
+                                                        {ext === '전체' ? (
+                                                            renderFileTreeView(null, groupedFiles['전체'], 0)
+                                                        ) : (
+                                                            groupedFiles[ext].map((file) => (
+                                                                <div key={file.id} className={`flex items-center gap-4 p-4 hover:bg-gray-800/20 transition-all cursor-pointer group ${selectedFileIds.has(file.id) ? 'bg-blue-500/5' : ''}`}
+                                                                    onClick={() => handleToggleFileSelection(file.id)}>
+                                                                    <Checkbox checked={selectedFileIds.has(file.id)} onCheckedChange={() => handleToggleFileSelection(file.id)} onClick={(e) => e.stopPropagation()} />
+                                                                    <div className="p-2 bg-gray-950 rounded-lg group-hover:scale-110 transition-transform">{getFileIcon(file.mimeType, file.name)}</div>
+                                                                    <div className="flex-1 min-w-0">
+                                                                        <h4 className="text-white font-bold truncate text-sm">{file.name}</h4>
+                                                                        <p className="text-xs flex items-center gap-2 text-gray-500 font-medium">
+                                                                            <span>{formatFileSize(file.size)}</span>
+                                                                            <span>•</span>
+                                                                            <span>{new Date(file.modifiedTime).toLocaleDateString('ko-KR')}</span>
+                                                                        </p>
+                                                                    </div>
+                                                                    {file.learnStatus === 'completed' && (
+                                                                        <Badge className="bg-emerald-500/10 text-emerald-500 border-none">
+                                                                            <CheckCircle className="h-3 w-3 mr-1" /> PROCESSED
+                                                                        </Badge>
+                                                                    )}
                                                                 </div>
-                                                                {file.learnStatus === 'completed' && (
-                                                                    <Badge className="bg-emerald-500/10 text-emerald-500 border-none">
-                                                                        <CheckCircle className="h-3 w-3 mr-1" /> PROCESSED
-                                                                    </Badge>
-                                                                )}
-                                                            </div>
-                                                        ))}
+                                                            ))
+                                                        )}
                                                     </div>
                                                 </ScrollArea>
                                             </TabsContent>
