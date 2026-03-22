@@ -55,13 +55,9 @@ export async function GET(req: NextRequest) {
     const last = quotes[quotes.length - 1].close!;
     const totalReturn = ((last - first) / first) * 100;
 
-    // 벤치마크 수익률 계산
-    let benchmarkReturn = 0;
-    if (benchmarkQuotes.length >= 2) {
-      const bFirst = benchmarkQuotes[0].close!;
-      const bLast = benchmarkQuotes[benchmarkQuotes.length - 1].close!;
-      benchmarkReturn = ((bLast - bFirst) / bFirst) * 100;
-    }
+    const bFirst = benchmarkQuotes.length >= 2 ? benchmarkQuotes[0].close! : 0;
+    const bLast = benchmarkQuotes.length >= 2 ? benchmarkQuotes[benchmarkQuotes.length - 1].close! : 0;
+    const benchmarkReturn = bFirst > 0 ? ((bLast - bFirst) / bFirst) * 100 : 0;
 
     // 최대 낙폭(MDD) 계산
     let mdd = 0;
@@ -84,6 +80,8 @@ export async function GET(req: NextRequest) {
       metrics: {
         totalReturn: Number(totalReturn.toFixed(2)),
         benchmarkReturn: Number(benchmarkReturn.toFixed(2)),
+        benchmarkStartPrice: Number(bFirst.toFixed(2)),
+        benchmarkEndPrice: Number(bLast.toFixed(2)),
         mdd: Number((mdd * 100).toFixed(2)),
         startPrice: first,
         endPrice: last,

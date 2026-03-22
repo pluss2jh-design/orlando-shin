@@ -142,55 +142,66 @@ export function BacktestDialog({ ticker, isOpen, onClose }: BacktestDialogProps)
           ) : (
             <>
               {/* Top 5 Metrics - Redesigned to be primary above chart */}
-              <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-                <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm">
-                  <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 flex items-center gap-1">
-                    <TrendingUp className="h-3 w-3" /> 벤치마크 (S&P500)
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* 벤치마크 카드 */}
+                <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm flex flex-col justify-between">
+                  <div className="flex items-center justify-between mb-4">
+                    <p className="text-[11px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
+                       <TrendingUp className="h-4 w-4" /> 벤치마크 (S&P500)
+                    </p>
+                    <Badge className={cn(
+                      "font-black font-mono px-3 py-1 rounded-full text-sm",
+                      data.metrics.benchmarkReturn >= 0 ? "bg-emerald-500/10 text-emerald-500" : "bg-rose-50 text-rose-500"
+                    )}>
+                      {data.metrics.benchmarkReturn > 0 ? '+' : ''}{data.metrics.benchmarkReturn}%
+                    </Badge>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-1">
+                      <p className="text-[10px] text-gray-400 font-bold uppercase">시작</p>
+                      <p className="text-xl font-black font-mono text-gray-900">{data.metrics.benchmarkStartPrice?.toLocaleString()}</p>
+                    </div>
+                    <ArrowRight className="h-5 w-5 text-gray-300" />
+                    <div className="space-y-1 text-right">
+                      <p className="text-[10px] text-gray-400 font-bold uppercase">종료</p>
+                      <p className={cn("text-xl font-black font-mono", data.metrics.benchmarkReturn >= 0 ? "text-emerald-500" : "text-rose-500")}>
+                        {data.metrics.benchmarkEndPrice?.toLocaleString()}
+                      </p>
+                    </div>
+                  </div>
+                  <p className="text-[9px] text-gray-400 mt-4 text-center font-bold tracking-widest bg-gray-50 py-1.5 rounded-lg">
+                    {new Date(data.metrics.startDate).toLocaleDateString()} ── {new Date(data.metrics.endDate).toLocaleDateString()}
                   </p>
-                  <p className={cn("text-xl font-black font-mono tracking-tight", (data.metrics.benchmarkReturn >= 0 ? "text-emerald-500" : "text-rose-500"))}>
-                    {data.metrics.benchmarkReturn > 0 ? '+' : ''}{data.metrics.benchmarkReturn}%
-                  </p>
-                  <p className="text-[9px] text-gray-400 mt-1 uppercase font-bold tracking-tighter">시장 평균 수익률</p>
                 </div>
 
-                <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm">
-                  <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 flex items-center gap-1">
-                    <Activity className="h-3 w-3" /> 기업 수익률
+                {/* 기업 수익률 카드 */}
+                <div className="bg-blue-600 p-6 rounded-3xl shadow-xl shadow-blue-600/10 flex flex-col justify-between relative overflow-hidden">
+                  <div className="absolute top-0 right-0 p-12 bg-white/5 blur-3xl rounded-full" />
+                  <div className="flex items-center justify-between mb-4 relative z-10">
+                    <p className="text-[11px] font-black text-white/70 uppercase tracking-widest flex items-center gap-2">
+                       <Activity className="h-4 w-4 text-white" /> {ticker} 수익률
+                    </p>
+                    <Badge className={cn(
+                      "font-black font-mono px-3 py-1 rounded-full text-sm bg-white",
+                      data.metrics.totalReturn >= 0 ? "text-blue-600" : "text-rose-600"
+                    )}>
+                      {data.metrics.totalReturn > 0 ? '+' : ''}{data.metrics.totalReturn}%
+                    </Badge>
+                  </div>
+                  <div className="flex items-center justify-between relative z-10">
+                    <div className="space-y-1">
+                      <p className="text-[10px] text-white/50 font-bold uppercase">시작</p>
+                      <p className="text-xl font-black font-mono text-white">{data.metrics.startPrice?.toLocaleString()}</p>
+                    </div>
+                    <ArrowRight className="h-5 w-5 text-white/30" />
+                    <div className="space-y-1 text-right">
+                      <p className="text-[10px] text-white/50 font-bold uppercase">현재</p>
+                      <p className="text-xl font-black font-mono text-white">{data.metrics.endPrice?.toLocaleString()}</p>
+                    </div>
+                  </div>
+                  <p className="text-[9px] text-white/50 mt-4 text-center font-bold tracking-widest bg-white/5 py-1.5 rounded-lg relative z-10">
+                    {data.currency} 통화 기준 시뮬레이션
                   </p>
-                  <p className={cn("text-xl font-black font-mono tracking-tight", (data.metrics.totalReturn >= 0 ? "text-emerald-500" : "text-rose-500"))}>
-                    {data.metrics.totalReturn > 0 ? '+' : ''}{data.metrics.totalReturn}%
-                  </p>
-                  <p className="text-[9px] text-gray-400 mt-1 uppercase font-bold tracking-tighter">{ticker} 보유 시 결과</p>
-                </div>
-
-                <div className="bg-blue-600 p-4 rounded-2xl shadow-lg shadow-blue-500/10">
-                  <p className="text-[10px] font-black text-white/70 uppercase tracking-widest mb-1.5 flex items-center gap-1">
-                    <Sparkles className="h-3 w-3 text-white" /> 알파 수익률
-                  </p>
-                  <p className="text-xl font-black font-mono tracking-tight text-white">
-                    {alphaReturn > 0 ? '+' : ''}{alphaReturn}%
-                  </p>
-                  <p className="text-[9px] text-white/70 mt-1 uppercase font-bold tracking-tighter">시장 대비 초과 성과</p>
-                </div>
-
-                <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm">
-                  <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 flex items-center gap-1">
-                    <DollarSign className="h-3 w-3" /> 시작 주가
-                  </p>
-                  <p className="text-xl font-black font-mono tracking-tight text-gray-900">
-                    {data.metrics.startPrice.toLocaleString()} <span className="text-sm font-bold text-gray-400">{data.currency}</span>
-                  </p>
-                  <p className="text-[9px] text-gray-400 mt-1 uppercase font-bold tracking-tighter">{new Date(data.metrics.startDate).toLocaleDateString()}</p>
-                </div>
-
-                <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm">
-                  <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 flex items-center gap-1">
-                    <Target className="h-3 w-3 text-blue-500" /> 현재 주가
-                  </p>
-                  <p className="text-xl font-black font-mono tracking-tight text-blue-600">
-                    {data.metrics.endPrice.toLocaleString()} <span className="text-sm font-bold text-blue-400">{data.currency}</span>
-                  </p>
-                  <p className="text-[9px] text-gray-400 mt-1 uppercase font-bold tracking-tighter">{new Date(data.metrics.endDate).toLocaleDateString()}</p>
                 </div>
               </div>
 
