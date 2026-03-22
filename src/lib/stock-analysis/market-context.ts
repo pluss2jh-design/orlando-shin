@@ -166,8 +166,9 @@ export async function analyzeStockSentiment(
       const geminiApiKey = apiKey || process.env.GEMINI_API_KEY;
       if (!geminiApiKey) throw new Error('GEMINI_API_KEY is missing');
       const client = new GoogleGenAI({ apiKey: geminiApiKey });
+      const fullModelName = aiModel.startsWith('models/') ? aiModel : `models/${aiModel}`;
       const result = await client.models.generateContent({
-        model: aiModel,
+        model: fullModelName,
         contents: [{ role: 'user', parts: [{ text: prompt }] }] as any
       });
       text = (result as any).text || '';
@@ -257,8 +258,9 @@ export async function predictStockGrowth(
       const geminiApiKey = apiKey || process.env.GEMINI_API_KEY;
       if (!geminiApiKey) throw new Error('GEMINI_API_KEY is missing');
       const client = new GoogleGenAI({ apiKey: geminiApiKey });
+      const fullModelName = aiModel.startsWith('models/') ? aiModel : `models/${aiModel}`;
       const result = await client.models.generateContent({
-        model: aiModel,
+        model: fullModelName,
         contents: [{ role: 'user', parts: [{ text: prompt }] }] as any
       });
       text = (result as any).text || '';

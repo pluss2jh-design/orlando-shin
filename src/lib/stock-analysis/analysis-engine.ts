@@ -232,7 +232,7 @@ export async function runAnalysisEngine(
       // 상위권에게만 AI 감성 분석 및 주가 예측 수행
       const [sentiment, prediction] = await Promise.all([
         analyzeStockSentiment(stock.ticker, newsAiModel, newsApiKey),
-        predictStockGrowth(stock.ticker, stock.yahooData, macroContext, { score: 0, label: 'Neutral', summary: '', recentHeadlines: [], riskHeadlines: [] }, companyAiModel, companyApiKey)
+        predictStockGrowth(stock.ticker, stock.yahooData, macroContext, { score: 0, label: 'Neutral', summary: '', recentHeadlines: [], riskHeadlines: [] }, newsAiModel, newsApiKey)
       ]);
 
       // 감성 점수로 최종 메인 스코어 보정

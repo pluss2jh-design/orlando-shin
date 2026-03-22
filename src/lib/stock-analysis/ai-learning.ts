@@ -16,6 +16,8 @@ import {
   listDriveFiles,
   downloadTextContent,
   downloadDriveFile,
+  getSyncInfo,
+  getFilesByIds,
   type DriveFileInfo,
 } from '@/lib/google-drive';
 import { videoProcessingService } from '../video-processing/processor';
@@ -111,12 +113,27 @@ export async function runLearningPipeline(
   learningStatus.startTime = new Date();
 
   try {
-    const syncResult = await listDriveFiles();
-    const allFiles = syncResult.files;
+    let allFiles: DriveFileInfo[] = [];
 
-    const files = targetFileIds && targetFileIds.length > 0
-      ? allFiles.filter(f => targetFileIds.includes(f.id))
-      : allFiles;
+    // 최적화: targetFileIds가 있을 경우 전체 스캔 대신 캐시 혹은 개별 파일 조회 사용
+    if (targetFileIds && targetFileIds.length > 0) {
+      const syncInfo = await getSyncInfo();
+      const cachedFiles = syncInfo?.files.filter(f => targetFileIds.includes(f.id)) || [];
+
+      if (cachedFiles.length === targetFileIds.length) {
+        console.log(`[Learning] Using ${cachedFiles.length} files from cache.`);
+        allFiles = cachedFiles;
+      } else {
+        console.log(`[Learning] Fetching ${targetFileIds.length} files individually...`);
+        allFiles = await getFilesByIds(targetFileIds);
+      }
+    } else {
+      console.log(`[Learning] Scanning entire drive...`);
+      const syncResult = await listDriveFiles();
+      allFiles = syncResult.files;
+    }
+
+    const files = allFiles;
 
     if (files.length === 0) {
       throw new Error('Google Drive 폴더에 파일이 없습니다.');
@@ -226,11 +243,12 @@ export async function runLearningPipeline(
           responseText = await withRetry(async () => {
             const client = getGeminiClient();
             const contents = inlineDataPart ? [promptText, inlineDataPart] : [promptText];
+            const fullModelName = chosenModelGrp.startsWith('models/') ? chosenModelGrp : `models/${chosenModelGrp}`;
             const result = await client.models.generateContent({
-              model: chosenModelGrp,
+              model: fullModelName,
               contents: contents as any
             });
-            return result.text || '';
+            return (result as any).text || '';
           });
         }
 
@@ -325,11 +343,12 @@ ${docConditions}
 }`;
 
     const strategyText = await withRetry(async () => {
+      const fullModelName = strategyModelName.startsWith('models/') ? strategyModelName : `models/${strategyModelName}`;
       const strategyResult = await client.models.generateContent({
-        model: strategyModelName,
+        model: fullModelName,
         contents: [strategyPrompt]
       });
-      return strategyResult.text || '';
+      return (strategyResult as any).text || '';
     });
 
     const strategyJsonMatch = strategyText.match(/\{[\s\S]*\}/);

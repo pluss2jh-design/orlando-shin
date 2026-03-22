@@ -271,6 +271,37 @@ export async function getSyncInfo(): Promise<SyncResult | null> {
   return null;
 }
 
+/**
+ * 특정 파일 ID들에 대한 정보를 가져옵니다. (전체 스캔 방지)
+ */
+export async function getFilesByIds(fileIds: string[]): Promise<DriveFileInfo[]> {
+  const drive = getGoogleDriveClient();
+  const files: DriveFileInfo[] = [];
+
+  for (const fileId of fileIds) {
+    try {
+      const response = await drive.files.get({
+        fileId,
+        fields: 'id, name, mimeType, size, modifiedTime, videoMediaMetadata',
+        supportsAllDrives: true,
+      });
+      const f = response.data;
+      files.push({
+        id: f.id || '',
+        name: f.name || '',
+        mimeType: f.mimeType || '',
+        size: f.size || '0',
+        modifiedTime: f.modifiedTime || '',
+        durationMillis: f.videoMediaMetadata?.durationMillis,
+      });
+    } catch (error) {
+      console.error(`[Drive] Error fetching file info for ${fileId}:`, error);
+    }
+  }
+
+  return files;
+}
+
 export function getDriveSyncStatus(): boolean {
   return driveStatus.isSyncing;
 }
