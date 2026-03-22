@@ -86,9 +86,9 @@ export async function analyzeStockSentiment(
 ): Promise<SentimentAnalysis> {
   try {
     // 1. 뉴스 데이터 가져오기 (Yahoo Search 사용)
-    const searchResult = await yahooFinance.search(ticker);
+    const searchResult = await yahooFinance.search(ticker, {}, { validateResult: false }) as any;
     const news = (searchResult.news || []).slice(0, 5);
-    const headlines = news.map(n => n.title).filter(Boolean);
+    const headlines = news.map((n: any) => n.title).filter(Boolean);
 
     if (headlines.length === 0) {
       return {
