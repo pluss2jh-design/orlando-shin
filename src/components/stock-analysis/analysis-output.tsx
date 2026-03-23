@@ -9,16 +9,15 @@ import { Progress } from '@/components/ui/progress';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { AnalysisResult, InvestmentConditions, TenbaggerScoreResult, TenbaggerStepResult, TenbaggerStepSource } from '@/types/stock-analysis';
+import { AnalysisResult, InvestmentConditions, StrategyMatchScore, MatchRuleResult, MatchRuleSource } from '@/types/stock-analysis';
 import { cn } from '@/lib/utils';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, Legend } from 'recharts';
 import { BacktestDialog } from './backtest-dialog';
 import { History } from 'lucide-react';
 
-const STEP_ICONS = [Target, TrendingUp, Activity, CheckCircle, Zap, TrendingDown, Sparkles];
-
-function TenbaggerPipeline({ score }: { score: TenbaggerScoreResult }) {
+function StrategyMatchDashboard({ score }: { score: StrategyMatchScore }) {
   const [expandedSource, setExpandedSource] = React.useState<string | null>(null);
+  
   const stageBg = {
     watch: 'from-gray-500/10 to-gray-400/5 border-gray-500/30',
     scout: 'from-sky-500/10 to-sky-400/5 border-sky-500/30',
@@ -26,6 +25,7 @@ function TenbaggerPipeline({ score }: { score: TenbaggerScoreResult }) {
     expand2: 'from-orange-500/10 to-orange-400/5 border-orange-500/30',
     full: 'from-emerald-500/10 to-emerald-400/5 border-emerald-500/30',
   };
+  
   const stageText = {
     watch: 'text-gray-400',
     scout: 'text-sky-400',
@@ -34,97 +34,100 @@ function TenbaggerPipeline({ score }: { score: TenbaggerScoreResult }) {
     full: 'text-emerald-400',
   };
 
+  const CATEGORY_ICONS: Record<string, any> = {
+    '성장성': TrendingUp,
+    '수익성': Activity,
+    '안정성': AlertCircle,
+    '가치평가': Target,
+    '수급': Zap,
+  };
+
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       {/* 요약 헤더 */}
-      <div className={cn('p-5 rounded-2xl border bg-gradient-to-br flex flex-col sm:flex-row sm:items-center justify-between gap-4', stageBg[score.investmentStage])}>
-        <div>
-          <p className="text-xs font-black uppercase tracking-widest text-gray-500 mb-1">Ten-bagger Pipeline Score</p>
-          <div className="flex items-baseline gap-2">
-            <span className={cn('text-5xl font-black font-mono', stageText[score.investmentStage])}>{score.percentage}%</span>
-            <span className="text-gray-400 text-sm">{score.totalScore} / {score.maxScore}점</span>
+      <div className={cn('p-6 rounded-2xl border bg-gradient-to-br flex flex-col sm:flex-row sm:items-center justify-between gap-6 shadow-xl', stageBg[score.investmentStage])}>
+        <div className="space-y-1">
+          <p className="text-[10px] font-black uppercase tracking-[0.3em] text-gray-500 opacity-80">Strategy Alignment</p>
+          <div className="flex items-baseline gap-3">
+            <span className={cn('text-6xl font-black font-mono tracking-tighter', stageText[score.investmentStage])}>
+              {score.matchPercentage.toFixed(0)}%
+            </span>
+            <span className="text-gray-400 text-sm font-bold">MATCHED</span>
           </div>
-          <p className={cn('text-base font-black mt-1', stageText[score.investmentStage])}>{score.allocationLabel}</p>
+          <p className={cn('text-lg font-black tracking-tight', stageText[score.investmentStage])}>{score.allocationLabel}</p>
         </div>
-        <div className="text-right">
-          <p className="text-xs font-black uppercase tracking-widest text-gray-500 mb-2">통과 단계</p>
-          <div className="flex gap-1.5 justify-end">
-            {score.steps.map((s, i) => (
-              <div key={i} className={cn('w-7 h-7 rounded-full flex items-center justify-center text-xs font-black border', s.passed ? 'bg-emerald-500 border-emerald-400 text-white' : 'bg-gray-800 border-gray-700 text-gray-500')}>{i + 1}</div>
+        
+        <div className="flex flex-col items-end gap-3">
+          <div className="flex -space-x-2">
+            {score.rules.map((r, i) => (
+              <div 
+                key={i} 
+                className={cn(
+                  "w-8 h-8 rounded-full border-2 border-[#0a0f18] flex items-center justify-center text-[10px] font-black transition-transform hover:scale-110 hover:z-10 cursor-help",
+                  r.passed ? "bg-emerald-500 text-white" : "bg-gray-800 text-gray-500"
+                )}
+                title={r.name}
+              >
+                {i + 1}
+              </div>
             ))}
           </div>
-          <p className="text-xs text-gray-500 mt-1">{score.steps.filter(s => s.passed).length} / 7단계 통과</p>
+          <div className="text-right">
+            <p className="text-[11px] font-bold text-gray-400">{score.passedCount} / {score.totalCount} 핵심 조건 충족</p>
+            <Progress value={score.matchPercentage} className="h-1.5 w-32 mt-2 bg-gray-800" />
+          </div>
         </div>
       </div>
 
-      {/* 단계별 카드 */}
-      <div className="grid grid-cols-1 gap-3">
-        {score.steps.map((step, i) => {
-          const Icon = STEP_ICONS[i] || CheckCircle;
+      {/* 동적 규칙 리스트 */}
+      <div className="grid grid-cols-1 gap-4">
+        {score.rules.map((rule, i) => {
+          const Icon = CATEGORY_ICONS[rule.category] || CheckCircle;
           return (
-            <div key={i} className={cn('p-5 rounded-xl border transition-all', step.passed ? 'bg-emerald-500/5 border-emerald-500/20' : 'bg-gray-900/30 border-gray-800')}>
-              <div className="flex items-start gap-4">
-                <div className={cn('flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center mt-0.5', step.passed ? 'bg-emerald-500/20' : 'bg-gray-800')}>
-                  <Icon className={cn('h-4 w-4', step.passed ? 'text-emerald-400' : 'text-gray-500')} />
+            <div key={i} className={cn(
+              'group p-5 rounded-2xl border transition-all duration-300 relative overflow-hidden',
+              rule.passed 
+                ? 'bg-emerald-500/5 border-emerald-500/20 hover:border-emerald-500/40' 
+                : 'bg-gray-900/40 border-gray-800 hover:border-gray-700'
+            )}>
+              {rule.isCritical && (
+                <div className="absolute top-0 right-0 px-3 py-1 bg-rose-500 text-white text-[9px] font-black uppercase tracking-widest rounded-bl-lg">
+                  Critical Requirement
                 </div>
+              )}
+              
+              <div className="flex items-start gap-5">
+                <div className={cn(
+                  'flex-shrink-0 w-12 h-12 rounded-xl flex items-center justify-center transition-transform group-hover:scale-110',
+                  rule.passed ? 'bg-emerald-500/10 text-emerald-400' : 'bg-gray-800 text-gray-500'
+                )}>
+                  <Icon className="h-6 w-6" />
+                </div>
+                
                 <div className="flex-1 min-w-0">
-                  {/* 헤더 row */}
-                  <div className="flex items-center justify-between gap-2 mb-2">
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs font-black text-gray-500">STEP {step.step}</span>
-                      <span className={cn('text-sm font-black', step.passed ? 'text-white' : 'text-gray-300')}>{step.stepName}</span>
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-3">
+                      <Badge variant="outline" className="text-[10px] font-black border-gray-700 text-gray-400 uppercase tracking-widest">{rule.category}</Badge>
+                      <h5 className={cn('text-base font-black tracking-tight', rule.passed ? 'text-white' : 'text-gray-400')}>
+                        {rule.name}
+                      </h5>
                     </div>
-                    <div className="flex items-center gap-2 shrink-0">
-                      <span className={cn('text-sm font-black font-mono', step.score >= 8 ? 'text-emerald-400' : step.score >= 5 ? 'text-amber-400' : 'text-rose-400')}>{step.score}/10</span>
-                      <Badge className={cn('text-xs font-black shrink-0', step.passed ? 'bg-emerald-500/20 text-emerald-400 border-none' : 'bg-gray-800 text-gray-500 border-none')}>{step.passed ? 'PASS' : 'HOLD'}</Badge>
+                    <div className="text-right">
+                      <span className={cn(
+                        'text-xl font-black font-mono block',
+                        rule.score >= 8 ? 'text-emerald-400' : rule.score >= 5 ? 'text-amber-400' : 'text-rose-400'
+                      )}>{rule.score}<span className="text-xs opacity-50">/10</span></span>
                     </div>
                   </div>
-                  <Progress value={step.score * 10} className="h-1.5 mb-3" />
-                  {/* 상세 설명 */}
-                  <p className="text-sm text-gray-400 leading-relaxed mb-1.5">{step.detail}</p>
-                  <p className={cn('text-sm font-bold', step.passed ? 'text-emerald-400' : 'text-amber-400')}>→ {step.recommendation}</p>
-
-                  {/* 📎 출처 링크 */}
-                  {step.sources && step.sources.length > 0 && (
-                    <div className="mt-4 pt-3 border-t border-gray-800/60">
-                      <p className="text-xs font-black text-gray-500 uppercase tracking-widest mb-2">📎 데이터 출처</p>
-                      <div className="flex flex-col gap-2">
-                        {step.sources.map((src, si) => {
-                          const srcKey = `${i}-${si}`;
-                          const isExpanded = expandedSource === srcKey;
-                          return (
-                            <div key={si} className="rounded-lg border border-gray-800 overflow-hidden">
-                              <button
-                                className="w-full flex items-center justify-between gap-2 px-3 py-2 bg-gray-900/60 hover:bg-gray-800/80 transition-colors text-left"
-                                onClick={() => setExpandedSource(isExpanded ? null : srcKey)}
-                              >
-                                <div className="flex items-center gap-2 min-w-0 flex-1">
-                                  <ExternalLink className="h-3.5 w-3.5 shrink-0 text-gray-500" />
-                                  <span className="text-[13px] font-semibold text-gray-300 truncate">{src.label}</span>
-                                  {src.metric && <span className="text-xs text-gray-500 hidden sm:inline truncate">— {src.metric}</span>}
-                                </div>
-                                <div className="flex items-center gap-2 shrink-0">
-                                  <a
-                                    href={src.url}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    onClick={e => e.stopPropagation()}
-                                    className="text-xs text-blue-400 hover:text-blue-300 hover:underline font-bold whitespace-nowrap"
-                                  >열기 ↗</a>
-                                  {src.description && (
-                                    <ChevronDown className={cn('h-3.5 w-3.5 text-gray-500 transition-transform duration-200', isExpanded && 'rotate-180')} />
-                                  )}
-                                </div>
-                              </button>
-                              {isExpanded && src.description && (
-                                <div className="px-4 py-3 bg-gray-900/40 border-t border-gray-800">
-                                  <p className="text-[13px] text-gray-400 leading-relaxed">{src.description}</p>
-                                </div>
-                              )}
-                            </div>
-                          );
-                        })}
-                      </div>
+                  
+                  <p className="text-sm text-gray-400 leading-relaxed font-medium mb-3">{rule.reason}</p>
+                  
+                  {rule.source && (
+                    <div className="flex items-center gap-2 mt-4 pt-3 border-t border-gray-800/50">
+                      <span className="text-[10px] font-black text-gray-500 uppercase tracking-widest">Evidence:</span>
+                      <Badge variant="ghost" className="text-[10px] font-bold text-blue-400 bg-blue-500/5 hover:bg-blue-500/10 border-none px-2 py-0.5">
+                        {rule.source.fileName} ({rule.source.pageOrTimestamp})
+                      </Badge>
                     </div>
                   )}
                 </div>
@@ -283,11 +286,9 @@ export function AnalysisOutput({ results, conditions, isLoading, onSendEmail }: 
   };
 
   if (selectedCompanyIndex === null) {
-    // 7 step 합산 점수 내림차순 정렬
-    // 학습된 규칙 점수(totalRuleScore) 우선 정렬
     const sortedResults = [...results].sort((a, b) => {
-      const bScore = b.totalRuleScore ?? (b.tenbaggerScore?.percentage ? b.tenbaggerScore.percentage / 10 : 0);
-      const aScore = a.totalRuleScore ?? (a.tenbaggerScore?.percentage ? a.tenbaggerScore.percentage / 10 : 0);
+      const bScore = b.strategyMatch?.matchPercentage ?? 0;
+      const aScore = a.strategyMatch?.matchPercentage ?? 0;
       return bScore - aScore;
     });
 
@@ -348,27 +349,19 @@ export function AnalysisOutput({ results, conditions, isLoading, onSendEmail }: 
                     </div>
                   )}
 
-                  {/* 7 Step 점수 바 */}
-                  {result.tenbaggerScore && (
-                    <div>
-                      <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1.5">7-Step Score</p>
+                  {/* 규칙 매칭 현황 (미니 뷰) */}
+                  {result.strategyMatch && (
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Logic Matching</p>
+                        <span className="text-[10px] font-bold text-gray-600">{result.strategyMatch.passedCount}/{result.strategyMatch.totalCount} passed</span>
+                      </div>
                       <div className="flex gap-1">
-                        {result.tenbaggerScore.steps.map((step, si) => (
-                          <div key={si} className="flex-1">
-                            <div className="flex items-center justify-center mb-0.5">
-                              <span className="text-[8px] font-black text-gray-400">{stepLabels[si]}</span>
-                            </div>
-                            <div className={cn(
-                              'h-1.5 rounded-full transition-all',
-                              step.passed ? stepColors[si] : 'bg-gray-200'
-                            )} />
-                            <div className="flex items-center justify-center mt-0.5">
-                              <span className={cn(
-                                'text-[9px] font-black',
-                                step.score >= 8 ? 'text-emerald-500' : step.score >= 5 ? 'text-amber-500' : 'text-rose-400'
-                              )}>{step.score}</span>
-                            </div>
-                          </div>
+                        {result.strategyMatch.rules.map((rule, si) => (
+                          <div key={si} className={cn(
+                            'h-1.5 flex-1 rounded-full transition-all',
+                            rule.passed ? 'bg-emerald-500' : 'bg-gray-200'
+                          )} title={rule.name} />
                         ))}
                       </div>
                     </div>
@@ -377,27 +370,19 @@ export function AnalysisOutput({ results, conditions, isLoading, onSendEmail }: 
                   {/* 하단: 점수 + 화살표 */}
                   <div className="flex items-end justify-between pt-3 border-t border-gray-100">
                     <div>
-                      <p className="text-[10px] text-gray-400 uppercase font-black tracking-widest mb-1">AI 학습 로직 부합도</p>
-                      {result.totalRuleScore !== undefined ? (
+                      <p className="text-[10px] text-gray-400 uppercase font-black tracking-widest mb-1">STRATEGY ALIGNMENT</p>
+                      {result.strategyMatch ? (
                         <div className="flex items-baseline gap-1">
                           <p className={cn('text-2xl font-black font-mono leading-none',
-                            result.totalRuleScore >= 8 ? 'text-blue-500' :
-                              result.totalRuleScore >= 5 ? 'text-amber-500' : 'text-rose-400'
-                          )}>{(result.totalRuleScore * 10).toFixed(0)}%</p>
-                          <span className="text-xs text-gray-400">/{result.maxPossibleScore || 10}점</span>
-                        </div>
-                      ) : result.tenbaggerScore ? (
-                        <div className="flex items-baseline gap-1">
-                          <p className={cn('text-2xl font-black font-mono leading-none',
-                            result.tenbaggerScore.percentage >= 70 ? 'text-emerald-500' :
-                              result.tenbaggerScore.percentage >= 50 ? 'text-amber-500' : 'text-rose-400'
-                          )}>{result.tenbaggerScore.percentage}%</p>
-                          <span className="text-xs text-gray-400">{result.tenbaggerScore.steps.filter(s => s.passed).length}/7단계</span>
+                            result.strategyMatch.matchPercentage >= 80 ? 'text-blue-600' :
+                              result.strategyMatch.matchPercentage >= 50 ? 'text-amber-500' : 'text-rose-400'
+                          )}>{result.strategyMatch.matchPercentage.toFixed(0)}%</p>
+                          <span className="text-xs text-gray-400">match</span>
                         </div>
                       ) : (
                         <p className="text-2xl font-black text-gray-900 font-mono leading-none">N/A</p>
                       )}
-                      <p className="text-[10px] font-bold text-blue-500 mt-0.5">{result.tenbaggerScore?.allocationLabel || '분석 완료'}</p>
+                      <p className="text-[10px] font-bold text-blue-500 mt-0.5">{result.strategyMatch?.allocationLabel || '분석 완료'}</p>
                     </div>
                     <div className="flex items-center gap-2 pt-3 border-t border-gray-100">
                       <Button 
@@ -549,62 +534,51 @@ export function AnalysisOutput({ results, conditions, isLoading, onSendEmail }: 
                 ))}
               </div>
 
-              {/* 텐배거 7단계 파이프라인 */}
-              {result.tenbaggerScore && (
-                <div className="bg-[#080b10] p-6 rounded-2xl border border-gray-800">
-                  <h4 className="text-xs font-black text-blue-400 uppercase tracking-[0.2em] mb-5 flex items-center gap-2">
-                    <Sparkles className="h-4 w-4" /> Ten-Bagger Pipeline (7-Step Analysis)
+              {/* 전략 매칭 대시보드 */}
+              {result.strategyMatch && (
+                <div className="bg-[#080b10] p-8 rounded-3xl border border-gray-800 shadow-2xl relative overflow-hidden group">
+                  <div className="absolute top-0 right-0 p-32 bg-emerald-500/5 blur-[80px] pointer-events-none rounded-full" />
+                  <h4 className="text-[10px] font-black text-emerald-400 uppercase tracking-[0.3em] mb-6 flex items-center gap-2">
+                    <Sparkles className="h-4 w-4" /> Customized Strategy Matching Analysis
                   </h4>
-                  <TenbaggerPipeline score={result.tenbaggerScore} />
+                  <StrategyMatchDashboard score={result.strategyMatch} />
                 </div>
               )}
 
-              <div className="p-8 rounded-2xl bg-gray-50/80 border border-gray-200 relative overflow-hidden group">
-                <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-blue-600 to-transparent" />
-                <h4 className="text-xs font-black text-blue-400 uppercase tracking-[0.2em] mb-4 flex items-center gap-2">
-                  <Sparkles className="h-4 w-4" /> Strategic Context & Assessment
-                </h4>
-                <p className="text-[15px] text-gray-600 leading-loose font-medium whitespace-pre-line text-justify">
-                  {result.reasoning}
-                </p>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="md:col-span-2 p-8 rounded-2xl bg-gray-50/80 border border-gray-200 relative overflow-hidden group">
+                  <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-blue-600 to-transparent opacity-50" />
+                  <h4 className="text-[10px] font-black text-blue-500 uppercase tracking-[0.3em] mb-4 flex items-center gap-2">
+                    <Sparkles className="h-4 w-4" /> Strategic Assessment & Narratives
+                  </h4>
+                  <p className="text-[15px] text-gray-700 leading-loose font-medium whitespace-pre-line">
+                    {result.reasoning}
+                  </p>
+                </div>
+                <div className="space-y-4">
+                  <div className="p-6 rounded-2xl bg-white border border-gray-200 shadow-sm">
+                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3">Market Sentiment</p>
+                    <div className="flex items-center gap-3">
+                      <div className="text-3xl font-black text-gray-900">{result.sentiment?.score}</div>
+                      <Badge className={cn("px-2 py-0.5 text-[9px] font-black", result.sentiment?.score && result.sentiment.score >= 7 ? "bg-emerald-500/10 text-emerald-600" : "bg-blue-500/10 text-blue-600")}>
+                        {result.sentiment?.label}
+                      </Badge>
+                    </div>
+                    {result.sentiment?.summary && (
+                      <p className="text-[11px] text-gray-500 mt-2 italic line-clamp-2">"{result.sentiment.summary}"</p>
+                    )}
+                  </div>
+                  <div className="p-6 rounded-2xl bg-white border border-gray-200 shadow-sm">
+                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3">Growth Potential</p>
+                    <div className="text-xl font-black text-blue-600 mb-1">{result.prediction?.growthPotential}</div>
+                    <div className="flex items-center justify-between mt-2">
+                       <span className="text-[10px] text-gray-400 uppercase font-black tracking-widest">Expected</span>
+                       <span className="text-xs font-bold font-mono text-emerald-500">+{result.prediction?.expectedReturn}%</span>
+                    </div>
+                    <Progress value={result.prediction?.confidence || 70} className="h-1 mt-3 bg-gray-100" />
+                  </div>
+                </div>
               </div>
-
-              {result.totalRuleScore !== undefined && result.maxPossibleScore !== undefined && (
-                <div className="w-full space-y-4">
-                  <div className="flex items-center gap-2 px-1">
-                    <Sparkles className="h-5 w-5 text-blue-500" />
-                    <h4 className="text-sm font-black text-gray-900 uppercase tracking-widest">AI 학습 로직 상세 분석</h4>
-                  </div>
-                  <div className="grid grid-cols-1 gap-4">
-                    {result.ruleScores?.map((rule, rIdx) => (
-                      <div key={rIdx} className="p-5 rounded-2xl border border-gray-200 bg-white shadow-sm hover:shadow-md transition-all group">
-                        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2 mb-2">
-                              <Badge variant="outline" className="bg-blue-50 text-blue-600 border-none font-black text-[10px]">RULE {rIdx + 1}</Badge>
-                              <h5 className="font-bold text-gray-900 group-hover:text-blue-600 transition-colors uppercase tracking-tight">{rule.rule}</h5>
-                            </div>
-                            <p className="text-sm text-gray-500 leading-relaxed mb-4">{rule.reason || '자료에서 학습된 기준에 따라 점수가 산정되었습니다.'}</p>
-                            <Progress value={rule.score * 10} className="h-2 rounded-full bg-gray-100" />
-                          </div>
-                          <div className="flex flex-col items-center sm:items-end gap-2">
-                            <span className={cn(
-                              "text-3xl font-black font-mono",
-                              rule.score >= 8 ? "text-emerald-500" : rule.score >= 5 ? "text-amber-500" : "text-rose-400"
-                            )}>{rule.score}<span className="text-sm text-gray-400">/10</span></span>
-                            <Badge className={cn("px-2 py-0.5 text-[9px] font-black uppercase tracking-widest",
-                              rule.score >= 8 ? "bg-emerald-500/10 text-emerald-600 border-emerald-200" :
-                              rule.score >= 5 ? "bg-amber-500/10 text-amber-600 border-amber-200" : "bg-rose-500/10 text-rose-600 border-rose-200"
-                            )} variant="outline">
-                              {rule.score >= 8 ? 'Strong Match' : rule.score >= 5 ? 'Average' : 'Low Match'}
-                            </Badge>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
 
               {result.sources.length > 0 && (
                 <div className="space-y-4 pt-4 border-t border-gray-200/50">

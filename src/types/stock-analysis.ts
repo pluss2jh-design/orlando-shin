@@ -22,31 +22,32 @@ export interface InvestmentConditions {
 
 
 
-export interface TenbaggerStepSource {
-  label: string;       // 출처 이름 (예: "Yahoo Finance — Financials")
-  url: string;         // 직접 접근 가능한 링크
-  metric?: string;     // 조회한 지표명 (예: "revenueGrowth: 23.1%")
-  description?: string; // 이 출처가 해당 step 점수의 근거로 어떻게 활용됐는지 설명
+export interface MatchRuleSource {
+  label: string;
+  url?: string;
+  metric?: string;
+  description?: string;
 }
 
-export interface TenbaggerStepResult {
-  step: number;
-  stepName: string;
+export interface MatchRuleResult {
+  name: string;
+  category: string;
   passed: boolean;
   score: number; // 0~10
-  detail: string;
-  recommendation: string; // 이 단계 통과 시 조언
-  sources: TenbaggerStepSource[]; // 근거 출처
+  reason: string;
+  weight: number;
+  isCritical: boolean;
+  source?: SourceReference;
 }
 
-export interface TenbaggerScoreResult {
-  steps: TenbaggerStepResult[];
-  totalScore: number;     // 7단계 합산 0~70
-  maxScore: number;       // 70
-  percentage: number;     // 0~100%
-  recommendedAllocation: number; // 권고 편입 비중 (0~100%)
-  allocationLabel: string;       // '정찰병 매수' | '1차 비중 확대' | '풀 매수' 등
+export interface StrategyMatchScore {
+  rules: MatchRuleResult[];
+  totalScore: number;     // 0~100 (가중 평균)
+  matchPercentage: number; // 0~100%
+  passedCount: number;
+  totalCount: number;
   investmentStage: 'watch' | 'scout' | 'expand1' | 'expand2' | 'full';
+  allocationLabel: string;
 }
 
 export interface AnalysisResult {
@@ -72,25 +73,18 @@ export interface AnalysisResult {
     threeMonths?: number;
     oneMonth?: number;
   };
-  tenbaggerScore?: TenbaggerScoreResult;
+  strategyMatch?: StrategyMatchScore;
   sector?: string;
+  macroContext?: MacroContext;
+  sentiment?: SentimentAnalysis;
+  prediction?: PredictiveAnalysis;
+  backtestResult?: {
+    pastOneYearReturn: number;
+    winRateVsS_P500: number;
+  };
 }
 
 
-export interface FilteredCandidate {
-  company: ExtractedCompanyAnalysis;
-  yahooData: YahooFinanceData;
-
-  normalizedPrices: NormalizedPrices;
-  filterResults: FilterStageResult[];
-  passedAllFilters: boolean;
-
-  score: number;
-  expectedReturnRate: number;
-  confidenceScore: number;
-  confidenceDetails?: string[];
-  riskLevel: RiskLevel;
-}
 
 export interface SourceReference {
   fileName: string;
@@ -297,11 +291,7 @@ export interface NormalizedPrices {
   exchangeRateUsed?: number;
 }
 
-export interface RuleScore {
-  rule: string;
-  score: number;
-  reason: string;
-}
+export interface RuleScore extends MatchRuleResult {}
 
 /** 필터링을 거친 후보 기업 */
 export interface FilteredCandidate {
@@ -320,7 +310,7 @@ export interface FilteredCandidate {
   ruleScores?: RuleScore[];
   totalRuleScore?: number;
   maxPossibleScore?: number;
-  tenbaggerScore?: TenbaggerScoreResult;
+  strategyMatch?: StrategyMatchScore;
   
   // 고도화 항목: 매크로, 감성, 예측
   macroContext?: MacroContext;
@@ -354,6 +344,7 @@ export interface PredictiveAnalysis {
   growthPotential: 'Bullish' | 'Neutral' | 'Bearish';
   sixMonthTargetPrice: number;
   expectedReturn: number;
+  confidence?: number;
   logic: string;
 }
 

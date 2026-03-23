@@ -210,6 +210,11 @@ export default function StockAnalysisPage() {
         financialHistory: pick.yahooData?.financialHistory,
         returnRates: pick.yahooData?.returnRates,
         tenbaggerScore: pick.tenbaggerScore,
+        strategyMatch: pick.strategyMatch,
+        macroContext: pick.macroContext,
+        sentiment: pick.sentiment,
+        prediction: pick.prediction,
+        backtestResult: pick.backtestResult,
         sector: pick.yahooData?.sector || pick.company?.sector,
 
       }));
@@ -446,7 +451,7 @@ export default function StockAnalysisPage() {
                 <div className="flex items-center justify-between mb-2">
                   <div>
                     <div className="flex items-center gap-2">
-                      <p className="font-black text-sm text-gray-900">Russell 1000 전체 7-Step 스캔 중</p>
+                      <p className="font-black text-sm text-gray-900">Russell 1000 전체 전략 매칭 스캔 중</p>
                       {universeStats && (
                         <div className="flex flex-wrap gap-2">
                           <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 text-[10px] py-0 px-2 font-bold">
