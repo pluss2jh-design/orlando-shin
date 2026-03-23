@@ -272,6 +272,7 @@ export default function StockAnalysisPage() {
             newsAiModel: newConditions.newsAiModel,
             newsApiKey: newConditions.newsApiKey,
             asOfDate: newConditions.asOfDate,
+            excludeSP500: newConditions.excludeSP500,
           },
         }),
 

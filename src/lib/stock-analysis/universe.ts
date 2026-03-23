@@ -111,25 +111,44 @@ function normalizeTicker(ticker: string): string {
  * 메인 함수: Russell 1000 실시간 조회 → S&P 500 차집합 반환
  * 실패 시 fallback 없이 error throw
  */
-export async function getStockUniverse(): Promise<{ tickers: string[]; universeCounts: { russellCount: number; sp500Count: number; overlapCount: number; finalCount: number } }> {
+export async function getStockUniverse(excludeSP500: boolean = true): Promise<{ 
+  tickers: string[]; 
+  universeCounts: { 
+    russellCount: number; 
+    sp500Count: number; 
+    overlapCount: number; 
+    finalCount: number 
+  } 
+}> {
   const [russell, sp500] = await Promise.all([
     fetchRussell1000Tickers(),
     fetchSP500Tickers(),
   ]);
 
   const normalizedSP500 = new Set(Array.from(sp500).map(normalizeTicker));
-  const filtered = russell.filter(t => !normalizedSP500.has(normalizeTicker(t)));
-  const unique = Array.from(new Set(filtered));
+  
+  let finalTickers: string[];
+  let overlapCount = 0;
 
-  const overlapCount = russell.length - unique.length;
+  if (excludeSP500) {
+    finalTickers = russell.filter(t => !normalizedSP500.has(normalizeTicker(t)));
+    overlapCount = russell.length - finalTickers.length;
+  } else {
+    // 모든 유니버스 합치기 (Russell 1000 + S&P 500 중 Russell에 없는 것 합산)
+    // S&P 500은 대부분 Russell 1000에 포함되어 있음
+    finalTickers = Array.from(new Set([...russell, ...Array.from(sp500)]));
+    overlapCount = 0; // 이 경우 차감 개념이 아니므로 0
+  }
+
+  const unique = Array.from(new Set(finalTickers));
   const universeCounts = {
     russellCount: russell.length,
     sp500Count: sp500.size,
-    overlapCount,
+    overlapCount: excludeSP500 ? overlapCount : 0,
     finalCount: unique.length,
   };
 
-  console.log(`[Universe] Final Selection: ${unique.length} tickers (Russell ${russell.length} - ${overlapCount} overlap)`);
+  console.log(`[Universe] Final Selection: ${unique.length} tickers (Exclude SP500: ${excludeSP500})`);
   return { tickers: unique, universeCounts };
 }
 

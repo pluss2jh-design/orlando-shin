@@ -18,6 +18,7 @@ export interface InvestmentConditions {
   sector?: string;
   strategyType?: 'growth' | 'value' | 'all';
   asOfDate?: Date;
+  excludeSP500?: boolean;
 }
 
 

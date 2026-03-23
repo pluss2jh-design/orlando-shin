@@ -27,6 +27,7 @@ const TIME_OFFSETS = [
 export function InvestmentInput({ onAnalyze, disabled }: InvestmentInputProps) {
   const [companyCount, setCompanyCount] = useState(5);
   const [selectedTimeId, setSelectedTimeId] = useState('now');
+  const [excludeSP500, setExcludeSP500] = useState(false);
   const [activeKnowledge, setActiveKnowledge] = useState<{ title: string } | null>(null);
   const [userFeatures, setUserFeatures] = useState<{
     plan: string;
@@ -80,6 +81,7 @@ export function InvestmentInput({ onAnalyze, disabled }: InvestmentInputProps) {
       amount: 0,
       companyCount,
       asOfDate,
+      excludeSP500,
     });
   };
 
@@ -134,6 +136,22 @@ export function InvestmentInput({ onAnalyze, disabled }: InvestmentInputProps) {
             </button>
           ))}
         </div>
+      </div>
+
+      {/* S&P 500 제외 토글 */}
+      <div className="flex items-center gap-2 bg-white border border-gray-200 rounded-xl px-2.5 py-1.5 shadow-sm h-12">
+        <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest pl-1">Excl. S&P500</span>
+        <button
+          onClick={() => setExcludeSP500(!excludeSP500)}
+          className={cn(
+            "px-4 h-8 rounded-lg text-[11px] font-black transition-all uppercase tracking-widest",
+            excludeSP500
+              ? "bg-rose-500 text-white shadow-lg shadow-rose-500/20"
+              : "bg-gray-100 text-gray-400 hover:bg-gray-200"
+          )}
+        >
+          {excludeSP500 ? 'ACTIVE' : 'OFF'}
+        </button>
       </div>
 
       <div className="flex items-center gap-3 flex-1 lg:flex-initial">

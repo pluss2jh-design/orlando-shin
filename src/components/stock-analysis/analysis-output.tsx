@@ -50,7 +50,7 @@ function StrategyMatchDashboard({ score }: { score: StrategyMatchScore }) {
           <p className="text-[10px] font-black uppercase tracking-[0.3em] text-gray-500 opacity-80">Strategy Alignment</p>
           <div className="flex items-baseline gap-3">
             <span className={cn('text-6xl font-black font-mono tracking-tighter', stageText[score.investmentStage])}>
-              {score.matchPercentage.toFixed(0)}%
+              {(score.matchPercentage ?? 0).toFixed(0)}%
             </span>
             <span className="text-gray-400 text-sm font-bold">MATCHED</span>
           </div>
@@ -376,7 +376,7 @@ export function AnalysisOutput({ results, conditions, isLoading, onSendEmail }: 
                           <p className={cn('text-2xl font-black font-mono leading-none',
                             result.strategyMatch.matchPercentage >= 80 ? 'text-blue-600' :
                               result.strategyMatch.matchPercentage >= 50 ? 'text-amber-500' : 'text-rose-400'
-                          )}>{result.strategyMatch.matchPercentage.toFixed(0)}%</p>
+                          )}>{(result.strategyMatch.matchPercentage ?? 0).toFixed(0)}%</p>
                           <span className="text-xs text-gray-400">match</span>
                         </div>
                       ) : (
@@ -528,7 +528,7 @@ export function AnalysisOutput({ results, conditions, isLoading, onSendEmail }: 
                       "text-xl font-black font-mono",
                       (item.value || 0) > 0 ? "text-emerald-500" : (item.value || 0) < 0 ? "text-rose-500" : "text-gray-400"
                     )}>
-                      {item.value !== undefined ? `${item.value > 0 ? '+' : ''}${item.value.toFixed(1)}%` : 'N/A'}
+                      {item.value != null ? `${item.value > 0 ? '+' : ''}${item.value.toFixed(1)}%` : 'N/A'}
                     </p>
                   </div>
                 ))}

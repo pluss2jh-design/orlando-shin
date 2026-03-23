@@ -50,8 +50,8 @@ export async function runAnalysisEngine(
   const exchangeRate = await fetchExchangeRate();
   const macroContext = await fetchMarketMacroContext(asOfDate);
 
-  // Russell 1000 실시간 조회 (S&P 500 제외) — async
-  const { tickers: universe, universeCounts } = await getStockUniverse();
+  // Russell 1000 실시간 조회 (S&P 500 제외 여부 선택) — async
+  const { tickers: universe, universeCounts } = await getStockUniverse(conditions.excludeSP500 !== false);
   const totalCount = universe.length;
   console.log(`Universe size: ${totalCount} tickers`);
 
