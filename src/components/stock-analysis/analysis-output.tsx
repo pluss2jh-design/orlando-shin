@@ -284,9 +284,10 @@ export function AnalysisOutput({ results, conditions, isLoading, onSendEmail }: 
 
   if (selectedCompanyIndex === null) {
     // 7 step 합산 점수 내림차순 정렬
+    // 학습된 규칙 점수(totalRuleScore) 우선 정렬
     const sortedResults = [...results].sort((a, b) => {
-      const aScore = a.tenbaggerScore?.totalScore ?? a.totalRuleScore ?? 0;
-      const bScore = b.tenbaggerScore?.totalScore ?? b.totalRuleScore ?? 0;
+      const bScore = b.totalRuleScore ?? (b.tenbaggerScore?.percentage ? b.tenbaggerScore.percentage / 10 : 0);
+      const aScore = a.totalRuleScore ?? (a.tenbaggerScore?.percentage ? a.tenbaggerScore.percentage / 10 : 0);
       return bScore - aScore;
     });
 
@@ -376,8 +377,16 @@ export function AnalysisOutput({ results, conditions, isLoading, onSendEmail }: 
                   {/* 하단: 점수 + 화살표 */}
                   <div className="flex items-end justify-between pt-3 border-t border-gray-100">
                     <div>
-                      <p className="text-[10px] text-gray-400 uppercase font-black tracking-widest mb-1">Ten-bagger Score</p>
-                      {result.tenbaggerScore ? (
+                      <p className="text-[10px] text-gray-400 uppercase font-black tracking-widest mb-1">AI 학습 로직 부합도</p>
+                      {result.totalRuleScore !== undefined ? (
+                        <div className="flex items-baseline gap-1">
+                          <p className={cn('text-2xl font-black font-mono leading-none',
+                            result.totalRuleScore >= 8 ? 'text-blue-500' :
+                              result.totalRuleScore >= 5 ? 'text-amber-500' : 'text-rose-400'
+                          )}>{(result.totalRuleScore * 10).toFixed(0)}%</p>
+                          <span className="text-xs text-gray-400">/{result.maxPossibleScore || 10}점</span>
+                        </div>
+                      ) : result.tenbaggerScore ? (
                         <div className="flex items-baseline gap-1">
                           <p className={cn('text-2xl font-black font-mono leading-none',
                             result.tenbaggerScore.percentage >= 70 ? 'text-emerald-500' :
@@ -386,9 +395,9 @@ export function AnalysisOutput({ results, conditions, isLoading, onSendEmail }: 
                           <span className="text-xs text-gray-400">{result.tenbaggerScore.steps.filter(s => s.passed).length}/7단계</span>
                         </div>
                       ) : (
-                        <p className="text-2xl font-black text-gray-900 font-mono leading-none">{result.totalRuleScore}<span className="text-sm text-gray-400 font-medium">/{result.maxPossibleScore}</span></p>
+                        <p className="text-2xl font-black text-gray-900 font-mono leading-none">N/A</p>
                       )}
-                      {result.tenbaggerScore && <p className="text-[10px] font-bold text-blue-500 mt-0.5">{result.tenbaggerScore.allocationLabel}</p>}
+                      <p className="text-[10px] font-bold text-blue-500 mt-0.5">{result.tenbaggerScore?.allocationLabel || '분석 완료'}</p>
                     </div>
                     <div className="flex items-center gap-2 pt-3 border-t border-gray-100">
                       <Button 
@@ -561,57 +570,39 @@ export function AnalysisOutput({ results, conditions, isLoading, onSendEmail }: 
               </div>
 
               {result.totalRuleScore !== undefined && result.maxPossibleScore !== undefined && (
-                <div className="w-full">
-                  <Collapsible
-                    open={isScoreExpanded}
-                    onOpenChange={setIsScoreExpanded}
-                    className="border border-gray-200 rounded-2xl bg-gray-50/30 overflow-hidden"
-                  >
-                    <CollapsibleTrigger asChild>
-                      <Button variant="ghost" className="w-full p-6 h-auto flex items-center justify-between hover:bg-gray-100 hover:text-gray-900 group">
-                        <div className="flex items-center gap-3">
-                          <CheckCircle className="h-5 w-5 text-emerald-500/70" />
-                          <span className="font-black text-xs uppercase tracking-widest text-gray-600 group-hover:text-blue-600 transition-colors">
-                            Detailed Evidence & Score Breakdown
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-3">
-                          <Badge variant="outline" className="bg-gray-100 border-gray-700 text-gray-500 font-mono text-[10px]">
-                            {result.ruleScores?.length || 0} POINTS ANALYZED
-                          </Badge>
-                          {isScoreExpanded ? <ChevronUp className="h-5 w-5 text-gray-500" /> : <ChevronDown className="h-5 w-5 text-gray-500" />}
-                        </div>
-                      </Button>
-                    </CollapsibleTrigger>
-
-                    <CollapsibleContent>
-                      <div className="p-6 border-t border-gray-200 bg-gray-50/80">
-                        <div className="space-y-4">
-                          {result.ruleScores?.map((rule, rIdx) => (
-                            <div key={rIdx} className="p-4 rounded-xl border border-gray-200/80 bg-[#0c0f14] hover:border-gray-700 transition-colors">
-                              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-3">
-                                <span className="text-gray-300 font-bold text-sm leading-relaxed max-w-3xl border-l-2 border-blue-500/30 pl-3">
-                                  {rule.rule}
-                                </span>
-                                <Badge className={cn("shrink-0 uppercase font-black tracking-widest text-[9px]",
-                                  rule.score >= 8 ? "bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30" :
-                                    rule.score >= 5 ? "bg-amber-500/20 text-amber-400 hover:bg-amber-500/30" : "bg-rose-500/20 text-rose-400 hover:bg-rose-500/30"
-                                )}>
-                                  <div className="flex-1 max-w-[200px] hidden sm:block">
-                                    <Progress value={rule.score * 10} className="h-1.5" />
-                                  </div>
-                                  Score: {rule.score}
-                                </Badge>
-                              </div>
-                              <div className="text-[11px] text-gray-400 italic bg-gray-800/50 border border-gray-700 p-3 rounded-md line-clamp-3 mt-3">
-                                {rule.reason || 'AI System calculated this score based on learned models.'}
-                              </div>
+                <div className="w-full space-y-4">
+                  <div className="flex items-center gap-2 px-1">
+                    <Sparkles className="h-5 w-5 text-blue-500" />
+                    <h4 className="text-sm font-black text-gray-900 uppercase tracking-widest">AI 학습 로직 상세 분석</h4>
+                  </div>
+                  <div className="grid grid-cols-1 gap-4">
+                    {result.ruleScores?.map((rule, rIdx) => (
+                      <div key={rIdx} className="p-5 rounded-2xl border border-gray-200 bg-white shadow-sm hover:shadow-md transition-all group">
+                        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-2">
+                              <Badge variant="outline" className="bg-blue-50 text-blue-600 border-none font-black text-[10px]">RULE {rIdx + 1}</Badge>
+                              <h5 className="font-bold text-gray-900 group-hover:text-blue-600 transition-colors uppercase tracking-tight">{rule.rule}</h5>
                             </div>
-                          ))}
+                            <p className="text-sm text-gray-500 leading-relaxed mb-4">{rule.reason || '자료에서 학습된 기준에 따라 점수가 산정되었습니다.'}</p>
+                            <Progress value={rule.score * 10} className="h-2 rounded-full bg-gray-100" />
+                          </div>
+                          <div className="flex flex-col items-center sm:items-end gap-2">
+                            <span className={cn(
+                              "text-3xl font-black font-mono",
+                              rule.score >= 8 ? "text-emerald-500" : rule.score >= 5 ? "text-amber-500" : "text-rose-400"
+                            )}>{rule.score}<span className="text-sm text-gray-400">/10</span></span>
+                            <Badge className={cn("px-2 py-0.5 text-[9px] font-black uppercase tracking-widest",
+                              rule.score >= 8 ? "bg-emerald-500/10 text-emerald-600 border-emerald-200" :
+                              rule.score >= 5 ? "bg-amber-500/10 text-amber-600 border-amber-200" : "bg-rose-500/10 text-rose-600 border-rose-200"
+                            )} variant="outline">
+                              {rule.score >= 8 ? 'Strong Match' : rule.score >= 5 ? 'Average' : 'Low Match'}
+                            </Badge>
+                          </div>
                         </div>
                       </div>
-                    </CollapsibleContent>
-                  </Collapsible>
+                    ))}
+                  </div>
                 </div>
               )}
 

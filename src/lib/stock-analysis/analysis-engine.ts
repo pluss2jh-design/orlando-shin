@@ -163,36 +163,30 @@ export async function runAnalysisEngine(
           confidence: 0.8,
         };
 
-        // 1단계 점수 산정 (AI 호출 없이 재무/매크로 기반)
+        // 1단계 점수 산정: 오직 학습된 JSON 규칙(Criteria)에 기반
         const ruleScores: RuleScore[] = [];
         let weightedScoreSum = 0;
         let totalWeightSum = 0;
         let failedCritical = false;
         let failureReason = '';
-
+ 
         for (const rule of allRules) {
           const scoreResult = evaluateQuantifiedRule(rule, fullData, sectorStats);
           ruleScores.push(scoreResult);
-
+ 
           if (rule.isCritical && scoreResult.score < 5) {
             failedCritical = true;
-            failureReason = `자료에서 강조된 필수 조건(${rule.name}) 미달: ${scoreResult.reason}`;
+            failureReason = `필수 조건 미달(${rule.name}): ${scoreResult.reason}`;
             break;
           }
-
+ 
           weightedScoreSum += scoreResult.score * rule.weight;
           totalWeightSum += rule.weight;
         }
-
-        let finalScore = totalWeightSum > 0 ? (weightedScoreSum / totalWeightSum) : 0;
-
-        // 매크로 환경 보정
-        if (macroContext.vixStatus === 'High' && (fullData as any).debtToEquity > 150) finalScore -= 0.5;
-
-        // 전략 보너스
-        if (knowledge.strategyType === 'aggressive' && periodReturn > 20) finalScore += 1;
-        if (knowledge.strategyType === 'stable' && (fullData.dividendYield || 0) > 0.03) finalScore += 1;
-
+ 
+        // 최종 점수는 학습된 규칙의 가중 평균 (10점 만점 기준)
+        const finalScore = totalWeightSum > 0 ? (weightedScoreSum / totalWeightSum) : 0;
+ 
         stocksWithScores.push({
           ticker: stock.ticker,
           yahooData: fullData,
@@ -202,7 +196,6 @@ export async function runAnalysisEngine(
           totalScore: failedCritical ? 0 : Number(finalScore.toFixed(2)),
           failedCritical,
           failureReason,
-          // sentiment/prediction은 나중에 상위권에게만 부여
         });
       } catch (err) {
         console.error(`Analysis failed for ${stock.ticker}:`, err);

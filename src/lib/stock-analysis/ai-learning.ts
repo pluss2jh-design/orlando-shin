@@ -283,62 +283,74 @@ export async function runLearningPipeline(
       throw new Error('종합 전략 도출을 위한 AI 모델이 선택되지 않았습니다. 모델 탭에서 사용할 AI 모델을 선택해주세요.');
     }
     const strategyPrompt = `당신은 제공된 여러 개별 자료(문서, 영상)의 분석 결과를 완벽하게 통합하여, 하나의 일관된 '최종 투자 알고리즘'을 설계하는 **수석 전략 합성가(Head of Strategy Synthesis)**입니다.
-
-### [1. 전문가 합의 및 논리 통합(Roadmap 3) 지침]
-- **논리 통합**: 여러 자료에서 동일한 지표를 강조하면 가중치를 높이고, 상충되는 의견이 있으면 더 보수적이거나 논리적인 근거가 강한 쪽을 채택하세요.
-- **합의 점수(Consensus Score)**: 전체 투자 전략의 일관성을 0~100점 사이로 산정하세요. (모든 자료가 한 방향을 가리키면 100점, 서로 다르면 낮게 측정)
-- **부재 데이터 보충**: 자료에서 구체적인 수치가 없더라도, 전문가로서 해당 지표의 보편적인 성공 기준(예: ROE 15% 이상)을 제안하십시오.
-
-### [2. 동적 계량화 및 상대적 벤치마크(Roadmap 2) 지침]
-- **benchmark_type**:
-  - 'absolute': 고정된 수치 (예: PER 15 이하)
-  - 'sector_relative': 해당 업종 평균 대비 (예: 업종 평균보다 낮은 PER)
-  - 'sector_percentile': 업종 내 상위 % (예: 업종 내 ROE 상위 20% 이내)
-- 자료가 "업종에서 가장 잘 나가는" 혹은 "평균 이상" 같은 표현을 쓴다면 반드시 'sector_relative'나 'sector_percentile'을 사용하세요.
-
-### [3. 필드별 의무 준수 사항]
-1. **description (상세 설명):** 반드시 3문장 이내. "조건, 이유, 결과" 위주.
-2. **weight (가중치):** 0.1~1.0. 여러 자료에서 공통 언급 시 0.1~0.2 가산.
-3. **isCritical (Critical 여부):** "이게 안 되면 절대 안 됨"인 경우만 True.
-4. **visualEvidence**: 만약 영상 분석 결과에서 차트나 화면 캡처 설명이 포함되어 있다면 그 내용을 짧게 요약해 기입.
-
-추출된 개별 파일 분석 결과들:
-${docConditions}
-
-### [4. 최종 출력 요구사항 - JSON 규격]
-**반드시 아래 구조로만 응답하세요. 다른 텍스트는 포함하지 마십시오.**
-{
-  "keyConditionsSummary": "통합 투자 철학 핵심 요약 (5문장 내외)",
-  "consensusScore": 0~100,
-  "strategyType": "aggressive|moderate|stable",
-  "strategy": {
-    "shortTermConditions": ["단기 조건..."],
-    "longTermConditions": ["장기 조건..."],
-    "winningPatterns": ["필승 패턴..."],
-    "riskManagementRules": ["리스크 관리..."]
-  },
-  "criterias": [
-    {
-      "name": "규칙 이름",
-      "category": "카테고리명",
-      "weight": 0.1~1.0, 
-      "description": "핵심 로직 (3문장 이내)",
-      "quantification": {
-        "target_metric": "지표명",
-        "condition": ">|<|>=|<=|==",
-        "benchmark": "수치 또는 'sector_avg' 등",
-        "benchmark_type": "absolute|sector_relative|sector_percentile",
-        "scoring_type": "binary|linear"
-      },
-      "isCritical": true|false, 
-      "visualEvidence": "시각적 근거 요약(있을 경우)",
-      "source": { "fileName": "파일명", "location": "위치" }
-    }
-  ],
-  "principles": [
-    { "principle": "원칙 내용", "category": "entry|exit|risk|general", "source": { "fileName": "파일명", "location": "위치" } }
-  ]
-}`;
+ 
+ ### [1. 전문가 합의 및 논리 통합 지침]
+ - **목표**: 자료에서 공통적으로 언급하거나 강조하는 "주가가 오르기 위한 핵심 조건"을 추출하세요.
+ - **논리 통합**: 여러 자료에서 동일한 지표를 강조하면 가중치를 높이고, 상충되는 의견이 있으면 더 보수적이거나 논리적인 근거가 강한 쪽을 채택하세요.
+ - **부재 데이터 보충**: 자료에서 구체적인 수치가 없더라도, 전문가로서 해당 지표의 보편적인 성공 기준을 제안하십시오. (예: "자료에선 수익성을 강조함" -> ROE 15% 이상 제안)
+ 
+ ### [2. 정량 지표 매핑 가이드 (필수)]
+ **target_metric** 필드에는 반드시 아래 목록 중 가장 적절한 이름을 사용하세요:
+ - **revenue_growth**: 매출 성장률 (%)
+ - **net_income_growth**: 순이익 성장률 (%)
+ - **roe**: 자기자본이익률 (%)
+ - **per**: 주가수익비율
+ - **pbr**: 주가순자산비율
+ - **debt_ratio**: 부채비율 (%)
+ - **operating_margin**: 영업이익률 (%)
+ - **dividend_yield**: 배당수익률 (%)
+ - **eps_growth**: 주당순이익 성장률 (%)
+ - **current_ratio**: 유동비율 (%)
+ 
+ ### [3. 동적 계량화 지침]
+ - **benchmark_type**:
+   - 'absolute': 고정된 수치
+   - 'sector_relative': 해당 업종 평균 대비
+   - 'sector_percentile': 업종 내 상위 %
+ 
+ ### [4. 필드별 의무 준수 사항]
+ 1. **description**: 반드시 3문장 이내. "왜 이 조건이 주가 상승에 필수적인지"를 자료 근거와 함께 설명.
+ 2. **weight**: 0.1~1.0. 핵심 조건일수록 높게 책정.
+ 3. **isCritical**: 필수 조건인 경우 True.
+ 4. **source**: 근거 파일명과 위치 명시.
+ 
+ 추출된 개별 파일 분석 결과들:
+ ${docConditions}
+ 
+ ### [5. 최종 출력 요구사항 - JSON 규격]
+ **반드시 아래 구조로만 응답하세요. 다른 텍스트는 절대 포함하지 마십시오.**
+ {
+   "keyConditionsSummary": "통합 투자 철학 핵심 요약 (5문장 내외)",
+   "consensusScore": 0~100,
+   "strategyType": "aggressive|moderate|stable",
+   "strategy": {
+     "shortTermConditions": ["단기 조건..."],
+     "longTermConditions": ["장기 조건..."],
+     "winningPatterns": ["필승 패턴..."],
+     "riskManagementRules": ["리스크 관리..."]
+   },
+   "criterias": [
+     {
+       "name": "규칙 이름",
+       "category": "성장성|수익성|안정성|가치평가|수급",
+       "weight": 0.1~1.0, 
+       "description": "상세 로직",
+       "quantification": {
+         "target_metric": "상기 가이드의 필드명",
+         "condition": ">|<|>=|<=|==",
+         "benchmark": "수치(15) 또는 'sector_avg' 등",
+         "benchmark_type": "absolute|sector_relative|sector_percentile",
+         "scoring_type": "binary|linear"
+       },
+       "isCritical": true|false, 
+       "visualEvidence": "시각적 근거 요약",
+       "source": { "fileName": "파일명", "location": "위치" }
+     }
+   ],
+   "principles": [
+     { "principle": "원칙 내용", "category": "entry|exit|risk|general", "source": { "fileName": "파일명", "location": "위치" } }
+   ]
+ }`;
 
     const strategyText = await withRetry(async () => {
       const fullModelName = strategyModelName.startsWith('models/') ? strategyModelName : `models/${strategyModelName}`;
