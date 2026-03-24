@@ -13,8 +13,18 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
-    const { fileIds, aiModels, title } = body;
+    // 빈 본문 처리
+    let body = {};
+    try {
+      const text = await request.text();
+      if (text) {
+        body = JSON.parse(text);
+      }
+    } catch (e) {
+      console.warn('JSON 본문 파싱 실패 또는 빈 본문:', e);
+    }
+
+    const { fileIds, aiModels, title } = body as any;
 
     const result = await StockService.runLearning({ fileIds, aiModels, title });
 

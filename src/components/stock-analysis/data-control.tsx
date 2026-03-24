@@ -200,7 +200,14 @@ export function DataControl({ onFilesChange, onSyncStatusChange, onLearningCompl
     setLearningStatus('Google Drive 자료를 AI가 학습 중입니다...');
 
     try {
-      const response = await fetch('/api/gdrive/learn', { method: 'POST' });
+      const response = await fetch('/api/gdrive/learn', { 
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          fileIds: files.filter(f => f.type !== 'folder').map(f => f.id)
+        })
+      });
+      
       const data = await response.json();
 
       if (!response.ok) {
