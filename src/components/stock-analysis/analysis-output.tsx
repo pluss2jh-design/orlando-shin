@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { TrendingUp, AlertCircle, FileText, Video, CheckCircle, ChevronDown, ChevronUp, Mail, Lock, Sparkles, ArrowLeft, ArrowRight, Activity, TrendingDown, Target, Zap, ExternalLink } from 'lucide-react';
+import { TrendingUp, AlertCircle, FileText, Video, CheckCircle, ChevronDown, ChevronUp, Mail, Lock, Sparkles, ArrowLeft, ArrowRight, Activity, TrendingDown, Target, Zap, ExternalLink, Newspaper, Brain, CheckCircle2 } from 'lucide-react';
 import { useSession } from 'next-auth/react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -123,10 +123,10 @@ function StrategyMatchDashboard({ score }: { score: StrategyMatchScore }) {
                   <p className="text-sm text-gray-400 leading-relaxed font-medium mb-3">{rule.reason}</p>
                   
                   {rule.source && (
-                    <div className="flex items-center gap-2 mt-4 pt-3 border-t border-gray-800/50">
-                      <span className="text-[10px] font-black text-gray-500 uppercase tracking-widest">Evidence:</span>
-                      <Badge variant="ghost" className="text-[10px] font-bold text-blue-400 bg-blue-500/5 hover:bg-blue-500/10 border-none px-2 py-0.5">
-                        {rule.source.fileName} ({rule.source.pageOrTimestamp})
+                    <div className="flex items-center gap-2 mt-4 pt-3 border-t border-emerald-500/10">
+                      <span className="text-[10px] font-black text-emerald-500/60 uppercase tracking-widest">분석 근거:</span>
+                      <Badge variant="outline" className="text-[10px] font-bold text-emerald-400 bg-emerald-500/10 border-emerald-500/20 px-3 py-1">
+                        {rule.source.fileName} {rule.source.pageOrTimestamp !== '-' ? `| ${rule.source.pageOrTimestamp}` : ''}
                       </Badge>
                     </div>
                   )}
@@ -472,13 +472,20 @@ export function AnalysisOutput({ results, conditions, isLoading, onSendEmail }: 
 
   return (
     <div className="space-y-6 pb-12 animate-in fade-in slide-in-from-right-4 duration-500">
-      <Button
-        variant="ghost"
-        className="text-gray-500 hover:text-gray-900 pl-0 hover:bg-transparent tracking-widest text-xs font-bold uppercase"
-        onClick={() => setSelectedCompanyIndex(null)}
-      >
-        <ArrowLeft className="h-4 w-4 mr-2" /> Back to Master List
-      </Button>
+      <div className="flex items-center justify-between">
+        <Button
+          variant="ghost"
+          className="text-gray-500 hover:text-gray-900 pl-0 hover:bg-transparent tracking-widest text-xs font-bold uppercase"
+          onClick={() => setSelectedCompanyIndex(null)}
+        >
+          <ArrowLeft className="h-4 w-4 mr-2" /> Back to Master List
+        </Button>
+        {result.expertVerdict && (
+          <Badge className="bg-blue-600/10 text-blue-600 border border-blue-600/20 px-4 py-1.5 rounded-full font-black text-[10px] uppercase tracking-[0.2em] animate-pulse">
+            Alpha Expert Intelligence Mode
+          </Badge>
+        )}
+      </div>
 
       <Card className="w-full bg-white backdrop-blur-xl border-gray-200 shadow-2xl relative overflow-hidden">
         <div className="absolute top-0 right-0 p-32 bg-blue-500/5 blur-[100px] pointer-events-none rounded-full" />
@@ -513,6 +520,92 @@ export function AnalysisOutput({ results, conditions, isLoading, onSendEmail }: 
         <CardContent className="p-8 space-y-8 relative z-10">
           <div className="grid grid-cols-1 lg:grid-cols-1 gap-10">
             <div className="space-y-6">
+
+              {/* 전문가 최종 판정 (Phase 2 - Expert Verdict) */}
+              {result.expertVerdict && (
+                <div className="bg-white p-8 rounded-3xl border border-gray-100 shadow-xl relative overflow-hidden group">
+                  <div className="absolute top-0 right-0 p-8 opacity-5">
+                     <Brain className="h-48 w-48" />
+                  </div>
+                  <div className="relative z-10 space-y-6">
+                    <div className="flex items-center justify-between">
+                      <h4 className="text-[10px] font-black text-blue-600 uppercase tracking-[0.3em] flex items-center gap-2">
+                        <Sparkles className="h-4 w-4" /> Alpha Expert Verdict
+                      </h4>
+                      <Badge className={cn(
+                        "px-4 py-1 text-xs font-black border-none",
+                        result.expertVerdict.recommendation === 'BUY' ? "bg-emerald-500 text-white" :
+                        result.expertVerdict.recommendation === 'SELL' ? "bg-rose-500 text-white" :
+                        "bg-gray-100 text-gray-900"
+                      )}>
+                        {result.expertVerdict.recommendation} OPINION
+                      </Badge>
+                    </div>
+
+                    <div className="space-y-2">
+                      <h3 className="text-3xl font-black text-gray-900 tracking-tight leading-tight">
+                        {result.expertVerdict.title}
+                      </h3>
+                      <div className="flex items-center gap-2 text-xs font-bold text-gray-500">
+                        <span>Conviction Score:</span>
+                        <span className="text-blue-600 font-black">{result.expertVerdict.convictionScore}%</span>
+                        <div className="h-1 w-24 bg-gray-100 rounded-full overflow-hidden">
+                          <div className="h-full bg-blue-600" style={{ width: `${result.expertVerdict.convictionScore}%` }} />
+                        </div>
+                      </div>
+                    </div>
+
+                    <p className="text-lg text-gray-700 leading-relaxed font-serif italic border-l-4 border-blue-100 pl-6 py-2">
+                      "{result.expertVerdict.summary}"
+                    </p>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8 pt-6 border-t border-gray-50">
+                      <div className="space-y-4">
+                        <h5 className="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
+                          <Target className="h-3 w-3" /> 결정적 매수 근거
+                        </h5>
+                        <ul className="space-y-3">
+                          {result.expertVerdict.keyPoints.map((p: string, idx: number) => (
+                            <li key={idx} className="flex gap-3 text-sm text-gray-700 font-medium">
+                              <CheckCircle2 className="h-4 w-4 text-emerald-500 mt-0.5 shrink-0" />
+                              {p}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                      <div className="space-y-4">
+                        <h5 className="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
+                          <AlertCircle className="h-3 w-3 text-rose-400" /> 리스크 점검 사항
+                        </h5>
+                        <ul className="space-y-3">
+                          {result.expertVerdict.risks.map((r: string, idx: number) => (
+                            <li key={idx} className="flex gap-3 text-sm text-gray-700 font-medium">
+                              <div className="h-1.5 w-1.5 rounded-full bg-rose-400 mt-2 shrink-0" />
+                              {r}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    </div>
+
+                    {/* Citations from Source Material */}
+                    {result.expertVerdict.authorCitations && result.expertVerdict.authorCitations.length > 0 && (
+                      <div className="pt-6 border-t border-gray-50">
+                        <h5 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-4 flex items-center gap-2">
+                          <FileText className="h-3 w-3" /> 증명된 원천 데이터 인용 (Author Citations)
+                        </h5>
+                        <div className="flex flex-wrap gap-2">
+                          {result.expertVerdict.authorCitations.map((cite: any, idx: number) => (
+                            <Badge key={idx} variant="outline" className="text-[10px] font-bold bg-gray-50 text-gray-500 border-gray-200 px-3 py-1">
+                              {cite.fileName} {cite.pageOrTimestamp && `(${cite.pageOrTimestamp})`}
+                            </Badge>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
 
               {/* 수익률 분석 섹션 */}
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -556,26 +649,54 @@ export function AnalysisOutput({ results, conditions, isLoading, onSendEmail }: 
                   </p>
                 </div>
                 <div className="space-y-4">
-                  <div className="p-6 rounded-2xl bg-white border border-gray-200 shadow-sm">
-                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3">Market Sentiment</p>
-                    <div className="flex items-center gap-3">
+                  <div className="p-6 rounded-2xl bg-white border border-gray-200 shadow-sm relative overflow-hidden group">
+                    <div className="absolute top-0 right-0 p-3 opacity-10 group-hover:opacity-20 transition-opacity">
+                      <Newspaper className="h-12 w-12" />
+                    </div>
+                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3 flex items-center gap-2">
+                       <Activity className="h-3 w-3" /> 시장 감성 (Market Sentiment)
+                    </p>
+                    <div className="flex items-center gap-3 mb-3">
                       <div className="text-3xl font-black text-gray-900">{result.sentiment?.score}</div>
-                      <Badge className={cn("px-2 py-0.5 text-[9px] font-black", result.sentiment?.score && result.sentiment.score >= 7 ? "bg-emerald-500/10 text-emerald-600" : "bg-blue-500/10 text-blue-600")}>
-                        {result.sentiment?.label}
+                      <Badge className={cn("px-2 py-0.5 text-[9px] font-black border-none shadow-none", result.sentiment?.score && result.sentiment.score >= 7 ? "bg-emerald-500/10 text-emerald-600" : "bg-blue-500/10 text-blue-600")}>
+                        {result.sentiment?.label === 'Positive' ? '긍정적' : result.sentiment?.label === 'Negative' ? '부정적' : '중립'}
                       </Badge>
                     </div>
                     {result.sentiment?.summary && (
-                      <p className="text-[11px] text-gray-500 mt-2 italic line-clamp-2">"{result.sentiment.summary}"</p>
+                      <p className="text-[11px] text-gray-600 mb-4 italic leading-relaxed">"{result.sentiment.summary}"</p>
+                    )}
+                    {result.sentiment?.recentHeadlines && result.sentiment.recentHeadlines.length > 0 && (
+                      <div className="space-y-1.5 pt-3 border-t border-gray-100">
+                        <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1.5 font-mono">분석 대상 뉴스 헤드라인 (Yahoo Finance)</p>
+                        {result.sentiment.recentHeadlines.slice(0, 3).map((h, idx) => (
+                           <div key={idx} className="flex gap-2 items-start group/news">
+                             <div className="mt-1.5 w-1 h-1 rounded-full bg-blue-400 shrink-0 group-hover/news:scale-125 transition-transform" />
+                             <span className="text-[10px] text-gray-500 line-clamp-1 group-hover/news:text-gray-900 transition-colors cursor-default">{h}</span>
+                           </div>
+                        ))}
+                      </div>
                     )}
                   </div>
                   <div className="p-6 rounded-2xl bg-white border border-gray-200 shadow-sm">
-                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3">Growth Potential</p>
-                    <div className="text-xl font-black text-blue-600 mb-1">{result.prediction?.growthPotential}</div>
+                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3 flex items-center gap-2">
+                       <Target className="h-3 w-3" /> 성장 잠재력 (Growth Potential)
+                    </p>
+                    <div className="text-xl font-black text-blue-600 mb-1">
+                      {result.prediction?.growthPotential === 'Bullish' ? '상승 전망' : result.prediction?.growthPotential === 'Bearish' ? '하락 전망' : '중립'}
+                    </div>
                     <div className="flex items-center justify-between mt-2">
-                       <span className="text-[10px] text-gray-400 uppercase font-black tracking-widest">Expected</span>
+                       <span className="text-[10px] text-gray-400 uppercase font-black tracking-widest">예상 수익률</span>
                        <span className="text-xs font-bold font-mono text-emerald-500">+{result.prediction?.expectedReturn}%</span>
                     </div>
                     <Progress value={result.prediction?.confidence || 70} className="h-1 mt-3 bg-gray-100" />
+                    {result.prediction?.logic && (
+                      <div className="mt-4 pt-3 border-t border-gray-100">
+                        <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-2 font-mono underline decoration-blue-500/20 underline-offset-4">분석 모델 예측 근거</p>
+                        <p className="text-[11px] text-gray-600 leading-relaxed italic">
+                          {result.prediction.logic}
+                        </p>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>

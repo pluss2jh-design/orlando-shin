@@ -6,8 +6,8 @@ import type {
 } from '@/types/stock-analysis';
 import YahooFinance from 'yahoo-finance2';
 
-const yahooFinance = new YahooFinance({ 
-  suppressNotices: ['yahooSurvey'] 
+const yahooFinance = new YahooFinance({
+  suppressNotices: ['yahooSurvey']
 });
 
 interface SearchQuoteResult {
@@ -215,7 +215,7 @@ export async function fetchYahooFinanceData(
   let currentPrice = price?.regularMarketPrice ?? financial?.currentPrice ?? 0;
   if (asOfDate && priceHistory.length > 0) {
     // asOfDate와 가장 가까운(이전) 종가를 현재가로 간주
-    const pastEntries = priceHistory.filter(h => h.date <= asOfDate).sort((a,b) => b.date.getTime() - a.date.getTime());
+    const pastEntries = priceHistory.filter(h => h.date <= asOfDate).sort((a, b) => b.date.getTime() - a.date.getTime());
     if (pastEntries.length > 0) {
       currentPrice = pastEntries[0].close;
     }
@@ -228,7 +228,7 @@ export async function fetchYahooFinanceData(
     { label: 'threeMonths', months: 3 },
     { label: 'oneMonth', months: 1 },
   ];
-  
+
   if (priceHistory.length > 0 && currentPrice > 0) {
     intervals.forEach(({ label, months }) => {
       const targetDate = new Date(effectiveEnd);
@@ -288,7 +288,7 @@ export async function fetchYahooFinanceData(
     returnOnEquity: financial?.returnOnEquity,
     trailingEps: summaryDetail?.trailingAnnualDividendYield,
     dividendYield: summaryDetail?.dividendYield,
-    marketCap: (asOfDate && currentPrice > 0 && price?.marketCap) 
+    marketCap: (asOfDate && currentPrice > 0 && price?.marketCap)
       ? (price.marketCap * (currentPrice / (price.regularMarketPrice || currentPrice)))
       : price?.marketCap,
     sector: assetProfile?.sector,

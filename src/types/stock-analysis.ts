@@ -19,6 +19,7 @@ export interface InvestmentConditions {
   strategyType?: 'growth' | 'value' | 'all';
   asOfDate?: Date;
   excludeSP500?: boolean;
+  universeType?: 'sp500' | 'russell1000' | 'russell1000_exclude_sp500';
 }
 
 
@@ -302,7 +303,9 @@ export interface FilteredCandidate {
   normalizedPrices: NormalizedPrices;
   filterResults: FilterStageResult[];
   passedAllFilters: boolean;
+}
 
+export interface AnalysisResult extends FilteredCandidate {
   score: number;
   expectedReturnRate: number;
   confidenceScore: number;
@@ -317,6 +320,15 @@ export interface FilteredCandidate {
   macroContext?: MacroContext;
   sentiment?: SentimentAnalysis;
   prediction?: PredictiveAnalysis;
+  expertVerdict?: {
+    recommendation: 'BUY' | 'SELL' | 'HOLD' | 'WATCH';
+    convictionScore: number;
+    title: string;
+    summary: string;
+    keyPoints: string[];
+    risks: string[];
+    authorCitations: { fileName: string; pageOrTimestamp?: string; context: string }[];
+  };
   backtestResult?: {
     pastOneYearReturn: number;
     winRateVsS_P500: number;
@@ -383,8 +395,8 @@ export interface ExcludedStockDetail {
 }
 
 export interface RecommendationResult {
-  candidates: FilteredCandidate[];
-  topPicks: FilteredCandidate[];
+  candidates: AnalysisResult[];
+  topPicks: AnalysisResult[];
   investmentConditions: InvestmentConditions;
   investmentStyle: InvestmentStyle;
   exchangeRate: ExchangeRate;
@@ -422,10 +434,22 @@ export interface NewsItem {
 
 export interface NewsSummary {
   ticker: string;
-  companyName: string;
-  totalNews: number;
-  keyHighlights: string[];
-  overallSentiment: 'positive' | 'neutral' | 'negative';
-  latestNews: NewsItem[];
-  generatedAt: Date;
+  count: number;
+  overallSentiment: number;
+  summary: string;
+}
+
+// ===========================
+// H. UI 전용 상태 타입
+// ===========================
+
+export interface AnalysisState {
+  isAnalyzing: boolean;
+  progress: number;
+  progressMessage: string;
+  results: RecommendationResult | null;
+  error: string | null;
+  excludedStockCount: number;
+  excludedDetails: ExcludedStockDetail[];
+  conditions: InvestmentConditions | null;
 }

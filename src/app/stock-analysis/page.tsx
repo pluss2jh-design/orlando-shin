@@ -273,6 +273,7 @@ export default function StockAnalysisPage() {
             newsApiKey: newConditions.newsApiKey,
             asOfDate: newConditions.asOfDate,
             excludeSP500: newConditions.excludeSP500,
+            universeType: newConditions.universeType,
           },
         }),
 
@@ -452,11 +453,25 @@ export default function StockAnalysisPage() {
                 <div className="flex items-center justify-between mb-2">
                   <div>
                     <div className="flex items-center gap-2">
-                      <p className="font-black text-sm text-gray-900">Russell 1000 전체 전략 매칭 스캔 중</p>
+                      <p className="font-black text-sm text-gray-900">
+                        {analysisState.conditions?.universeType === 'sp500' ? (
+                          'S&P 500 지수 전략 매칭 스캔 중'
+                        ) : analysisState.conditions?.universeType === 'russell1000' ? (
+                          'Russell 1000 전체 전략 매칭 스캔 중'
+                        ) : (
+                          'Russell 1000 (S&P 500 제외) 전략 매칭 스캔 중'
+                        )}
+                      </p>
                       {universeStats && (
                         <div className="flex flex-wrap gap-2">
                           <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 text-[10px] py-0 px-2 font-bold">
-                            UNIVERSE: R1000({universeStats.russellCount}) - Overlap({universeStats.overlapCount}) = {universeStats.finalCount}
+                            UNIVERSE: {analysisState.conditions?.universeType === 'sp500' ? (
+                              `S&P 500 (${universeStats.finalCount})`
+                            ) : analysisState.conditions?.universeType === 'russell1000' ? (
+                              `R1000 (${universeStats.finalCount})`
+                            ) : (
+                              `R1000(${universeStats.russellCount}) - Overlap(${universeStats.overlapCount}) = ${universeStats.finalCount}`
+                            )}
                           </Badge>
 
                           <TooltipProvider>
@@ -519,8 +534,14 @@ export default function StockAnalysisPage() {
 
         {universeStats && !analysisState.isAnalyzing && (
           <div className="mb-6 flex flex-col items-center gap-2">
-            <Badge variant="outline" className="bg-white/50 text-gray-500 border-gray-200 text-xs py-1 px-4 font-bold shadow-sm">
-              분석 유니버스: 러셀1000({universeStats?.russellCount}) - 중복({universeStats?.overlapCount}) = {universeStats?.finalCount}개 기업 대상
+            <Badge variant="outline" className="bg-white/50 text-gray-500 border-gray-200 text-xs py-1.5 px-4 font-bold shadow-sm">
+              분석 유니버스: {analysisState.conditions?.universeType === 'sp500' ? (
+                `S&P 500 지수 (${universeStats?.finalCount}개 기업)`
+              ) : analysisState.conditions?.universeType === 'russell1000' ? (
+                `Russell 1000 지수 (${universeStats?.finalCount}개 기업)`
+              ) : (
+                `Russell 1000 (${universeStats?.russellCount}) - S&P 500 제외 = ${universeStats?.finalCount}개 기업`
+              )}
             </Badge>
 
             <TooltipProvider>

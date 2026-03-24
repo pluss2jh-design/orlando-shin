@@ -27,7 +27,7 @@ const TIME_OFFSETS = [
 export function InvestmentInput({ onAnalyze, disabled }: InvestmentInputProps) {
   const [companyCount, setCompanyCount] = useState(5);
   const [selectedTimeId, setSelectedTimeId] = useState('now');
-  const [excludeSP500, setExcludeSP500] = useState(false);
+  const [universeType, setUniverseType] = useState<'sp500' | 'russell1000' | 'russell1000_exclude_sp500'>('russell1000_exclude_sp500');
   const [activeKnowledge, setActiveKnowledge] = useState<{ title: string } | null>(null);
   const [userFeatures, setUserFeatures] = useState<{
     plan: string;
@@ -81,7 +81,7 @@ export function InvestmentInput({ onAnalyze, disabled }: InvestmentInputProps) {
       amount: 0,
       companyCount,
       asOfDate,
-      excludeSP500,
+      universeType,
     });
   };
 
@@ -91,6 +91,11 @@ export function InvestmentInput({ onAnalyze, disabled }: InvestmentInputProps) {
     userFeatures.remainingAnalysis <= 0;
 
   const COUNTS = [3, 5, 10, 20];
+  const UNIVERSE_OPTIONS = [
+    { id: 'sp500', label: 'S&P 500' },
+    { id: 'russell1000', label: 'R1000' },
+    { id: 'russell1000_exclude_sp500', label: 'R1000 (Exclude S&P)' },
+  ];
 
   return (
     <div className="flex flex-col lg:flex-row items-stretch lg:items-center gap-3 w-full">
@@ -138,20 +143,25 @@ export function InvestmentInput({ onAnalyze, disabled }: InvestmentInputProps) {
         </div>
       </div>
 
-      {/* S&P 500 제외 토글 */}
-      <div className="flex items-center gap-2 bg-white border border-gray-200 rounded-xl px-2.5 py-1.5 shadow-sm h-12">
-        <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest pl-1">Excl. S&P500</span>
-        <button
-          onClick={() => setExcludeSP500(!excludeSP500)}
-          className={cn(
-            "px-4 h-8 rounded-lg text-[11px] font-black transition-all uppercase tracking-widest",
-            excludeSP500
-              ? "bg-rose-500 text-white shadow-lg shadow-rose-500/20"
-              : "bg-gray-100 text-gray-400 hover:bg-gray-200"
-          )}
-        >
-          {excludeSP500 ? 'ACTIVE' : 'OFF'}
-        </button>
+      {/* 유니버스 선택 */}
+      <div className="flex items-center gap-1.5 bg-white border border-gray-200 rounded-xl px-2 py-1.5 shadow-sm h-12">
+        <Search className="h-3.5 w-3.5 text-gray-400 ml-1" />
+        <div className="flex gap-1">
+          {UNIVERSE_OPTIONS.map((opt) => (
+            <button
+              key={opt.id}
+              onClick={() => setUniverseType(opt.id as any)}
+              className={cn(
+                "px-2.5 h-8 rounded-lg text-[10px] font-black transition-all whitespace-nowrap uppercase tracking-tighter",
+                universeType === opt.id
+                  ? "bg-rose-500 text-white shadow-sm"
+                  : "text-gray-500 hover:bg-gray-100"
+              )}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
       </div>
 
       <div className="flex items-center gap-3 flex-1 lg:flex-initial">

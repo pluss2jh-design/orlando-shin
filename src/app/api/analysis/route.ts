@@ -4,7 +4,15 @@ import { StockService, userAnalysisJobs } from '@/lib/services/stock.service';
 import type { InvestmentStyle } from '@/types/stock-analysis';
 
 interface AnalysisRequestBody {
-  conditions?: { companyCount?: number; newsAiModel?: string; newsApiKey?: string; sector?: string; strategyType?: 'growth' | 'value' | 'all'; excludeSP500?: boolean };
+  conditions?: { 
+    companyCount?: number; 
+    newsAiModel?: string; 
+    newsApiKey?: string; 
+    sector?: string; 
+    strategyType?: 'growth' | 'value' | 'all'; 
+    excludeSP500?: boolean; 
+    universeType?: 'sp500' | 'russell1000' | 'russell1000_exclude_sp500';
+  };
 
   style?: InvestmentStyle;
 }

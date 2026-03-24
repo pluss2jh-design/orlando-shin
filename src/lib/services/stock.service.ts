@@ -111,8 +111,16 @@ export class StockService {
    * 분석을 시작합니다 (백그라운드 실행).
    */
   static async startAnalysis(userId: string, options: {
-    conditions?: { companyCount?: number; newsAiModel?: string; newsApiKey?: string; sector?: string; strategyType?: 'growth' | 'value' | 'all'; asOfDate?: string | Date; excludeSP500?: boolean };
-
+    conditions?: { 
+      companyCount?: number; 
+      newsAiModel?: string; 
+      newsApiKey?: string; 
+      sector?: string; 
+      strategyType?: 'growth' | 'value' | 'all'; 
+      asOfDate?: string | Date; 
+      excludeSP500?: boolean;
+      universeType?: 'sp500' | 'russell1000' | 'russell1000_exclude_sp500';
+    };
     style?: InvestmentStyle;
   }) {
     // 1. 제한 확인
@@ -144,7 +152,8 @@ export class StockService {
             sector: options.conditions?.sector,
             strategyType: options.conditions?.strategyType,
             asOfDate: options.conditions?.asOfDate ? new Date(options.conditions.asOfDate) : undefined,
-            excludeSP500: options.conditions?.excludeSP500
+            excludeSP500: options.conditions?.excludeSP500,
+            universeType: options.conditions?.universeType
           },
 
           knowledge,

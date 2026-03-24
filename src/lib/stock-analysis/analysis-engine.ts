@@ -23,7 +23,8 @@ import { getStockUniverse } from './universe';
 import {
   fetchMarketMacroContext,
   analyzeStockSentiment,
-  predictStockGrowth
+  predictStockGrowth,
+  generateExpertVerdict
 } from './market-context';
 
 /**
@@ -46,14 +47,16 @@ export async function runAnalysisEngine(
 
   console.log(`Starting analysis: Full Strategy Knowledge Matching (As of: ${asOfDate.toISOString()})...`);
 
-  if (onProgress) onProgress(2, `시장 매크로 환경 및 Russell 1000 유니버스 로딩 중 (${isHistorical ? asOfDate.toLocaleDateString() : '현재'})`);
+  const universeType = conditions.universeType || (conditions.excludeSP500 === false ? 'russell1000' : 'russell1000_exclude_sp500');
+
+  if (onProgress) onProgress(2, `${universeType === 'sp500' ? 'S&P 500' : 'Russell 1000'} 유니버스 데이터 수집 중 (${isHistorical ? asOfDate.toLocaleDateString() : '현재'})`);
   const exchangeRate = await fetchExchangeRate();
   const macroContext = await fetchMarketMacroContext(asOfDate);
 
   // Russell 1000 실시간 조회 (S&P 500 제외 여부 선택) — async
-  const { tickers: universe, universeCounts } = await getStockUniverse(conditions.excludeSP500 !== false);
+  const { tickers: universe, universeCounts } = await getStockUniverse(universeType as any);
   const totalCount = universe.length;
-  console.log(`Universe size: ${totalCount} tickers`);
+  console.log(`Universe size: ${totalCount} tickers (Type: ${universeType})`);
 
 
   // 모든 규칙 카테고리 통합
@@ -212,7 +215,7 @@ export async function runAnalysisEngine(
     .sort((a, b) => b.totalScore - a.totalScore || b.periodReturn - a.periodReturn)
     .slice(0, Math.min(companyCount + 10, 20)); // 상위 20개 선정
 
-  const topPicks: FilteredCandidate[] = [];
+  const topPicks: any[] = [];
 
   for (let i = 0; i < preSorted.length; i++) {
     const stock = preSorted[i];
@@ -226,10 +229,23 @@ export async function runAnalysisEngine(
         predictStockGrowth(stock.ticker, stock.yahooData, macroContext, { score: 0, label: 'Neutral', summary: '', recentHeadlines: [], riskHeadlines: [] }, newsAiModel, newsApiKey)
       ]);
 
-      // 감성 점수로 최종 메인 스코어 보정
+      // 전문가 최종 판정 생성 (결론 도출형)
+      const expertVerdict = await generateExpertVerdict(
+        stock.ticker,
+        stock.yahooData,
+        macroContext,
+        sentiment,
+        prediction,
+        knowledge,
+        newsAiModel,
+        newsApiKey
+      );
+
+      // 감성 점수로 최종 메인 스코어 보정 (가중치 강화)
       let adjustedScore = stock.totalScore;
-      if (sentiment.score > 5) adjustedScore += 0.5;
-      if (sentiment.score < -3) adjustedScore -= 1.0;
+      const sentimentImpact = (sentiment.score / 10) * 1.0;
+      adjustedScore += sentimentImpact;
+      adjustedScore = Math.max(0, Math.min(10, adjustedScore));
 
       const riskLevel = stock.periodReturn > 50 ? 'high' : stock.periodReturn > 20 ? 'medium' : 'low';
       const backtestResult = calculateBacktestResult(stock.yahooData);
@@ -275,8 +291,9 @@ export async function runAnalysisEngine(
         macroContext,
         sentiment,
         prediction,
+        expertVerdict,
         backtestResult,
-      });
+      } as any);
     } catch (err) {
       console.error(`AI Enrichment failed for ${stock.ticker}:`, err);
     }

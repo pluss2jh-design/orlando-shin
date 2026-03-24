@@ -129,13 +129,13 @@ export async function analyzeStockSentiment(
     Return a JSON object with:
     - score: integer from -10 (very negative) to 10 (very positive)
     - label: 'Positive', 'Neutral', or 'Negative'
-    - summary: brief 1-sentence summary of the news impact
-    - riskHeadlines: array of headlines that suggest potential risks
+    - summary: brief 1-sentence summary of the news impact (MUST BE IN KOREAN)
+    - riskHeadlines: array of headlines that suggest potential risks (MUST BE IN KOREAN)
     
     Headlines:
     ${headlines.join('\n- ')}
     
-    Return ONLY JSON.`;
+    Return ONLY JSON. All text descriptions must be in Korean.`;
 
     let text = '';
     const modelLower = aiModel.toLowerCase();
@@ -220,15 +220,15 @@ export async function predictStockGrowth(
     2. Macro Context: Market Mode ${macro.marketMode}, VIX ${macro.vixStatus}, 10Y Yield ${macro.yieldStatus}
     3. Sentiment Score: ${sentiment.score}/10 (${sentiment.label})
     
-    Return a JSON object with:
+    Return a JSON object:
     - growthPotential: 'Bullish', 'Neutral', or 'Bearish'
     - sixMonthTargetPrice: numeric target price
     - expectedReturn: percentage (0-100+)
-    - logic: brief explanation supporting the prediction
+    - logic: brief explanation supporting the prediction (MUST BE IN KOREAN)
     
     Current Price: ${metrics.currentPrice} ${metrics.currency}
     
-    Return ONLY JSON.`;
+    Return ONLY JSON. All explanations must be in Korean.`;
 
     let text = '';
     const modelLower = aiModel.toLowerCase();
@@ -280,5 +280,100 @@ export async function predictStockGrowth(
       expectedReturn: 5,
       logic: '시장 불확실성으로 인해 보수적인 예측을 유지합니다.',
     };
+  }
+}
+
+/**
+ * 전문가 페르소나 기반 최종 판정 생성 (Phase 2)
+ */
+export async function generateExpertVerdict(
+  ticker: string,
+  metrics: YahooFinanceData,
+  macro: MacroContext,
+  sentiment: SentimentAnalysis,
+  prediction: PredictiveAnalysis,
+  knowledge: any, // LearnedKnowledge
+  aiModel: string = 'gemini-1.5-flash',
+  apiKey?: string
+): Promise<any> {
+  try {
+    const prompt = `You are the specific investment expert who wrote the following source materials. 
+    Your goal is to provide a "Conclusion-oriented Analysis" (Expert Verdict) for the stock "${ticker}".
+    
+    [Your Investment Philosophy / Knowledge Base]:
+    ${knowledge.keyConditionsSummary || 'N/A'}
+    
+    [Stock Data]:
+    - Financials: PER ${metrics.trailingPE}, PBR ${metrics.priceToBook}, ROE ${metrics.returnOnEquity}
+    - Recent News Sentiment: ${sentiment.score}/10 (${sentiment.summary})
+    - Macro Context: ${macro.marketMode} mode, VIX ${macro.vixStatus}
+    - AI Prediction: ${prediction.growthPotential} with ${prediction.expectedReturn}% return
+    
+    [Task]:
+    Based on your unique worldview (Knowledge Base), deliver the final verdict. 
+    1. Recommendation: Choose from 'BUY', 'SELL', 'HOLD', 'WATCH'.
+    2. Conviction Score: 0 to 100.
+    3. Title: A sharp, professional headline (MUST BE IN KOREAN).
+    4. Summary: A deep, authoritative reasoning (MUST BE IN KOREAN, 3-4 sentences).
+    5. Key Points: 3 clear reasons to support your verdict (MUST BE IN KOREAN).
+    6. Risks: 2 potential risks (MUST BE IN KOREAN).
+    7. Author Citations: List 2 references to your own material (FileName and context).
+    
+    Return ONLY a JSON object:
+    {
+      "recommendation": "BUY",
+      "convictionScore": 85,
+      "title": "엔비디아: AI 인프라의 절대적 지배력과 저평가 해소",
+      "summary": "저자의 성장주 투자 원칙에 부합하며...",
+      "keyPoints": ["AI 수요 폭증", "강력한 현금 흐름", "업종 내 독점적 지위"],
+      "risks": ["금리 인상 리스크", "지정학적 불안"],
+      "authorCitations": [{"fileName": "2024_Strategy.pdf", "pageOrTimestamp": "14", "context": "독점적 지위 강조"}]
+    }
+    
+    Return ONLY JSON. All explanations must be in Korean.`;
+
+    let text = '';
+    const modelLower = aiModel.toLowerCase();
+
+    if (modelLower.includes('gpt-') || modelLower.includes('o1-')) {
+      const gptApiKey = apiKey || process.env.OPENAI_API_KEY;
+      if (!gptApiKey) throw new Error('OPENAI_API_KEY is missing');
+      const openai = new OpenAI({ apiKey: gptApiKey });
+      const response = await openai.chat.completions.create({
+        model: aiModel,
+        messages: [{ role: 'user', content: prompt }],
+        response_format: { type: 'json_object' }
+      });
+      text = response.choices[0].message.content || '';
+    } else if (modelLower.includes('claude-')) {
+      const claudeApiKey = apiKey || process.env.CLAUDE_API_KEY;
+      if (!claudeApiKey) throw new Error('CLAUDE_API_KEY is missing');
+      const anthropic = new Anthropic({ apiKey: claudeApiKey });
+      const response = await anthropic.messages.create({
+        model: aiModel,
+        max_tokens: 1500,
+        messages: [{ role: 'user', content: prompt }]
+      });
+      text = (response.content[0] as any).text || '';
+    } else {
+      const geminiApiKey = apiKey || process.env.GEMINI_API_KEY;
+      if (!geminiApiKey) throw new Error('GEMINI_API_KEY is missing');
+      const client = new GoogleGenAI({ apiKey: geminiApiKey });
+      const fullModelName = aiModel.startsWith('models/') ? aiModel : `models/${aiModel}`;
+      const result = await client.models.generateContent({
+        model: fullModelName,
+        contents: [{ role: 'user', parts: [{ text: prompt }] }] as any
+      });
+      text = (result as any).text || '';
+    }
+
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      return JSON.parse(jsonMatch[0]);
+    }
+    throw new Error('Expert Verdict JSON not found');
+  } catch (error) {
+    console.error(`Verdict failed for ${ticker}:`, error);
+    return null;
   }
 }
