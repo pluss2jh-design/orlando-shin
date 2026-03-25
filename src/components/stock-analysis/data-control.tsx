@@ -14,6 +14,7 @@ import {
 } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn, formatFileSize, getFileType, generateId } from '@/lib/stock-analysis/utils';
+import { Checkbox } from '@/components/ui/checkbox';
 import { UploadedFile, CloudSyncStatus, LearnedKnowledge } from '@/types/stock-analysis';
 
 interface AIModel {
@@ -60,6 +61,7 @@ export function DataControl({ onFilesChange, onSyncStatusChange, onLearningCompl
   const [isEditMode, setIsEditMode] = useState(false);
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set());
   const [rootFolderId, setRootFolderId] = useState<string | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   
   const [availableModels, setAvailableModels] = useState<AIModel[]>([]);
   const [keys, setKeys] = useState<APIKeys | null>(null);
@@ -145,6 +147,9 @@ export function DataControl({ onFilesChange, onSyncStatusChange, onLearningCompl
 
                 setFiles(driveFiles);
                 onFilesChange?.(driveFiles);
+                
+                // 기본으로 모든 (파일) 선택
+                setSelectedIds(new Set(driveFiles.filter(f => f.type !== 'folder').map(f => f.id)));
               }
               
               if (data.progress.status === 'completed') {
@@ -247,10 +252,10 @@ export function DataControl({ onFilesChange, onSyncStatusChange, onLearningCompl
     setIsLearning(true);
     setLearningStatus('학습 요청을 보내는 중...');
 
-    const driveOnlyFiles = files.filter(f => f.type !== 'folder');
+    const driveOnlyFiles = files.filter(f => f.type !== 'folder' && selectedIds.has(f.id));
 
     if (driveOnlyFiles.length === 0) {
-      alert('학습을 시작하려면 먼저 구글 드라이브 지식 베이스와 동기화된 파일이 있어야 합니다.');
+      alert('학습을 시작하려면 최소 하나 이상의 파일을 선택해야 합니다.');
       setIsLearning(false);
       return;
     }
@@ -289,6 +294,46 @@ export function DataControl({ onFilesChange, onSyncStatusChange, onLearningCompl
     });
   };
 
+  const toggleSelection = (id: string, isFolder: boolean) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      
+      if (isFolder) {
+        // 폴더 내 모든 하위 파일 찾기 (재귀적으로 처리하기 위해 평탄화된 배열 이용)
+        const getDescendants = (parentId: string): string[] => {
+          const directChildren = files.filter(f => f.parentId === parentId);
+          let descendants: string[] = [];
+          for (const child of directChildren) {
+            if (child.type === 'folder') {
+              descendants.push(...getDescendants(child.id));
+            } else {
+              descendants.push(child.id);
+            }
+          }
+          return descendants;
+        };
+
+        const descendants = getDescendants(id);
+        const folderFiles = files.filter(f => f.parentId === id && f.type !== 'folder').map(f => f.id);
+        const allTargetIds = Array.from(new Set([...descendants, ...folderFiles]));
+
+        // 만약 모든 하위 파일이 이미 선택되어 있다면 -> 전체 해제
+        const areAllSelected = allTargetIds.every(tid => next.has(tid));
+        
+        if (areAllSelected) {
+          allTargetIds.forEach(tid => next.delete(tid));
+        } else {
+          allTargetIds.forEach(tid => next.add(tid));
+        }
+      } else {
+        // 단일 파일 토글
+        if (next.has(id)) next.delete(id);
+        else next.add(id);
+      }
+      return next;
+    });
+  };
+
   const renderFileTree = (parentId: string | null, level: number = 0) => {
     const children = files
       .filter(f => f.parentId === parentId || (parentId === rootFolderId && f.parentId === parentId) || (!f.parentId && parentId === null))
@@ -318,29 +363,38 @@ export function DataControl({ onFilesChange, onSyncStatusChange, onLearningCompl
             file.type === 'folder' ? "hover:bg-muted/50 cursor-pointer" : "hover:bg-muted/30 border border-transparent hover:border-muted",
             level > 0 && "ml-4 border-l pl-4"
           )}
-          onClick={() => file.type === 'folder' && toggleFolder(file.id)}
         >
-          <div className="flex items-center gap-2 overflow-hidden">
-            {file.type === 'folder' && (
-              expandedFolders.has(file.id) ? <ChevronDown className="h-3 w-3 text-muted-foreground" /> : <ChevronRight className="h-3 w-3 text-muted-foreground" />
-            )}
-            <div className={cn(
-              "p-1.5 rounded-md shrink-0",
-              file.type === 'mp4' ? "bg-blue-500/10 text-blue-500" : 
-              file.type === 'pdf' ? "bg-red-500/10 text-red-500" :
-              file.type === 'folder' ? "bg-yellow-500/10 text-yellow-500" :
-              "bg-gray-500/10 text-gray-500"
-            )}>
-              {file.type === 'mp4' ? <Video className="h-3.5 w-3.5" /> : 
-               file.type === 'pdf' ? <FileText className="h-3.5 w-3.5" /> : 
-               file.type === 'folder' ? <Folder className="h-3.5 w-3.5" /> :
-               <File className="h-3.5 w-3.5" />}
-            </div>
-            <div className="overflow-hidden">
-              <p className="text-xs font-medium truncate">{file.name}</p>
-              {file.type !== 'folder' && (
-                <p className="text-[10px] text-muted-foreground">{formatFileSize(file.size)} • {file.type.toUpperCase()}</p>
+          <div className="flex items-center gap-3 overflow-hidden">
+            <Checkbox 
+              checked={file.type === 'folder' 
+                ? files.filter(f => f.parentId === file.id && f.type !== 'folder').every(f => selectedIds.has(f.id)) && files.filter(f => f.parentId === file.id && f.type !== 'folder').length > 0
+                : selectedIds.has(file.id)
+              }
+              onCheckedChange={() => toggleSelection(file.id, file.type === 'folder')}
+              className="translate-y-[1px]"
+            />
+            <div className="flex items-center gap-2 overflow-hidden flex-1" onClick={() => file.type === 'folder' && toggleFolder(file.id)}>
+              {file.type === 'folder' && (
+                expandedFolders.has(file.id) ? <ChevronDown className="h-3 w-3 text-muted-foreground" /> : <ChevronRight className="h-3 w-3 text-muted-foreground" />
               )}
+              <div className={cn(
+                "p-1.5 rounded-md shrink-0",
+                file.type === 'mp4' ? "bg-blue-500/10 text-blue-500" : 
+                file.type === 'pdf' ? "bg-red-500/10 text-red-500" :
+                file.type === 'folder' ? "bg-yellow-500/10 text-yellow-500" :
+                "bg-gray-500/10 text-gray-500"
+              )}>
+                {file.type === 'mp4' ? <Video className="h-3.5 w-3.5" /> : 
+                 file.type === 'pdf' ? <FileText className="h-3.5 w-3.5" /> : 
+                 file.type === 'folder' ? <Folder className="h-3.5 w-3.5" /> :
+                 <File className="h-3.5 w-3.5" />}
+              </div>
+              <div className="overflow-hidden">
+                <p className="text-xs font-medium truncate">{file.name}</p>
+                {file.type !== 'folder' && (
+                  <p className="text-[10px] text-muted-foreground">{formatFileSize(file.size)} • {file.type.toUpperCase()}</p>
+                )}
+              </div>
             </div>
           </div>
           <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -436,10 +490,30 @@ export function DataControl({ onFilesChange, onSyncStatusChange, onLearningCompl
           <div className="space-y-6">
             <div className="space-y-3">
               <div className="flex items-center justify-between px-1">
-                <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wider">원천 데이터 원격 저장소 ({files.length})</h4>
-                <Button variant="ghost" size="xs" onClick={() => setFiles([])} className="h-6 text-[10px]">전체 삭제</Button>
+                <div className="flex items-center gap-2">
+                  <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wider">원천 데이터 원격 저장소 ({files.length})</h4>
+                  <Badge variant="outline" className="text-[10px] py-0 h-4">{selectedIds.size}개 선택됨</Badge>
+                </div>
+                <div className="flex items-center gap-1">
+                  <Button 
+                    variant="ghost" 
+                    size="xs" 
+                    onClick={() => setSelectedIds(new Set(files.filter(f => f.type !== 'folder').map(f => f.id)))} 
+                    className="h-6 text-[10px]"
+                  >
+                    전체 선택
+                  </Button>
+                  <Button 
+                    variant="ghost" 
+                    size="xs" 
+                    onClick={() => setSelectedIds(new Set())} 
+                    className="h-6 text-[10px]"
+                  >
+                    전체 해제
+                  </Button>
+                </div>
               </div>
-              <div className="max-h-[300px] overflow-y-auto pr-1 custom-scrollbar space-y-1">
+              <div className="max-h-[350px] overflow-y-auto pr-1 custom-scrollbar space-y-1">
                 {renderFileTree(null)}
               </div>
             </div>
