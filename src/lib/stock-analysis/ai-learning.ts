@@ -210,11 +210,8 @@ export async function runLearningPipeline(
         if (!content || content.trim().length === 0) continue;
 
         const ext = getFileExt(file.name, file.mimeType);
-        const chosenModelGrp = aiModels?.[ext] || aiModels?.['전체'];
-        if (!chosenModelGrp) {
-          throw new Error(`${ext.toUpperCase()} 모델이 선택되지 않았습니다.`);
-        }
-
+        const chosenModelGrp = aiModels?.[ext] || aiModels?.['전체'] || 'gemini-1.5-flash';
+        
         const promptText = `주식 투자 분석가로서 다음 파일의 핵심 조건을 추출하세요: ${file.name}. JSON 형식 {"keyConditions": []}로 응답하세요.`;
         let responseText = '';
 
