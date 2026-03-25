@@ -148,8 +148,8 @@ export function DataControl({ onFilesChange, onSyncStatusChange, onLearningCompl
                 setFiles(driveFiles);
                 onFilesChange?.(driveFiles);
                 
-                // 기본으로 모든 (파일) 선택
-                setSelectedIds(new Set(driveFiles.filter(f => f.type !== 'folder').map(f => f.id)));
+                // 기본적으로 아무것도 선택하지 않음 (사용자가 명시적으로 선택하게 유도)
+                setSelectedIds(new Set());
               }
               
               if (data.progress.status === 'completed') {
@@ -253,19 +253,24 @@ export function DataControl({ onFilesChange, onSyncStatusChange, onLearningCompl
     setLearningStatus('학습 요청을 보내는 중...');
 
     const driveOnlyFiles = files.filter(f => f.type !== 'folder' && selectedIds.has(f.id));
+    const selectedFileIds = driveOnlyFiles.map(f => f.id);
+    
+    console.log(`[Frontend] Attempting to learn with ${selectedFileIds.length} selected files.`);
+    console.log(`[Frontend] Selected IDs:`, selectedFileIds.slice(0, 5), '...');
 
-    if (driveOnlyFiles.length === 0) {
+    if (selectedFileIds.length === 0) {
       alert('학습을 시작하려면 최소 하나 이상의 파일을 선택해야 합니다.');
       setIsLearning(false);
       return;
     }
+
 
     try {
       const response = await fetch('/api/gdrive/learn', { 
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          fileIds: driveOnlyFiles.map(f => f.id),
+          fileIds: selectedFileIds,
           aiModels: aiModels,
           title: `Expert Session ${new Date().toLocaleDateString()}`
         })

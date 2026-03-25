@@ -138,6 +138,8 @@ export async function runLearningPipeline(
     }
 
     const targetFiles = files.filter(f => isPDFFile(f) || isVideoFile(f) || isTextOrDocumentFile(f));
+    console.log(`[Learning] Final target files after filtering: ${targetFiles.length}`);
+    
     if (targetFiles.length === 0) {
       throw new Error('지원되는 파일 형식이 없습니다.');
     }
