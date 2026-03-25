@@ -3,7 +3,7 @@
 import React, { useCallback, useState, useEffect, useMemo } from 'react';
 import { 
   Upload, File, Video, FileText, X, Cloud, Check, Loader2, BookOpen, ListChecks, 
-  Settings2, ChevronUp, ChevronDown, AlertCircle, Eye, Folder, ChevronRight, Brain
+  Settings2, ChevronUp, ChevronDown, AlertCircle, Eye, Folder, ChevronRight, Brain, Clock
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -64,6 +64,12 @@ export function DataControl({ onFilesChange, onSyncStatusChange, onLearningCompl
   const [availableModels, setAvailableModels] = useState<AIModel[]>([]);
   const [keys, setKeys] = useState<APIKeys | null>(null);
   const [aiModels, setAiModels] = useState<Record<string, string>>({});
+  const [backendLearningStatus, setBackendLearningStatus] = useState<{
+    isLearning: boolean;
+    totalFiles: number;
+    completedFiles: number;
+    startTime: string | null;
+  } | null>(null);
 
   useEffect(() => {
     const fetchInitialData = async () => {
@@ -100,6 +106,56 @@ export function DataControl({ onFilesChange, onSyncStatusChange, onLearningCompl
     };
     fetchInitialData();
   }, []);
+
+  // Poll for learning status
+  useEffect(() => {
+    let interval: any;
+    if (isLearning) {
+      interval = setInterval(async () => {
+        try {
+          const res = await fetch('/api/admin/learning-status');
+          if (res.ok) {
+            const data = await res.json();
+            setBackendLearningStatus(data);
+            
+            if (!data.isLearning) {
+              setIsLearning(false);
+              setLearningStatus('학습 완료! 분석 엔진이 업데이트되었습니다.');
+              onLearningComplete?.();
+              
+              // Force refresh knowledge
+              const resK = await fetch('/api/gdrive/knowledge');
+              if (resK.ok) {
+                const dataK = await resK.json();
+                setLearnedKnowledge(dataK.knowledge);
+              }
+            }
+          }
+        } catch (error) {
+          console.error('Polling error:', error);
+        }
+      }, 2000);
+    }
+    return () => clearInterval(interval);
+  }, [isLearning, onLearningComplete]);
+
+  const estimatedTime = useMemo(() => {
+    if (!backendLearningStatus || !backendLearningStatus.startTime || backendLearningStatus.completedFiles === 0) return null;
+    
+    const startTime = new Date(backendLearningStatus.startTime).getTime();
+    const now = Date.now();
+    const elapsed = now - startTime;
+    const timePerFile = elapsed / backendLearningStatus.completedFiles;
+    const remainingFiles = backendLearningStatus.totalFiles - backendLearningStatus.completedFiles;
+    const remainingTime = timePerFile * remainingFiles;
+    
+    if (remainingTime <= 0) return '곧 완료됨';
+    
+    const minutes = Math.floor(remainingTime / (60 * 1000));
+    const seconds = Math.floor((remainingTime % (60 * 1000)) / 1000);
+    
+    return minutes > 0 ? `${minutes}분 ${seconds}초 남음` : `${seconds}초 남음`;
+  }, [backendLearningStatus]);
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -236,7 +292,7 @@ export function DataControl({ onFilesChange, onSyncStatusChange, onLearningCompl
     if (!confirmed) return;
 
     setIsLearning(true);
-    setLearningStatus('Google Drive 자료를 AI가 학습 중입니다...');
+    setLearningStatus('학습 요청을 보내는 중...');
 
     try {
       const response = await fetch('/api/gdrive/learn', { 
@@ -244,31 +300,21 @@ export function DataControl({ onFilesChange, onSyncStatusChange, onLearningCompl
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           fileIds: files.filter(f => f.type !== 'folder').map(f => f.id),
-          aiModels: aiModels
+          aiModels: aiModels,
+          title: `Expert Session ${new Date().toLocaleDateString()}`
         })
       });
       
-      const data = await response.json();
-
       if (!response.ok) {
+        const data = await response.json();
         throw new Error(data.error || '학습 실패');
       }
 
-      setLearningStatus(
-        `학습 완료! ${data.filesAnalyzed}개 파일 분석, ${data.rulesLearned}개 투자 규칙 학습됨`
-      );
-      
-      const knowledgeResponse = await fetch('/api/gdrive/knowledge');
-      if (knowledgeResponse.ok) {
-        const knowledgeData = await knowledgeResponse.json();
-        setLearnedKnowledge(knowledgeData.knowledge);
-      }
-      
-      onLearningComplete?.();
+      setLearningStatus('학습이 시작되었습니다. 원격 서버에서 진행률을 추적합니다...');
+      // Polling is handled by useEffect when isLearning is true
     } catch (error) {
       const message = error instanceof Error ? error.message : '학습 실패';
       setLearningStatus(`학습 실패: ${message}`);
-    } finally {
       setIsLearning(false);
     }
   };
@@ -529,7 +575,39 @@ export function DataControl({ onFilesChange, onSyncStatusChange, onLearningCompl
           </div>
         )}
 
-        {learningStatus && (
+        {isLearning && backendLearningStatus && (
+          <div className="space-y-3 p-4 bg-blue-50/50 border border-blue-100 rounded-xl animate-in fade-in slide-in-from-top-2">
+             <div className="flex justify-between items-end">
+               <div className="space-y-1">
+                 <h4 className="text-xs font-black text-blue-600 uppercase tracking-widest">AI Phase 1: Deep Learning</h4>
+                 <p className="text-[10px] text-blue-400 font-bold">원천 데이터에서 투자 논리를 추출하고 있습니다</p>
+               </div>
+               <div className="text-right">
+                 <span className="text-lg font-black text-blue-600 font-mono">
+                   {Math.round((backendLearningStatus.completedFiles / backendLearningStatus.totalFiles) * 100)}%
+                 </span>
+               </div>
+             </div>
+             
+             <Progress 
+               value={(backendLearningStatus.completedFiles / backendLearningStatus.totalFiles) * 100} 
+               className="h-1.5 bg-blue-100" 
+             />
+
+             <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-tighter">
+               <div className="flex items-center gap-1.5 text-blue-500">
+                 <Loader2 className="h-3 w-3 animate-spin" />
+                 <span>{backendLearningStatus.completedFiles} / {backendLearningStatus.totalFiles} FILES COMPLETE</span>
+               </div>
+               <div className="text-blue-400 flex items-center gap-1">
+                 <Clock className="h-3 w-3" />
+                 <span>{estimatedTime || '계산 중...'}</span>
+               </div>
+             </div>
+          </div>
+        )}
+
+        {learningStatus && !isLearning && (
           <div className={cn(
             "text-xs text-center p-3 rounded-lg border",
             learningStatus.includes('완료') ? "bg-blue-50/50 border-blue-100 text-blue-700 font-medium" :

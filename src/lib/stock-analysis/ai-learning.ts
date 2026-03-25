@@ -432,6 +432,13 @@ async function extractFileContent(file: DriveFileInfo): Promise<string> {
 }
 
 export async function saveKnowledgeToDB(knowledge: LearnedKnowledge, title?: string): Promise<string> {
+  // 1. 기존 활성화된 지식들을 모두 비활성으로 변경
+  await prisma.learnedKnowledge.updateMany({
+    where: { isActive: true },
+    data: { isActive: false }
+  });
+
+  // 2. 새 지식을 활성 상태(isActive: true)로 생성
   const result = await prisma.learnedKnowledge.create({
     data: {
       title: title || `Learning Session ${new Date().toLocaleString()}`,
@@ -439,6 +446,7 @@ export async function saveKnowledgeToDB(knowledge: LearnedKnowledge, title?: str
       keyConditionsSummary: knowledge.keyConditionsSummary,
       strategyType: knowledge.strategyType,
       files: knowledge.sourceFiles as any,
+      isActive: true // 신규 학습 즉시 활성화
     }
   });
   return result.id;

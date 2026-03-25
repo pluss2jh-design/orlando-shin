@@ -42,6 +42,9 @@ export async function runAnalysisEngine(
   onProgress?: (progress: number, message: string, meta?: { excludedStockCount?: number; excludedDetails?: ExcludedStockDetail[] }) => void
 ): Promise<RecommendationResult> {
 
+  if (onProgress) onProgress(1, '분석 환경 초기화 중...');
+  console.log('Engine: Initializing analysis components...');
+
   const asOfDate = conditions.asOfDate || new Date();
   const isHistorical = !!conditions.asOfDate;
 
@@ -49,10 +52,15 @@ export async function runAnalysisEngine(
 
   const universeType = conditions.universeType || (conditions.excludeSP500 === false ? 'russell1000' : 'russell1000_exclude_sp500');
 
-  if (onProgress) onProgress(2, `${universeType === 'sp500' ? 'S&P 500' : 'Russell 1000'} 유니버스 데이터 수집 중 (${isHistorical ? asOfDate.toLocaleDateString() : '현재'})`);
+  if (onProgress) onProgress(3, '환율 정보 동기화 중...');
   const exchangeRate = await fetchExchangeRate();
+  console.log('Engine: Exchange rate synchronized');
+  
+  if (onProgress) onProgress(5, '시장 매크로 환경(VIX/금리) 분석 중...');
   const macroContext = await fetchMarketMacroContext(asOfDate);
+  console.log('Engine: Macro context fetched');
 
+  if (onProgress) onProgress(8, `${universeType === 'sp500' ? 'S&P 500' : 'Russell 1000'} 유니버스 데이터 수집 중...`);
   // Russell 1000 실시간 조회 (S&P 500 제외 여부 선택) — async
   const { tickers: universe, universeCounts } = await getStockUniverse(universeType as any);
   const totalCount = universe.length;

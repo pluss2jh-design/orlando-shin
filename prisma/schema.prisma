@@ -29,6 +29,7 @@ model User {
   sessions        Session[]
   inquiries       Inquiry[]
   analysisUsages  AnalysisUsage[]
+  analysisReports AnalysisReport[]
   payments        Payment[]
 
   @@unique([provider, providerAccountId, email])
@@ -167,4 +168,22 @@ model MembershipPlan {
   isPopular           Boolean  @default(false)
   description         String?
   updatedAt           DateTime @updatedAt @db.Timestamptz(3)
+}
+model AnalysisReport {
+  id              String   @id @default(cuid())
+  userId          String
+  ticker          String
+  companyName     String
+  conditions      Json?    // 분석 당시의 조건 (InvestmentConditions)
+  expertVerdict   Json     // 결론 도출 결과 (title, recommendation, summary, keyPoints, risks, citations)
+  ruleScores      Json     // 점수 산정 내역 (RuleScore[])
+  sentiment       Json?    // 감성 분석 (SentimentAnalysis)
+  prediction      Json?    // 예측 결과 (PredictiveAnalysis)
+  overallScore    Float?   // 종합 점수
+  createdAt       DateTime @default(now()) @db.Timestamptz(3)
+  
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([ticker])
 }

@@ -144,8 +144,10 @@ export class StockService {
     });
 
     // 4. 백그라운드 엔진 실행 (비동기 - fire & forget)
+    console.log(`[StockService] Handing off analysis to engine for user: ${userId}`);
     (async () => {
       try {
+        console.log(`[StockService] Engine background task started for user: ${userId}`);
         const result = await runAnalysisEngine(
           {
             amount: 0,
@@ -177,8 +179,11 @@ export class StockService {
 
         );
 
-        // 성공 시 사용량 카운트 업
-        await StockService.incrementAnalysisUsage(userId);
+        // 성공 시 사용량 카운트 업 및 개별 리포트 저장
+        await Promise.all([
+          StockService.incrementAnalysisUsage(userId),
+          StockService.saveAnalysisReports(userId, result.topPicks, result.investmentConditions)
+        ]);
 
         userAnalysisJobs.set(userId, {
           status: 'completed',
@@ -223,14 +228,18 @@ export class StockService {
     aiModels?: Record<string, string>;
     title?: string;
   }) {
-    const knowledge = await runLearningPipeline(options.fileIds, options.aiModels);
-    const knowledgeId = await saveKnowledgeToDB(knowledge, options.title);
+    // 1. 학습 파이프라인 시작 (비동기)
+    (async () => {
+      try {
+        const knowledge = await runLearningPipeline(options.fileIds, options.aiModels);
+        const knowledgeId = await saveKnowledgeToDB(knowledge, options.title);
+        console.log(`Learning completed: ${knowledgeId}`);
+      } catch (error) {
+        console.error('Background learning error:', error);
+      }
+    })();
 
-    return {
-      id: knowledgeId,
-      knowledge,
-      totalRules: this.countTotalRules(knowledge)
-    };
+    return { status: 'started' };
   }
 
   /**
@@ -254,6 +263,34 @@ export class StockService {
     }
 
     return { exists: false };
+  }
+
+  /**
+   * 분석된 각 기업별 심층 리포트를 DB에 저장합니다.
+   */
+  static async saveAnalysisReports(userId: string, topPicks: any[], conditions: any) {
+    try {
+      const reports = topPicks.map(pick => ({
+        userId,
+        ticker: pick.yahooData.ticker,
+        companyName: pick.company.companyName,
+        conditions: conditions || {},
+        expertVerdict: pick.expertVerdict || {},
+        ruleScores: pick.ruleScores || [],
+        sentiment: pick.sentiment || {},
+        prediction: pick.prediction || {},
+        overallScore: pick.score || 0,
+      }));
+
+      // 개별 저장 (대량 저장 시 오류 방지)
+      for (const report of reports) {
+        await prisma.analysisReport.create({ data: report });
+      }
+      
+      console.log(`Saved ${reports.length} analysis reports for user ${userId}`);
+    } catch (error) {
+      console.error('Failed to save analysis reports:', error);
+    }
   }
 
   private static countTotalRules(knowledge: KnowledgeContentShape | LearnedKnowledge) {

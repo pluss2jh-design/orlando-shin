@@ -13,30 +13,12 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
-    // 빈 본문 처리
-    let body = {};
-    try {
-      const text = await request.text();
-      if (text) {
-        body = JSON.parse(text);
-      }
-    } catch (e) {
-      console.warn('JSON 본문 파싱 실패 또는 빈 본문:', e);
-    }
+    const body = (await request.json().catch(() => ({}))) as any;
+    const { fileIds, aiModels, title } = body;
 
-    const { fileIds, aiModels, title } = body as any;
+    await StockService.runLearning({ fileIds, aiModels, title });
 
-    const result = await StockService.runLearning({ fileIds, aiModels, title });
-
-    return NextResponse.json({
-      status: 'completed',
-      id: result.id,
-      filesAnalyzed: result.knowledge.fileAnalyses.length,
-      rulesLearned: result.totalRules,
-      principlesLearned: result.knowledge.criteria.principles.length,
-      sourceFiles: result.knowledge.sourceFiles,
-      learnedAt: result.knowledge.learnedAt,
-    });
+    return NextResponse.json({ status: 'started' });
   } catch (error) {
     const message = error instanceof Error ? error.message : '학습 실패';
     console.error('학습 파이프라인 오류:', error);

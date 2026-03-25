@@ -1,14 +1,17 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Search, Sparkles, Info, Zap, Clock } from 'lucide-react';
+import { Search, Sparkles, Info, Zap, Clock, Brain } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { InvestmentConditions } from '@/types/stock-analysis';
 import { cn } from '@/lib/utils';
 
 interface ExtendedInvestmentConditions extends InvestmentConditions {
   companyCount?: number;
+  newsAiModel?: string;
+  newsApiKey?: string;
 }
 
 interface InvestmentInputProps {
@@ -29,6 +32,8 @@ export function InvestmentInput({ onAnalyze, disabled, activeKnowledge }: Invest
   const [companyCount, setCompanyCount] = useState(5);
   const [selectedTimeId, setSelectedTimeId] = useState('now');
   const [universeType, setUniverseType] = useState<'sp500' | 'russell1000' | 'russell1000_exclude_sp500'>('russell1000_exclude_sp500');
+  const [selectedModel, setSelectedModel] = useState<string>('gemini-1.5-flash');
+  const [availableModels, setAvailableModels] = useState<any[]>([]);
   const [userFeatures, setUserFeatures] = useState<{
     plan: string;
     weeklyAnalysisLimit: number;
@@ -38,19 +43,28 @@ export function InvestmentInput({ onAnalyze, disabled, activeKnowledge }: Invest
   } | null>(null);
 
   useEffect(() => {
-    const fetchUserFeatures = async () => {
+    const fetchData = async () => {
       try {
-        const res = await fetch('/api/user/features');
-        if (res.ok) {
-          const data = await res.json();
+        const [featuresRes, modelsRes] = await Promise.all([
+          fetch('/api/user/features'),
+          fetch('/api/admin/models')
+        ]);
+        
+        if (featuresRes.ok) {
+          const data = await featuresRes.json();
           setUserFeatures(data);
         }
+        
+        if (modelsRes.ok) {
+          const data = await modelsRes.json();
+          setAvailableModels(data.models || []);
+        }
       } catch (error) {
-        console.error('Failed to fetch user features:', error);
+        console.error('Failed to fetch data:', error);
       }
     };
 
-    fetchUserFeatures();
+    fetchData();
   }, []);
 
   const handleAnalyze = () => {
@@ -67,6 +81,7 @@ export function InvestmentInput({ onAnalyze, disabled, activeKnowledge }: Invest
       companyCount,
       asOfDate,
       universeType,
+      newsAiModel: selectedModel,
     });
   };
 
@@ -149,6 +164,26 @@ export function InvestmentInput({ onAnalyze, disabled, activeKnowledge }: Invest
             </button>
           ))}
         </div>
+      </div>
+
+      {/* 분석 모델 선택 */}
+      <div className="flex items-center gap-1.5 bg-white border border-gray-200 rounded-xl px-2 py-1.5 shadow-sm h-12">
+        <Brain className="h-3.5 w-3.5 text-gray-400 ml-1" />
+        <Select value={selectedModel} onValueChange={setSelectedModel}>
+          <SelectTrigger className="w-[140px] border-none shadow-none h-8 text-[10px] font-black uppercase tracking-widest">
+            <SelectValue placeholder="AI Model" />
+          </SelectTrigger>
+          <SelectContent>
+            {availableModels.map(model => (
+              <SelectItem key={model.value} value={model.value} className="text-[10px] font-bold">
+                {model.label}
+              </SelectItem>
+            ))}
+            {availableModels.length === 0 && (
+              <SelectItem value="gemini-1.5-flash" className="text-[10px] font-bold">GEMINI 1.5 FLASH</SelectItem>
+            )}
+          </SelectContent>
+        </Select>
       </div>
 
       <div className="flex items-center gap-3 flex-1 lg:flex-initial">
