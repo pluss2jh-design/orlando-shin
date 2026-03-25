@@ -3,14 +3,32 @@
 import React, { useCallback, useState, useEffect, useMemo } from 'react';
 import { 
   Upload, File, Video, FileText, X, Cloud, Check, Loader2, BookOpen, ListChecks, 
-  Settings2, ChevronUp, ChevronDown, AlertCircle, Eye, Folder, ChevronRight
+  Settings2, ChevronUp, ChevronDown, AlertCircle, Eye, Folder, ChevronRight, Brain
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
+import { 
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue 
+} from '@/components/ui/select';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn, formatFileSize, getFileType, generateId } from '@/lib/stock-analysis/utils';
 import { UploadedFile, CloudSyncStatus, LearnedKnowledge } from '@/types/stock-analysis';
+
+interface AIModel {
+  value: string;
+  label: string;
+  reqKey: string;
+  supportsPDF: boolean;
+  supportsVideo: boolean;
+}
+
+interface APIKeys {
+  GEMINI_API_KEY?: string;
+  OPENAI_API_KEY?: string;
+  CLAUDE_API_KEY?: string;
+}
 
 function getTotalRulesCount(knowledge: LearnedKnowledge): number {
   return (knowledge.criteria?.criterias?.length || 0);
@@ -42,10 +60,15 @@ export function DataControl({ onFilesChange, onSyncStatusChange, onLearningCompl
   const [isEditMode, setIsEditMode] = useState(false);
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set());
   const [rootFolderId, setRootFolderId] = useState<string | null>(null);
+  
+  const [availableModels, setAvailableModels] = useState<AIModel[]>([]);
+  const [keys, setKeys] = useState<APIKeys | null>(null);
+  const [aiModels, setAiModels] = useState<Record<string, string>>({});
 
   useEffect(() => {
-    const fetchKnowledge = async () => {
+    const fetchInitialData = async () => {
       try {
+        // Fetch knowledge existence
         const response = await fetch('/api/gdrive/learn');
         const data = await response.json();
         if (data.exists) {
@@ -55,11 +78,27 @@ export function DataControl({ onFilesChange, onSyncStatusChange, onLearningCompl
             setLearnedKnowledge(knowledgeData.knowledge);
           }
         }
+        
+        // Fetch AI Models and Keys
+        const [modelsRes, keysRes] = await Promise.all([
+          fetch('/api/admin/models', { cache: 'no-store' }),
+          fetch('/api/admin/settings', { cache: 'no-store' })
+        ]);
+
+        if (modelsRes.ok) {
+          const mData = await modelsRes.json();
+          setAvailableModels(mData.models || []);
+        }
+
+        if (keysRes.ok) {
+          const kData = await keysRes.json();
+          setKeys(kData.keys || {});
+        }
       } catch (error) {
-        console.error('Failed to fetch knowledge:', error);
+        console.error('Failed to fetch initial data:', error);
       }
     };
-    fetchKnowledge();
+    fetchInitialData();
   }, []);
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
@@ -204,7 +243,8 @@ export function DataControl({ onFilesChange, onSyncStatusChange, onLearningCompl
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          fileIds: files.filter(f => f.type !== 'folder').map(f => f.id)
+          fileIds: files.filter(f => f.type !== 'folder').map(f => f.id),
+          aiModels: aiModels
         })
       });
       
@@ -393,14 +433,71 @@ export function DataControl({ onFilesChange, onSyncStatusChange, onLearningCompl
         </div>
 
         {files.length > 0 && (
-          <div className="space-y-3">
-            <div className="flex items-center justify-between px-1">
-              <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wider">원천 데이터 원격 저장소 ({files.length})</h4>
-              <Button variant="ghost" size="xs" onClick={() => setFiles([])} className="h-6 text-[10px]">전체 삭제</Button>
+          <div className="space-y-6">
+            <div className="space-y-3">
+              <div className="flex items-center justify-between px-1">
+                <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wider">원천 데이터 원격 저장소 ({files.length})</h4>
+                <Button variant="ghost" size="xs" onClick={() => setFiles([])} className="h-6 text-[10px]">전체 삭제</Button>
+              </div>
+              <div className="max-h-[300px] overflow-y-auto pr-1 custom-scrollbar space-y-1">
+                {renderFileTree(null)}
+              </div>
             </div>
-            <div className="max-h-[300px] overflow-y-auto pr-1 custom-scrollbar space-y-1">
-              {renderFileTree(null)}
-            </div>
+
+            {availableModels.length > 0 && (
+              <div className="space-y-3 bg-muted/30 p-4 rounded-xl border border-muted-foreground/10">
+                <div className="flex items-center gap-2 mb-2">
+                  <Brain className="h-4 w-4 text-blue-500" />
+                  <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wider">AI 분석 모델 설정</h4>
+                </div>
+                
+                <Tabs defaultValue="전체" className="w-full">
+                  <TabsList className="grid grid-cols-3 bg-muted/50 p-1 h-8">
+                    <TabsTrigger value="전체" className="text-[10px] uppercase font-bold">전체</TabsTrigger>
+                    <TabsTrigger value="pdf" className="text-[10px] uppercase font-bold">PDF</TabsTrigger>
+                    <TabsTrigger value="mp4" className="text-[10px] uppercase font-bold">MP4</TabsTrigger>
+                  </TabsList>
+
+                  {['전체', 'pdf', 'mp4'].map((ext) => (
+                    <TabsContent key={ext} value={ext} className="mt-3 space-y-2">
+                      <Select 
+                        value={aiModels[ext] || ''} 
+                        onValueChange={(val) => setAiModels(prev => ({ ...prev, [ext]: val }))}
+                      >
+                        <SelectTrigger className="w-full h-9 text-xs bg-background border-muted-foreground/20">
+                          <SelectValue placeholder={`${ext.toUpperCase()} 처리 모델 선택`} />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {availableModels
+                            .filter(m => {
+                              if (ext === 'pdf') return m.supportsPDF;
+                              if (ext === 'mp4') return m.supportsVideo;
+                              if (ext === '전체') return m.supportsPDF && m.supportsVideo;
+                              return true;
+                            })
+                            .map((model) => {
+                              const hasKey = keys && keys[model.reqKey as keyof APIKeys];
+                              return (
+                                <SelectItem 
+                                  key={model.value} 
+                                  value={model.value} 
+                                  disabled={!hasKey}
+                                  className="text-xs"
+                                >
+                                  <div className="flex items-center justify-between w-full gap-8">
+                                    <span>{model.label}</span>
+                                    {!hasKey && <span className="text-[10px] text-red-500 font-medium">Key 미등록</span>}
+                                  </div>
+                                </SelectItem>
+                              );
+                            })}
+                        </SelectContent>
+                      </Select>
+                    </TabsContent>
+                  ))}
+                </Tabs>
+              </div>
+            )}
           </div>
         )}
 
