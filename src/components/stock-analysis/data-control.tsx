@@ -157,75 +157,8 @@ export function DataControl({ onFilesChange, onSyncStatusChange, onLearningCompl
     return minutes > 0 ? `${minutes}분 ${seconds}초 남음` : `${seconds}초 남음`;
   }, [backendLearningStatus]);
 
-  const handleDragOver = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragging(true);
-  }, []);
-
-  const handleDragLeave = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragging(false);
-  }, []);
-
-  const handleDrop = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragging(false);
-    
-    const droppedFiles = Array.from(e.dataTransfer.files);
-    handleFiles(droppedFiles);
-  }, []);
-
-  const handleFileInput = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const selectedFiles = Array.from(e.target.files || []);
-    handleFiles(selectedFiles);
-  }, []);
-
-  const handleFiles = (newFiles: File[]) => {
-    const validFiles = newFiles.filter(file => {
-      const type = getFileType(file.name);
-      return type === 'pdf' || type === 'mp4';
-    });
-
-    const uploadedFiles: UploadedFile[] = validFiles.map(file => ({
-      id: generateId(),
-      name: file.name,
-      type: getFileType(file.name) as any,
-      size: file.size,
-      uploadedAt: new Date(),
-      status: 'pending',
-      isDriveFile: false, // 로컬 파일로 표시
-    }));
-
-    const updatedFiles = [...files, ...uploadedFiles];
-    setFiles(updatedFiles);
-    onFilesChange?.(updatedFiles);
-
-    uploadedFiles.forEach((file, index) => {
-      simulateUpload(file.id, index);
-    });
-  };
-
-  const simulateUpload = (fileId: string, delay: number) => {
-    setTimeout(() => {
-      setFiles(prev => {
-        const updated = prev.map(f => 
-          f.id === fileId ? { ...f, status: 'uploading' as const } : f
-        );
-        onFilesChange?.(updated);
-        return updated;
-      });
-
-      setTimeout(() => {
-        setFiles(prev => {
-          const updated = prev.map(f => 
-            f.id === fileId ? { ...f, status: 'completed' as const } : f
-          );
-          onFilesChange?.(updated);
-          return updated;
-        });
-      }, 1500 + Math.random() * 1000);
-    }, delay * 200);
-  };
+  // Local file upload logic removed as per user request.
+  // Using only Google Drive files for learning.
 
   const handleSync = async () => {
     setSyncStatus({ status: 'syncing' });
@@ -288,26 +221,19 @@ export function DataControl({ onFilesChange, onSyncStatusChange, onLearningCompl
       onSyncStatusChange?.(errorStatus);
     }
   };
-
   const handleLearn = async () => {
     const confirmed = window.confirm('학습을 위해 AI 모델을 사용하며 비용이 발생할 수 있습니다. 계속하시겠습니까?');
     if (!confirmed) return;
 
-    const driveOnlyFiles = files.filter(f => f.type !== 'folder' && f.isDriveFile);
-    const localFilesCount = files.length - driveOnlyFiles.length;
+    setIsLearning(true);
+    setLearningStatus('학습 요청을 보내는 중...');
+
+    const driveOnlyFiles = files.filter(f => f.type !== 'folder');
 
     if (driveOnlyFiles.length === 0) {
-      alert('학습을 시작하려면 먼저 구글 드라이브(Google Drive)와 동기화된 파일이 있어야 합니다. 로컬 파일은 직접 구글 드라이브 폴더에 업로드한 후 [동기화] 버튼을 눌러주세요.');
+      alert('학습을 시작하려면 먼저 구글 드라이브 지식 베이스와 동기화된 파일이 있어야 합니다.');
       setIsLearning(false);
       return;
-    }
-
-    if (localFilesCount > 0) {
-      const proceed = window.confirm(`현재 리스트에 로컬 파일 ${localFilesCount}개가 포함되어 있습니다. 이 파일들은 구글 드라이브에 없으므로 분석에서 제외됩니다. 계속하시겠습니까?`);
-      if (!proceed) {
-        setIsLearning(false);
-        return;
-      }
     }
 
     try {
@@ -458,40 +384,11 @@ export function DataControl({ onFilesChange, onSyncStatusChange, onLearningCompl
       </CardHeader>
 
       <CardContent className="space-y-6">
-        <div 
-          className={cn(
-            "border-2 border-dashed rounded-xl p-8 transition-all duration-200 text-center relative overflow-hidden group",
-            isDragging ? "border-primary bg-primary/5" : "border-muted-foreground/20 hover:border-primary/50"
-          )}
-          onDragOver={handleDragOver}
-          onDragLeave={handleDragLeave}
-          onDrop={handleDrop}
-        >
-          <div className="flex flex-col items-center gap-3 py-4">
-            <div className="p-3 rounded-full bg-primary/10 text-primary group-hover:scale-110 transition-transform">
-              <Upload className="h-6 w-6" />
-            </div>
-            <div className="space-y-1">
-              <p className="text-sm font-semibold">드래그하여 파일 업로드</p>
-              <p className="text-xs text-muted-foreground">PDF, MP4 파일 지원 (최대 100MB)</p>
-            </div>
-            <input
-              type="file"
-              id="file-upload"
-              className="hidden"
-              multiple
-              accept=".pdf,.mp4"
-              onChange={handleFileInput}
-            />
-            <Button 
-              variant="outline" 
-              size="sm" 
-              className="mt-2"
-              onClick={() => document.getElementById('file-upload')?.click()}
-            >
-              파일 선택하기
-            </Button>
-          </div>
+        <div className="bg-muted/30 border-2 border-dashed border-muted-foreground/10 rounded-xl p-6 text-center">
+          <p className="text-xs text-muted-foreground font-medium">
+            구글 드라이브(Research 폴더)의 파일을 읽어와 분석합니다.<br />
+            파일을 추가하고 싶다면 구글 드라이브 앱/웹에서 직접 업로드 후 아래 [동기화] 버튼을 눌러주세요.
+          </p>
         </div>
 
         {files.length > 0 && (
