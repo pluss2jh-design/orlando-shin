@@ -253,18 +253,6 @@ export class StockService {
       };
     }
 
-    // 로컬 데이터 폴백
-    const localKnowledge = await getLearnedKnowledge();
-    if (localKnowledge) {
-      return {
-        exists: true,
-        title: '시스템 로컬 데이터',
-        filesAnalyzed: localKnowledge.fileAnalyses.length,
-        rulesLearned: this.countTotalRules(localKnowledge),
-        learnedAt: localKnowledge.learnedAt,
-      };
-    }
-
     return { exists: false };
   }
 
