@@ -23,11 +23,34 @@ export default function ExpertAnalysisPage() {
     conditions: null
   });
 
+  const [activeKnowledge, setActiveKnowledge] = useState<{ title: string; filesAnalyzed?: number; rulesLearned?: number } | null>(null);
   const [universeStats, setUniverseStats] = useState<{
     russellCount: number;
     overlapCount: number;
     finalCount: number;
   } | null>(null);
+
+  useEffect(() => {
+    fetchActiveKnowledge();
+  }, []);
+
+  const fetchActiveKnowledge = async () => {
+    try {
+      const res = await fetch('/api/gdrive/learn');
+      if (res.ok) {
+        const data = await res.json();
+        if (data.exists) {
+          setActiveKnowledge({ 
+            title: data.title || '기본 AI 투자 로직',
+            filesAnalyzed: data.filesAnalyzed,
+            rulesLearned: data.rulesLearned
+          });
+        }
+      }
+    } catch (error) {
+      console.error('Failed to fetch active knowledge:', error);
+    }
+  };
 
   const handleAnalyze = async (conditions: InvestmentConditions) => {
     setAnalysisState(prev => ({
@@ -123,7 +146,7 @@ export default function ExpertAnalysisPage() {
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
         {/* Left: Knowledge & Scan Control */}
         <div className="lg:col-span-4 space-y-6">
-           <DataControl onLearningComplete={() => console.log('Learning Complete')} />
+           <DataControl onLearningComplete={fetchActiveKnowledge} />
            
            <div className="p-6 rounded-2xl bg-white border border-gray-200 shadow-sm space-y-4">
              <h4 className="text-sm font-bold flex items-center gap-2">
@@ -150,7 +173,11 @@ export default function ExpertAnalysisPage() {
         {/* Right: Analysis Engine & Results */}
         <div className="lg:col-span-8 space-y-6">
           <div className="sticky top-0 z-10 bg-[#f8fafc]/80 backdrop-blur-md pt-2 pb-4">
-            <InvestmentInput onAnalyze={handleAnalyze} disabled={analysisState.isAnalyzing} />
+            <InvestmentInput 
+              onAnalyze={handleAnalyze} 
+              disabled={analysisState.isAnalyzing} 
+              activeKnowledge={activeKnowledge}
+            />
           </div>
 
           {analysisState.isAnalyzing && (

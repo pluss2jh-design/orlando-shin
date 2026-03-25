@@ -14,6 +14,7 @@ interface ExtendedInvestmentConditions extends InvestmentConditions {
 interface InvestmentInputProps {
   onAnalyze?: (conditions: ExtendedInvestmentConditions) => void;
   disabled?: boolean;
+  activeKnowledge?: { title: string } | null;
 }
 
 const TIME_OFFSETS = [
@@ -24,11 +25,10 @@ const TIME_OFFSETS = [
   { id: '1y', label: '1년 전', months: 12 },
 ];
 
-export function InvestmentInput({ onAnalyze, disabled }: InvestmentInputProps) {
+export function InvestmentInput({ onAnalyze, disabled, activeKnowledge }: InvestmentInputProps) {
   const [companyCount, setCompanyCount] = useState(5);
   const [selectedTimeId, setSelectedTimeId] = useState('now');
   const [universeType, setUniverseType] = useState<'sp500' | 'russell1000' | 'russell1000_exclude_sp500'>('russell1000_exclude_sp500');
-  const [activeKnowledge, setActiveKnowledge] = useState<{ title: string } | null>(null);
   const [userFeatures, setUserFeatures] = useState<{
     plan: string;
     weeklyAnalysisLimit: number;
@@ -50,22 +50,7 @@ export function InvestmentInput({ onAnalyze, disabled }: InvestmentInputProps) {
       }
     };
 
-    const fetchActiveKnowledge = async () => {
-      try {
-        const res = await fetch('/api/gdrive/learn');
-        if (res.ok) {
-          const data = await res.json();
-          if (data.exists) {
-            setActiveKnowledge({ title: data.title || '기본 AI 투자 로직' });
-          }
-        }
-      } catch (error) {
-        console.error('Failed to fetch active knowledge:', error);
-      }
-    };
-
     fetchUserFeatures();
-    fetchActiveKnowledge();
   }, []);
 
   const handleAnalyze = () => {
@@ -100,27 +85,29 @@ export function InvestmentInput({ onAnalyze, disabled }: InvestmentInputProps) {
   return (
     <div className="flex flex-col lg:flex-row items-stretch lg:items-center gap-3 w-full">
       {/* 현재 로직 표시 */}
-      <div className="flex items-center gap-3 px-3 py-2 bg-blue-50/50 rounded-xl border border-blue-100 shrink-0 h-12">
-        <div className="p-1.5 bg-blue-500 rounded-lg">
-           <Zap className="h-3.5 w-3.5 text-white" />
-        </div>
-        <div className="flex flex-col">
-          <span className="text-[9px] text-blue-500 font-bold uppercase tracking-wider leading-none mb-0.5">Active Logic</span>
-          <span className="text-[11px] text-gray-900 font-black uppercase truncate max-w-[100px]">
-            {activeKnowledge?.title || 'System Logic'}
-          </span>
-        </div>
-        {userFeatures && (
-          <div className="ml-1 pl-2 border-l border-blue-200">
-             <span className={cn(
-               "text-[9px] font-black font-mono",
-               isLimitReached ? "text-rose-500" : "text-blue-600"
-             )}>
-                {userFeatures.weeklyAnalysisLimit === -1 ? '∞' : userFeatures.remainingAnalysis}
-             </span>
+      {activeKnowledge && (
+        <div className="flex items-center gap-3 px-3 py-2 bg-blue-50/50 rounded-xl border border-blue-100 shrink-0 h-12">
+          <div className="p-1.5 bg-blue-600 rounded-lg shadow-sm">
+             <Sparkles className="h-3.5 w-3.5 text-white" />
           </div>
-        )}
-      </div>
+          <div className="flex flex-col">
+            <span className="text-[8px] text-blue-500 font-black uppercase tracking-widest leading-none mb-0.5">Expert Brain</span>
+            <span className="text-[10px] text-gray-900 font-black uppercase truncate max-w-[120px]">
+              {activeKnowledge.title}
+            </span>
+          </div>
+          {userFeatures && (
+            <div className="ml-1 pl-2 border-l border-blue-200">
+               <span className={cn(
+                 "text-[9px] font-black font-mono",
+                 isLimitReached ? "text-rose-500" : "text-blue-600"
+               )}>
+                  {userFeatures.weeklyAnalysisLimit === -1 ? '∞' : userFeatures.remainingAnalysis}
+               </span>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* 분석 시점 선택 */}
       <div className="flex items-center gap-1.5 bg-white border border-gray-200 rounded-xl px-2 py-1.5 shadow-sm h-12">
