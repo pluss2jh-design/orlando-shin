@@ -107,6 +107,63 @@ export function DataControl({ onFilesChange, onSyncStatusChange, onLearningCompl
     fetchInitialData();
   }, []);
 
+  // Poll for sync status
+  useEffect(() => {
+    let interval: any;
+    if (syncStatus.status === 'syncing') {
+      interval = setInterval(async () => {
+        try {
+          const res = await fetch('/api/gdrive/sync');
+          if (res.ok) {
+            const data = await res.json();
+            
+            setSyncStatus(prev => ({
+              ...prev,
+              progress: data.progress,
+              status: data.isSyncing ? 'syncing' : (data.progress.status === 'completed' ? 'synced' : data.progress.status),
+              message: data.progress.message,
+              lastSync: data.syncedAt ? new Date(data.syncedAt) : prev.lastSync
+            }));
+
+            if (!data.isSyncing) {
+              if (data.files && data.files.length > 0) {
+                const driveFiles: UploadedFile[] = data.files.map((f: any) => ({
+                  id: f.id,
+                  name: f.name,
+                  type: f.mimeType.includes('pdf') ? 'pdf' : f.mimeType.includes('video') ? 'mp4' : f.mimeType === 'application/vnd.google-apps.folder' ? 'folder' : 'other',
+                  size: parseInt(f.size || '0', 10),
+                  uploadedAt: new Date(f.modifiedTime),
+                  status: 'completed',
+                  parentId: f.parentId,
+                  isDriveFile: true
+                }));
+                
+                // Determine root
+                const ids = new Set(driveFiles.map(f => f.id));
+                const firstParentId = driveFiles.find(f => f.parentId && !ids.has(f.parentId))?.parentId;
+                if (firstParentId) setRootFolderId(firstParentId);
+
+                setFiles(driveFiles);
+                onFilesChange?.(driveFiles);
+              }
+              
+              if (data.progress.status === 'completed') {
+                onSyncStatusChange?.({
+                  status: 'synced',
+                  lastSync: new Date(data.syncedAt),
+                  message: data.progress.message
+                });
+              }
+            }
+          }
+        } catch (error) {
+          console.error('Sync polling error:', error);
+        }
+      }, 1500);
+    }
+    return () => clearInterval(interval);
+  }, [syncStatus.status, onFilesChange, onSyncStatusChange]);
+
   // Poll for learning status
   useEffect(() => {
     let interval: any;
@@ -161,7 +218,7 @@ export function DataControl({ onFilesChange, onSyncStatusChange, onLearningCompl
   // Using only Google Drive files for learning.
 
   const handleSync = async () => {
-    setSyncStatus({ status: 'syncing' });
+    setSyncStatus({ status: 'syncing', message: '동기화 시작 중...' });
     onSyncStatusChange?.({ status: 'syncing' });
 
     try {
@@ -169,48 +226,10 @@ export function DataControl({ onFilesChange, onSyncStatusChange, onLearningCompl
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || '동기화 실패');
+        throw new Error(data.error || '동기화 시작 패');
       }
 
-      const driveFiles: UploadedFile[] = (data.files as DriveFileInfo[]).map(
-        (f: DriveFileInfo) => ({
-          id: f.id,
-          name: f.name,
-          type: f.mimeType.includes('pdf')
-            ? ('pdf' as const)
-            : f.mimeType.includes('video')
-              ? ('mp4' as const)
-              : f.mimeType === 'application/vnd.google-apps.folder'
-                ? ('folder' as const)
-                : ('other' as const),
-          size: parseInt(f.size || '0', 10),
-          uploadedAt: new Date(f.modifiedTime),
-          status: 'completed' as const,
-          url: undefined,
-          parentId: f.parentId,
-          isDriveFile: true, // 드라이브 파일로 표시
-        })
-      );
-
-      // Determine root folder ID (the one that is not a parent of anyone in the current list, or the parent of the first few items)
-      // Actually, listDriveFiles returns items with parentId. The very first items' parentId is the root folder.
-      if (driveFiles.length > 0) {
-        // We find the parentId that is not present in the list of IDs
-        const ids = new Set(driveFiles.map(f => f.id));
-        const firstParentId = driveFiles.find(f => f.parentId && !ids.has(f.parentId))?.parentId;
-        if (firstParentId) setRootFolderId(firstParentId);
-      }
-
-      setFiles(driveFiles);
-      onFilesChange?.(driveFiles);
-
-      const newStatus: CloudSyncStatus = {
-        status: 'synced',
-        lastSync: new Date(),
-        message: `Google Drive 동기화 완료 (${data.totalCount}개 파일)`,
-      };
-      setSyncStatus(newStatus);
-      onSyncStatusChange?.(newStatus);
+      setSyncStatus(prev => ({ ...prev, status: 'syncing', message: '서버와 연결됨...' }));
     } catch (error) {
       const message = error instanceof Error ? error.message : '동기화 실패';
       const errorStatus: CloudSyncStatus = {
@@ -385,10 +404,32 @@ export function DataControl({ onFilesChange, onSyncStatusChange, onLearningCompl
 
       <CardContent className="space-y-6">
         <div className="bg-muted/30 border-2 border-dashed border-muted-foreground/10 rounded-xl p-6 text-center">
-          <p className="text-xs text-muted-foreground font-medium">
-            구글 드라이브(Research 폴더)의 파일을 읽어와 분석합니다.<br />
-            파일을 추가하고 싶다면 구글 드라이브 앱/웹에서 직접 업로드 후 아래 [동기화] 버튼을 눌러주세요.
-          </p>
+          {syncStatus.status === 'syncing' ? (
+            <div className="space-y-4">
+              <div className="flex flex-col items-center gap-2">
+                <Loader2 className="h-6 w-6 text-primary animate-spin" />
+                <p className="text-sm font-semibold text-primary">지식 베이스 동기화 중...</p>
+              </div>
+              
+              <div className="space-y-2 max-w-sm mx-auto">
+                <div className="flex justify-between text-[10px] font-bold text-muted-foreground uppercase">
+                  <span>발견된 파일 수: {syncStatus.progress?.totalFiles || 0}</span>
+                  <span>폴더 수: {syncStatus.progress?.processedFolders || 0}</span>
+                </div>
+                <Progress value={Math.min(100, (syncStatus.progress?.totalFiles || 0) / 10)} className="h-1.5" />
+                {syncStatus.progress?.currentFolder && (
+                  <p className="text-[10px] text-muted-foreground truncate italic">
+                    현재 탐색: {syncStatus.progress.currentFolder}
+                  </p>
+                )}
+              </div>
+            </div>
+          ) : (
+            <p className="text-xs text-muted-foreground font-medium">
+              구글 드라이브(Research 폴더)의 파일을 읽어와 분석합니다.<br />
+              파일을 추가하고 싶다면 구글 드라이브 앱/웹에서 직접 업로드 후 아래 [동기화] 버튼을 눌러주세요.
+            </p>
+          )}
         </div>
 
         {files.length > 0 && (

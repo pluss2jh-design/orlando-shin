@@ -97,9 +97,14 @@ export interface SourceReference {
 }
 
 export interface CloudSyncStatus {
-  status: 'idle' | 'syncing' | 'synced' | 'error';
+  status: 'idle' | 'syncing' | 'synced' | 'completed' | 'error';
   lastSync?: Date;
   message?: string;
+  progress?: {
+    totalFiles: number;
+    processedFolders: number;
+    currentFolder?: string;
+  };
 }
 
 // ===========================

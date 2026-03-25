@@ -21,6 +21,14 @@ interface SyncResult {
   syncedAt: Date;
 }
 
+export interface SyncProgress {
+  totalFiles: number;
+  processedFolders: number;
+  currentFolder?: string;
+  status: 'idle' | 'syncing' | 'completed' | 'error';
+  message?: string;
+}
+
 function parseServiceAccountKey(key: string): any {
   console.log('[Drive] Attempting to parse service account key...');
   try {
@@ -144,6 +152,8 @@ export async function listDriveFiles(
         if (f.mimeType === 'application/vnd.google-apps.folder') {
           // 폴더 자체 정보도 리스트에 추가합니다 (UI에서 구조 노출을 위해)
           allFiles.push(fileInfo);
+          driveStatus.progress.processedFolders++;
+          driveStatus.progress.currentFolder = f.name || '';
           const subFiles = await listDriveFiles(f.id!, depth + 1);
           allFiles.push(...subFiles.files);
         } else {
@@ -151,6 +161,13 @@ export async function listDriveFiles(
         }
       }
       nextPageToken = response.data.nextPageToken;
+      
+      // 진행률 업데이트
+      if (depth === 0) {
+        driveStatus.progress.totalFiles = allFiles.length;
+      } else {
+        driveStatus.progress.totalFiles += driveFiles.length;
+      }
     } while (nextPageToken);
 
     if (depth === 0) {
@@ -238,11 +255,16 @@ export async function downloadTextContent(fileId: string): Promise<string> {
 }
 
 const globalForDrive = globalThis as unknown as {
-  driveStatus?: { isSyncing: boolean; cache: SyncResult | null };
+  driveStatus?: { 
+    isSyncing: boolean; 
+    progress: SyncProgress;
+    cache: SyncResult | null 
+  };
 };
 
 export const driveStatus = globalForDrive.driveStatus || {
   isSyncing: false,
+  progress: { totalFiles: 0, processedFolders: 0, status: 'idle' },
   cache: null as SyncResult | null,
 };
 
@@ -254,10 +276,23 @@ export async function syncAllFiles(): Promise<SyncResult> {
   }
 
   driveStatus.isSyncing = true;
+  driveStatus.progress = { 
+    totalFiles: 0, 
+    processedFolders: 0, 
+    status: 'syncing',
+    message: '동기화 시작...' 
+  };
+
   try {
     const syncResult = await listDriveFiles();
     driveStatus.cache = syncResult;
+    driveStatus.progress.status = 'completed';
+    driveStatus.progress.message = `동기화 완료: ${syncResult.totalCount}개 파일 발견`;
     return syncResult;
+  } catch (error: any) {
+    driveStatus.progress.status = 'error';
+    driveStatus.progress.message = `동기화 실패: ${error.message}`;
+    throw error;
   } finally {
     driveStatus.isSyncing = false;
   }
@@ -302,8 +337,11 @@ export async function getFilesByIds(fileIds: string[]): Promise<DriveFileInfo[]>
   return files;
 }
 
-export function getDriveSyncStatus(): boolean {
-  return driveStatus.isSyncing;
+export function getDriveSyncStatus() {
+  return {
+    isSyncing: driveStatus.isSyncing,
+    progress: driveStatus.progress
+  };
 }
 
 export { GOOGLE_DRIVE_FOLDER_ID };
