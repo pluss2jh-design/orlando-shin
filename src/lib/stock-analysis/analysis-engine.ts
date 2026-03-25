@@ -50,7 +50,14 @@ export async function runAnalysisEngine(
 
   console.log(`Starting analysis: Full Strategy Knowledge Matching (As of: ${asOfDate.toISOString()})...`);
 
+  console.log(`[Engine] Input Conditions:`, { 
+    universeType: conditions.universeType, 
+    excludeSP500: conditions.excludeSP500,
+    strategyType: conditions.strategyType,
+    asOfDate: conditions.asOfDate 
+  });
   const universeType = conditions.universeType || (conditions.excludeSP500 === false ? 'russell1000' : 'russell1000_exclude_sp500');
+  console.log(`[Engine] Determined Universe Type: ${universeType}`);
 
   if (onProgress) onProgress(3, '환율 정보 동기화 중...');
   const exchangeRate = await fetchExchangeRate();
@@ -126,10 +133,11 @@ export async function runAnalysisEngine(
   let analyzedCount = 0;
   const chunkSize = 5;
   for (let i = 0; i < validStocks.length; i += chunkSize) {
-    const chunk = validStocks.slice(i, i + chunkSize);
-    await Promise.all(chunk.map(async (stock) => {
+    const batch = validStocks.slice(i, i + chunkSize);
+    await Promise.all(batch.map(async (stock) => {
       try {
         const fullData = await fetchYahooFinanceData(stock.ticker, asOfDate);
+        if (!fullData) return;
 
         // 섹터 필터
         if (conditions.sector && conditions.sector !== 'ALL') {
@@ -142,15 +150,14 @@ export async function runAnalysisEngine(
         }
 
         analyzedCount++;
-        const donePct = 18 + Math.floor((analyzedCount / validStocks.length) * 79);
+        const donePct = 18 + Math.floor((analyzedCount / validStocks.length) * 65);
         if (onProgress) onProgress(donePct, `[2/2] ${isHistorical ? '과거' : '상세'} 지표 분석 중... ${analyzedCount} / ${validStocks.length}개 완료`);
 
         let periodReturn = 0;
         if (fullData.priceHistory && fullData.priceHistory.length >= 2) {
-          // asOfDate 시점 기준 1년 전 수익률 계산 (백엔드 로직 일치)
-          const startIdx = Math.max(0, fullData.priceHistory.length - 250); // 약 1년치
+          const startIdx = Math.max(0, fullData.priceHistory.length - 250);
           const startPrice = fullData.priceHistory[startIdx].close;
-          const endPrice = fullData.currentPrice; // fetchYahooFinanceData에서 asOfDate 가격으로 이미 설정됨
+          const endPrice = fullData.currentPrice;
           if (startPrice > 0) periodReturn = ((endPrice - startPrice) / startPrice) * 100;
         }
 
@@ -164,7 +171,7 @@ export async function runAnalysisEngine(
             pbr: fullData.priceToBook,
             roe: fullData.returnOnEquity ? fullData.returnOnEquity * 100 : undefined,
           },
-          sentimentSummary: '', // Added for display
+          sentimentSummary: '',
           macroStatus: macroContext.marketMode,
           investmentThesis: '',
           riskFactors: [],
@@ -174,30 +181,28 @@ export async function runAnalysisEngine(
           confidence: 0.8,
         };
 
-        // 1단계 점수 산정: 오직 학습된 JSON 규칙(Criteria)에 기반
         const ruleScores: RuleScore[] = [];
         let weightedScoreSum = 0;
         let totalWeightSum = 0;
         let failedCritical = false;
         let failureReason = '';
- 
+
         for (const rule of allRules) {
           const scoreResult = evaluateQuantifiedRule(rule, fullData, sectorStats);
           ruleScores.push(scoreResult);
- 
+
           if (rule.isCritical && scoreResult.score < 5) {
             failedCritical = true;
             failureReason = `필수 조건 미달(${rule.name}): ${scoreResult.reason}`;
             break;
           }
- 
+
           weightedScoreSum += scoreResult.score * rule.weight;
           totalWeightSum += rule.weight;
         }
- 
-        // 최종 점수는 학습된 규칙의 가중 평균 (10점 만점 기준)
+
         const finalScore = totalWeightSum > 0 ? (weightedScoreSum / totalWeightSum) : 0;
- 
+
         stocksWithScores.push({
           ticker: stock.ticker,
           yahooData: fullData,
@@ -209,7 +214,7 @@ export async function runAnalysisEngine(
           failureReason,
         });
       } catch (err) {
-        console.error(`Analysis failed for ${stock.ticker}:`, err);
+        console.error(`[Engine] Analysis failed for ${stock.ticker}:`, err);
         analyzedCount++;
       }
     }));
@@ -275,8 +280,19 @@ export async function runAnalysisEngine(
       }
 
       topPicks.push({
-        company: { ...stock.company, investmentThesis: thesis },
-        yahooData: stock.yahooData,
+        ...stock,
+        totalScore: adjustedScore,
+        sentiment,
+        prediction,
+        expertVerdict,
+        strategyMatch,
+        riskLevel,
+        backtestResult,
+        macroContext,
+        company: {
+          ...stock.company,
+          investmentThesis: thesis
+        },
         normalizedPrices: {
           currentPriceKRW: stock.yahooData.currentPrice * (stock.yahooData.currency === 'USD' ? exchangeRate.rate : 1),
           targetPriceKRW: prediction.sixMonthTargetPrice * (stock.yahooData.currency === 'USD' ? exchangeRate.rate : 1),
@@ -291,19 +307,19 @@ export async function runAnalysisEngine(
         score: adjustedScore * 10,
         expectedReturnRate: prediction.expectedReturn || stock.periodReturn,
         confidenceScore: Math.min(98, adjustedScore * 10),
-        riskLevel,
-        ruleScores: stock.ruleScores,
         totalRuleScore: adjustedScore,
         maxPossibleScore: 10,
-        strategyMatch,
-        macroContext,
-        sentiment,
-        prediction,
-        expertVerdict,
-        backtestResult,
       } as any);
-    } catch (err) {
-      console.error(`AI Enrichment failed for ${stock.ticker}:`, err);
+    } catch (error) {
+      console.error(`[Engine] Failed detailed analysis for ${stock.ticker}:`, error);
+      // AI 분석은 실패해도 기본 점수 기반으로 결과에는 포함시킴
+      topPicks.push({
+        ...stock,
+        score: stock.totalScore * 10,
+        riskLevel: stock.periodReturn > 20 ? 'high' : 'medium',
+        backtestResult: calculateBacktestResult(stock.yahooData),
+        macroContext
+      } as any);
     }
   }
 
@@ -563,4 +579,3 @@ function deduplicateSources(sources: SourceReference[]): SourceReference[] {
     return true;
   });
 }
-

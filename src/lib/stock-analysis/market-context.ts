@@ -162,13 +162,15 @@ export async function analyzeStockSentiment(
       });
       text = (response.content[0] as any).text || '';
     } else {
-      // Default: Gemini (@google/genai 사용)
+      // Default: Gemini (@google/genai 공식 SDK 방식)
       const geminiApiKey = apiKey || process.env.GEMINI_API_KEY;
       if (!geminiApiKey) throw new Error('GEMINI_API_KEY is missing');
-      const client = new GoogleGenAI({ apiKey: geminiApiKey });
-      const fullModelName = aiModel.startsWith('models/') ? aiModel : `models/${aiModel}`;
-      const result = await client.models.generateContent({
-        model: fullModelName,
+      
+      const genAI = new GoogleGenAI({ apiKey: geminiApiKey });
+      const modelName = aiModel.includes('/') ? aiModel : `models/${aiModel}`;
+      
+      const result = await genAI.models.generateContent({
+        model: modelName,
         contents: [{ role: 'user', parts: [{ text: prompt }] }] as any
       });
       text = (result as any).text || '';
@@ -257,10 +259,12 @@ export async function predictStockGrowth(
       // Default: Gemini
       const geminiApiKey = apiKey || process.env.GEMINI_API_KEY;
       if (!geminiApiKey) throw new Error('GEMINI_API_KEY is missing');
-      const client = new GoogleGenAI({ apiKey: geminiApiKey });
-      const fullModelName = aiModel.startsWith('models/') ? aiModel : `models/${aiModel}`;
-      const result = await client.models.generateContent({
-        model: fullModelName,
+      
+      const genAI = new GoogleGenAI({ apiKey: geminiApiKey });
+      const modelName = aiModel.includes('/') ? aiModel : `models/${aiModel}`;
+      
+      const result = await genAI.models.generateContent({
+        model: modelName,
         contents: [{ role: 'user', parts: [{ text: prompt }] }] as any
       });
       text = (result as any).text || '';
@@ -356,12 +360,15 @@ export async function generateExpertVerdict(
       });
       text = (response.content[0] as any).text || '';
     } else {
+      // Default: Gemini
       const geminiApiKey = apiKey || process.env.GEMINI_API_KEY;
       if (!geminiApiKey) throw new Error('GEMINI_API_KEY is missing');
-      const client = new GoogleGenAI({ apiKey: geminiApiKey });
-      const fullModelName = aiModel.startsWith('models/') ? aiModel : `models/${aiModel}`;
-      const result = await client.models.generateContent({
-        model: fullModelName,
+      
+      const genAI = new GoogleGenAI({ apiKey: geminiApiKey });
+      const modelName = aiModel.includes('/') ? aiModel : `models/${aiModel}`;
+      
+      const result = await genAI.models.generateContent({
+        model: modelName,
         contents: [{ role: 'user', parts: [{ text: prompt }] }] as any
       });
       text = (result as any).text || '';

@@ -123,27 +123,35 @@ export default function StockAnalysisPage() {
         const response = await fetch('/api/analysis', { method: 'GET' });
         if (response.ok) {
           const data = await response.json();
-          if (data.status === 'processing') {
-            setAnalysisState(prev => ({
-              ...prev,
-              isAnalyzing: true,
-              error: null,
-              progress: data.progress || 0,
-              progressMessage: data.progressMessage || '분석 중...',
-              excludedStockCount: data.excludedStockCount || 0,
-              excludedDetails: data.excludedDetails || []
-            }));
+            if (data.status === 'processing') {
+              setAnalysisState(prev => ({
+                ...prev,
+                isAnalyzing: true,
+                error: null,
+                progress: data.progress || 0,
+                progressMessage: data.progressMessage || '분석 중...',
+                excludedStockCount: data.excludedStockCount || 0,
+                excludedDetails: data.excludedDetails || []
+              }));
 
-
-            if (!interval) interval = setInterval(pollStatus, 1500);
-          } else if (data.status === 'completed' && data.result) {
-            if (interval) { clearInterval(interval); interval = null; }
-            if (!analysisAlerted.current) {
-              analysisAlerted.current = true;
-              alert('기업 분석이 완료되었습니다!');
-              processAnalysisData(data.result);
-            }
-          } else if (data.status === 'error') {
+              // 1.5초 간격 상시 폴링 활성화 (상태가 processing인 동안)
+              if (!interval) {
+                interval = setInterval(pollStatus, 1500);
+              }
+            } else if (data.status === 'completed' && data.result) {
+              if (interval) { clearInterval(interval); interval = null; }
+              setAnalysisState(prev => ({
+                ...prev,
+                isAnalyzing: false,
+                progress: 100,
+                progressMessage: '분석 완료'
+              }));
+              if (!analysisAlerted.current) {
+                analysisAlerted.current = true;
+                alert('기업 분석이 완료되었습니다!');
+                processAnalysisData(data.result);
+              }
+            } else if (data.status === 'error') {
             if (interval) { clearInterval(interval); interval = null; }
             setAnalysisState(prev => ({ ...prev, isAnalyzing: false, error: data.error }));
           }
@@ -153,7 +161,16 @@ export default function StockAnalysisPage() {
       }
     };
 
-    if (session?.user) pollStatus();
+    if (session?.user) {
+      pollStatus();
+      // 수동 트리거 이벤트 수신을 위한 리스너 추가
+      const triggerPoll = () => pollStatus();
+      window.addEventListener('trigger-analysis-poll', triggerPoll);
+      return () => {
+        if (interval) clearInterval(interval);
+        window.removeEventListener('trigger-analysis-poll', triggerPoll);
+      };
+    }
     return () => { if (interval) clearInterval(interval); };
   }, [session]);
 
@@ -291,6 +308,11 @@ export default function StockAnalysisPage() {
       }
 
       alert('AI 엔진 분석 요청이 접수되었습니다. 백그라운드에서 진행됩니다.');
+      
+      // 요청 후 즉시 상태 업데이트를 위해 폴링 수동 트리거 (또는 인터벌 대기)
+      setTimeout(() => {
+        window.dispatchEvent(new CustomEvent('trigger-analysis-poll'));
+      }, 500);
     } catch (error) {
       console.error('Analysis error:', error);
       const message = error instanceof Error ? error.message : '분석 실패';

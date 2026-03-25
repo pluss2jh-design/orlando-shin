@@ -143,21 +143,26 @@ export class StockService {
       progressMessage: '분석 준비 중...'
     });
 
+    const body = (options as any);
+    console.log(`[StockService] startAnalysis raw payload:`, JSON.stringify(body.conditions));
+
     // 4. 백그라운드 엔진 실행 (비동기 - fire & forget)
     console.log(`[StockService] Handing off analysis to engine for user: ${userId}`);
     (async () => {
       try {
         console.log(`[StockService] Engine background task started for user: ${userId}`);
-        const result = await runAnalysisEngine(
-          {
-            amount: 0,
-            sector: options.conditions?.sector,
-            strategyType: options.conditions?.strategyType,
-            asOfDate: options.conditions?.asOfDate ? new Date(options.conditions.asOfDate) : undefined,
-            excludeSP500: options.conditions?.excludeSP500,
-            universeType: options.conditions?.universeType
-          },
+        const engineConditions = {
+          amount: 0,
+          sector: options.conditions?.sector,
+          strategyType: options.conditions?.strategyType,
+          asOfDate: options.conditions?.asOfDate ? new Date(options.conditions.asOfDate) : undefined,
+          excludeSP500: options.conditions?.excludeSP500,
+          universeType: options.conditions?.universeType
+        };
+        console.log(`[StockService] Transmitting conditions to engine:`, JSON.stringify(engineConditions));
 
+        const result = await runAnalysisEngine(
+          engineConditions,
           knowledge,
           options.style || 'moderate',
           options.conditions?.companyCount || 5,
