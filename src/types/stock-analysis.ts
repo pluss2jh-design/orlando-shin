@@ -11,6 +11,7 @@ export interface UploadedFile {
   status: 'pending' | 'uploading' | 'completed' | 'error';
   url?: string;
   parentId?: string;
+  isDriveFile?: boolean; // 구글 드라이브 파일 여부
 }
 
 export interface InvestmentConditions {

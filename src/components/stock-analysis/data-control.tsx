@@ -193,6 +193,7 @@ export function DataControl({ onFilesChange, onSyncStatusChange, onLearningCompl
       size: file.size,
       uploadedAt: new Date(),
       status: 'pending',
+      isDriveFile: false, // 로컬 파일로 표시
     }));
 
     const updatedFiles = [...files, ...uploadedFiles];
@@ -254,6 +255,7 @@ export function DataControl({ onFilesChange, onSyncStatusChange, onLearningCompl
           status: 'completed' as const,
           url: undefined,
           parentId: f.parentId,
+          isDriveFile: true, // 드라이브 파일로 표시
         })
       );
 
@@ -291,15 +293,29 @@ export function DataControl({ onFilesChange, onSyncStatusChange, onLearningCompl
     const confirmed = window.confirm('학습을 위해 AI 모델을 사용하며 비용이 발생할 수 있습니다. 계속하시겠습니까?');
     if (!confirmed) return;
 
-    setIsLearning(true);
-    setLearningStatus('학습 요청을 보내는 중...');
+    const driveOnlyFiles = files.filter(f => f.type !== 'folder' && f.isDriveFile);
+    const localFilesCount = files.length - driveOnlyFiles.length;
+
+    if (driveOnlyFiles.length === 0) {
+      alert('학습을 시작하려면 먼저 구글 드라이브(Google Drive)와 동기화된 파일이 있어야 합니다. 로컬 파일은 직접 구글 드라이브 폴더에 업로드한 후 [동기화] 버튼을 눌러주세요.');
+      setIsLearning(false);
+      return;
+    }
+
+    if (localFilesCount > 0) {
+      const proceed = window.confirm(`현재 리스트에 로컬 파일 ${localFilesCount}개가 포함되어 있습니다. 이 파일들은 구글 드라이브에 없으므로 분석에서 제외됩니다. 계속하시겠습니까?`);
+      if (!proceed) {
+        setIsLearning(false);
+        return;
+      }
+    }
 
     try {
       const response = await fetch('/api/gdrive/learn', { 
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          fileIds: files.filter(f => f.type !== 'folder').map(f => f.id),
+          fileIds: driveOnlyFiles.map(f => f.id),
           aiModels: aiModels,
           title: `Expert Session ${new Date().toLocaleDateString()}`
         })
