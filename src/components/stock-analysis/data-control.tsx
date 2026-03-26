@@ -580,23 +580,43 @@ export function DataControl({ onFilesChange, onSyncStatusChange, onLearningCompl
           </div>
         )}
 
-        <Button 
-          className="w-full h-11 font-bold shadow-lg shadow-primary/20"
-          disabled={files.length === 0 || isLearning}
-          onClick={handleLearn}
-        >
-          {isLearning ? (
-            <>
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              분석 중...
-            </>
-          ) : (
-            <>
-              <Cloud className="mr-2 h-4 w-4 text-white" />
-              원천 데이터 학습 (Learning Event)
-            </>
+        <div className="flex gap-2 w-full">
+          <Button 
+            className="flex-1 h-11 font-bold shadow-lg shadow-primary/20"
+            disabled={files.length === 0 || isLearning}
+            onClick={handleLearn}
+          >
+            {isLearning ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                분석 중...
+              </>
+            ) : (
+              <>
+                <Cloud className="mr-2 h-4 w-4 text-white" />
+                원천 데이터 학습 (Learning Event)
+              </>
+            )}
+          </Button>
+
+          {isLearning && (
+            <Button
+              variant="destructive"
+              className="px-6 h-11 font-black uppercase text-xs tracking-widest shadow-lg shadow-rose-500/20"
+              onClick={async () => {
+                if (confirm('학습을 중단하시겠습니까? 지금까지 분석된 데이터는 취소됩니다.')) {
+                  try {
+                    await fetch('/api/gdrive/learn/cancel', { method: 'POST' });
+                  } catch (err) {
+                    console.error('Cancel failed:', err);
+                  }
+                }
+              }}
+            >
+              STOP
+            </Button>
           )}
-        </Button>
+        </div>
 
         {syncStatus.status !== 'idle' && (
           <div className={cn(

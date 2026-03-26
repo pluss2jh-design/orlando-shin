@@ -32,7 +32,7 @@ export function InvestmentInput({ onAnalyze, disabled, activeKnowledge }: Invest
   const [companyCount, setCompanyCount] = useState(5);
   const [selectedTimeId, setSelectedTimeId] = useState('now');
   const [universeType, setUniverseType] = useState<'sp500' | 'russell1000' | 'russell1000_exclude_sp500'>('russell1000_exclude_sp500');
-  const [selectedModel, setSelectedModel] = useState<string>('gemini-1.5-flash');
+  const [selectedModel, setSelectedModel] = useState<string>('');
   const [availableModels, setAvailableModels] = useState<any[]>([]);
   const [userFeatures, setUserFeatures] = useState<{
     plan: string;
@@ -68,6 +68,11 @@ export function InvestmentInput({ onAnalyze, disabled, activeKnowledge }: Invest
   }, []);
 
   const handleAnalyze = () => {
+    if (!selectedModel) {
+      alert('분석에 사용할 AI 모델을 선택해주세요.');
+      return;
+    }
+
     const timeOffset = TIME_OFFSETS.find(t => t.id === selectedTimeId);
     let asOfDate: Date | undefined = undefined;
     
@@ -81,6 +86,7 @@ export function InvestmentInput({ onAnalyze, disabled, activeKnowledge }: Invest
       companyCount,
       asOfDate,
       universeType,
+      excludeSP500: universeType === 'russell1000_exclude_sp500',
       newsAiModel: selectedModel,
     });
   };
@@ -211,8 +217,11 @@ export function InvestmentInput({ onAnalyze, disabled, activeKnowledge }: Invest
         {/* 메인 스캔 버튼 */}
         <Button
           onClick={handleAnalyze}
-          disabled={disabled || isLimitReached}
-          className="flex-1 lg:flex-none lg:min-w-[160px] h-12 bg-black hover:bg-gray-800 text-white font-black shadow-lg shadow-black/10 transition-all transform hover:-translate-y-0.5 active:scale-[0.99] rounded-xl text-sm gap-2 px-6 uppercase tracking-widest"
+          disabled={disabled || isLimitReached || !selectedModel}
+          className={cn(
+            "flex-1 lg:flex-none lg:min-w-[160px] h-12 font-black shadow-lg transition-all transform hover:-translate-y-0.5 active:scale-[0.99] rounded-xl text-sm gap-2 px-6 uppercase tracking-widest",
+            !selectedModel ? "bg-gray-200 text-gray-400 cursor-not-allowed" : "bg-black hover:bg-gray-800 text-white shadow-black/10"
+          )}
         >
           <Sparkles className="h-4 w-4" />
           {disabled ? 'Scanning...' : 'Scan Alpha'}

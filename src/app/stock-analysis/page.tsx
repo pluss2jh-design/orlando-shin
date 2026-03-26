@@ -320,6 +320,22 @@ export default function StockAnalysisPage() {
     }
   };
 
+  const handleStopAnalysis = async () => {
+    if (!confirm('분석을 중단하시겠습니까? 지금까지의 진행 상황이 초기화됩니다.')) return;
+    
+    try {
+      await fetch('/api/analysis/cancel', { method: 'POST' });
+      setAnalysisState(prev => ({
+        ...prev,
+        isAnalyzing: false,
+        error: '사용자에 의해 분석이 중단되었습니다.',
+        progress: 0
+      }));
+    } catch (err) {
+      console.error('Stop analysis failed:', err);
+    }
+  };
+
   // ── 로딩/미인증 상태 ──
   if (status === 'loading') {
     return (
@@ -535,13 +551,21 @@ export default function StockAnalysisPage() {
 
                   <span className="text-2xl font-black text-blue-600 tabular-nums">{analysisState.progress}%</span>
                 </div>
-                <div className="w-full bg-gray-100 rounded-full h-3 overflow-hidden">
+                <div className="w-full bg-gray-100 rounded-full h-3 overflow-hidden relative">
                   <div
                     className="bg-gradient-to-r from-blue-500 to-blue-400 h-3 rounded-full transition-all duration-300 ease-out"
                     style={{ width: `${analysisState.progress}%` }}
                   />
                 </div>
               </div>
+              <Button
+                variant="destructive"
+                size="sm"
+                className="ml-4 h-10 px-4 font-black uppercase text-[10px] tracking-widest rounded-xl shadow-lg shadow-rose-500/10"
+                onClick={handleStopAnalysis}
+              >
+                STOP
+              </Button>
             </div>
           </div>
         )}

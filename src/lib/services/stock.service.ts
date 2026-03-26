@@ -28,6 +28,7 @@ interface AnalysisJobStatus {
     sp500Count: number;
     overlapCount: number;
   };
+  isCancelled?: boolean;
 }
 
 
@@ -140,7 +141,8 @@ export class StockService {
       status: 'processing',
       startedAt: new Date(),
       progress: 0,
-      progressMessage: '분석 준비 중...'
+      progressMessage: '분석 준비 중...',
+      isCancelled: false
     });
 
     const body = (options as any);
@@ -171,6 +173,9 @@ export class StockService {
           (progress, message, meta) => {
             const currentJob = userAnalysisJobs.get(userId);
             if (currentJob && currentJob.status === 'processing') {
+              if (currentJob.isCancelled) {
+                throw new Error('STOPPED_BY_USER');
+              }
               userAnalysisJobs.set(userId, {
                 ...currentJob,
                 progress,
@@ -201,6 +206,17 @@ export class StockService {
 
 
       } catch (error) {
+        if (error instanceof Error && error.message === 'STOPPED_BY_USER') {
+          console.log(`[StockService] Analysis manually stopped by user: ${userId}`);
+          userAnalysisJobs.set(userId, {
+            status: 'error',
+            error: '사용자에 의해 분석이 중단되었습니다.',
+            startedAt: new Date(),
+            isCancelled: true
+          });
+          return;
+        }
+
         console.error('분석 엔진 오류:', error);
         userAnalysisJobs.set(userId, {
           status: 'error',
@@ -211,6 +227,22 @@ export class StockService {
     })();
 
     return { status: 'started' };
+  }
+
+  /**
+   * 진행 중인 분석을 중단합니다.
+   */
+  static async stopAnalysis(userId: string) {
+    const job = userAnalysisJobs.get(userId);
+    if (job && job.status === 'processing') {
+      userAnalysisJobs.set(userId, {
+        ...job,
+        isCancelled: true,
+        progressMessage: '중단 요청 중...'
+      });
+      return { success: true };
+    }
+    return { success: false, message: '진행 중인 분석이 없습니다.' };
   }
 
   /**
