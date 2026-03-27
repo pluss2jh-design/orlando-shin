@@ -16,6 +16,14 @@ try {
 }
 
 /**
+ * 티커 심볼을 표준화합니다 (예: BRK.B -> BRK-B)
+ */
+export function normalizeTicker(ticker: string): string {
+  if (!ticker) return '';
+  return ticker.trim().toUpperCase().replace(/\./g, '-');
+}
+
+/**
  * 전세계 시장 거시 지표를 가져와 분석합니다.
  */
 export async function fetchMarketMacroContext(asOfDate?: Date): Promise<MacroContext> {
@@ -28,11 +36,19 @@ export async function fetchMarketMacroContext(asOfDate?: Date): Promise<MacroCon
     period1.setMonth(period1.getMonth() - 1);
     const period1Str = period1.toISOString().split('T')[0];
 
-    const symbols = ['^VIX', '^TNX', '^GSPC'];
+    // 병렬로 데이터 수집하되, 하나라도 멈추는 것을 방지하기 위해 개별 타임아웃 고려
+    // yahoo-finance2는 내부적으로 fetch를 사용하므로 g_timeout 등을 활용할 수 있음
+    const symbols = ['^VIX', '^TNX', '^IRX', '^TYX', '^GSPC'];
     
     const results = await Promise.all(symbols.map(async (s) => {
       try {
-        const chart = await yahooFinance.chart(s, { period1: period1Str, period2: effectiveEndStr, interval: '1d' }, { validateResult: false }) as any;
+        // chart 호출 시 validateResult: false로 하여 엄격한 검증 생략 (속도 개선)
+        const chart = await yahooFinance.chart(s, { 
+          period1: period1Str, 
+          period2: effectiveEndStr, 
+          interval: '1d' 
+        }, { validateResult: false }) as any;
+        
         const quotes = chart?.quotes || [];
         // asOfDate 이전 또는 당일 마지막 데이터 찾기
         const past = quotes.filter((q: any) => q.close != null && q.date <= effectiveEnd).sort((a: any, b: any) => b.date.getTime() - a.date.getTime());
@@ -166,14 +182,26 @@ export async function analyzeStockSentiment(
       const geminiApiKey = apiKey || process.env.GEMINI_API_KEY;
       if (!geminiApiKey) throw new Error('GEMINI_API_KEY is missing');
       
-      const genAI = new GoogleGenAI({ apiKey: geminiApiKey });
-      const modelName = aiModel.includes('/') ? aiModel : `models/${aiModel}`;
-      
-      const result = await genAI.models.generateContent({
-        model: modelName,
-        contents: [{ role: 'user', parts: [{ text: prompt }] }] as any
+      const genAI = new GoogleGenAI({ 
+        apiKey: geminiApiKey,
+        // apiVersion: 'v1' // 필요 시 v1 지정
       });
-      text = (result as any).text || '';
+      
+      // `@google/genai`는 모델명에서 'models/' 유무를 신중하게 다뤄야 함
+      // listResources 확인 결과 'models/gemini-1.5-flash'가 정식 명칭임
+      const modelName = aiModel.startsWith('models/') ? aiModel : `models/${aiModel}`;
+      
+      try {
+        const result = await genAI.models.generateContent({
+          model: modelName,
+          contents: [{ role: 'user', parts: [{ text: prompt }] }] as any
+        });
+        text = (result as any).text || '';
+      } catch (aiErr: any) {
+        console.error(`[AI_ERROR] Gemini call failed for ${ticker}:`, aiErr);
+        // 사용자에게 노출되지 않도록 로그파일에만 남김
+        throw aiErr;
+      }
     }
     
     // JSON 추출
@@ -261,13 +289,20 @@ export async function predictStockGrowth(
       if (!geminiApiKey) throw new Error('GEMINI_API_KEY is missing');
       
       const genAI = new GoogleGenAI({ apiKey: geminiApiKey });
-      const modelName = aiModel.includes('/') ? aiModel : `models/${aiModel}`;
+      const modelName = aiModel.startsWith('models/') ? aiModel : `models/${aiModel}`;
       
-      const result = await genAI.models.generateContent({
-        model: modelName,
-        contents: [{ role: 'user', parts: [{ text: prompt }] }] as any
-      });
-      text = (result as any).text || '';
+      console.log(`[AI] Calling Gemini with model: ${modelName}`);
+      
+      try {
+        const result = await genAI.models.generateContent({
+          model: modelName,
+          contents: [{ role: 'user', parts: [{ text: prompt }] }] as any
+        });
+        text = (result as any).text || '';
+      } catch (aiErr: any) {
+        console.error(`[AI_ERROR] Prediction failed for ${ticker}:`, aiErr);
+        throw aiErr;
+      }
     }
     
     const jsonMatch = text.match(/\{[\s\S]*\}/);
@@ -365,13 +400,18 @@ export async function generateExpertVerdict(
       if (!geminiApiKey) throw new Error('GEMINI_API_KEY is missing');
       
       const genAI = new GoogleGenAI({ apiKey: geminiApiKey });
-      const modelName = aiModel.includes('/') ? aiModel : `models/${aiModel}`;
+      const modelName = aiModel.startsWith('models/') ? aiModel : `models/${aiModel}`;
       
-      const result = await genAI.models.generateContent({
-        model: modelName,
-        contents: [{ role: 'user', parts: [{ text: prompt }] }] as any
-      });
-      text = (result as any).text || '';
+      try {
+        const result = await genAI.models.generateContent({
+          model: modelName,
+          contents: [{ role: 'user', parts: [{ text: prompt }] }] as any
+        });
+        text = (result as any).text || '';
+      } catch (aiErr: any) {
+        console.error(`[AI_ERROR] Verdict failed for ${ticker}:`, aiErr);
+        throw aiErr;
+      }
     }
 
     const jsonMatch = text.match(/\{[\s\S]*\}/);

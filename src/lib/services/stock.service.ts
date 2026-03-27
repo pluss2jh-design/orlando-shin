@@ -140,37 +140,33 @@ export class StockService {
     userAnalysisJobs.set(userId, {
       status: 'processing',
       startedAt: new Date(),
-      progress: 0,
-      progressMessage: '분석 준비 중...',
+      progress: 1, // 0%에서 멈춘 것처럼 보이지 않게 즉시 1%로 시작
+      progressMessage: '분석 엔진 초기화 중...',
       isCancelled: false
     });
 
-    const body = (options as any);
-    console.log(`[StockService] startAnalysis raw payload:`, JSON.stringify(body.conditions));
-
     // 4. 백그라운드 엔진 실행 (비동기 - fire & forget)
     console.log(`[StockService] Handing off analysis to engine for user: ${userId}`);
+    // 분석 백그라운드 태스크 시작
     (async () => {
+      console.log(`[StockService] Engine background task started for user: ${userId}`);
       try {
-        console.log(`[StockService] Engine background task started for user: ${userId}`);
-        const engineConditions = {
-          amount: 0,
-          sector: options.conditions?.sector,
-          strategyType: options.conditions?.strategyType,
-          asOfDate: options.conditions?.asOfDate ? new Date(options.conditions.asOfDate) : undefined,
-          excludeSP500: options.conditions?.excludeSP500,
-          universeType: options.conditions?.universeType
-        };
-        console.log(`[StockService] Transmitting conditions to engine:`, JSON.stringify(engineConditions));
+        // 이미 route.ts에서 nested 구조로 정규화해서 옴
+        const conditions = options.conditions || (options as any);
+        console.log(`[StockService] Transmitting conditions to engine:`, JSON.stringify(conditions));
 
         const result = await runAnalysisEngine(
-          engineConditions,
+          {
+            ...conditions,
+            amount: 0, // 기본값 강제
+            asOfDate: conditions?.asOfDate ? new Date(conditions.asOfDate) : undefined,
+          },
           knowledge,
           options.style || 'moderate',
-          options.conditions?.companyCount || 5,
-          options.conditions?.newsAiModel,
-          options.conditions?.newsApiKey,
-          (progress, message, meta) => {
+          conditions?.companyCount || 5,
+          conditions?.newsAiModel,
+          conditions?.newsApiKey,
+          (progress: number, message: string, meta?: any) => {
             const currentJob = userAnalysisJobs.get(userId);
             if (currentJob && currentJob.status === 'processing') {
               if (currentJob.isCancelled) {
@@ -180,8 +176,8 @@ export class StockService {
                 ...currentJob,
                 progress,
                 progressMessage: message,
-                excludedStockCount: meta?.excludedStockCount ?? currentJob.excludedStockCount,
-                excludedDetails: meta?.excludedDetails ?? currentJob.excludedDetails,
+                excludedStockCount: meta?.excludedStockCount || currentJob.excludedStockCount,
+                excludedDetails: meta?.excludedDetails || currentJob.excludedDetails,
               });
             }
           }

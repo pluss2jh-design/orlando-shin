@@ -56,7 +56,20 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: '로그인이 필요합니다.' }, { status: 401 });
     }
 
-    const body = (await request.json()) as AnalysisRequestBody;
+    const rawBody = (await request.json()) as any;
+    console.log(`[API] POST /api/analysis - Received body:`, JSON.stringify(rawBody));
+
+    // Flat body -> Nested body 변환 지원 (강력한 호환성 확보)
+    let body: AnalysisRequestBody;
+    if (rawBody.conditions) {
+      body = rawBody;
+    } else {
+      body = {
+        style: rawBody.style || 'moderate',
+        conditions: { ...rawBody }
+      };
+      delete (body.conditions as any).style;
+    }
 
     // 기본 뉴스 스캔 AI 모델 설정 (환경변수에서 읽어옴)
     if (body.conditions && !body.conditions.newsAiModel && process.env.NEWS_SCAN_AI_MODEL) {

@@ -13,8 +13,9 @@ const CLAUDE_MODELS = [
 export async function GET() {
     try {
         const session = await auth();
-        if (session?.user?.role !== 'ADMIN') {
-            return NextResponse.json({ error: '권한이 없습니다' }, { status: 403 });
+        // 인증 체크 (로그인한 모든 사용자가 모델 목록을 볼 수 있도록 허용 - 일반 사용자도 모델 선택 필요하므로)
+        if (!session?.user?.id) {
+            return NextResponse.json({ error: '로그인이 필요합니다' }, { status: 401 });
         }
 
         const models: any[] = [];
@@ -32,7 +33,9 @@ export async function GET() {
                         reqKey: 'OPENAI_API_KEY', 
                         provider: 'openai',
                         supportsPDF: m.id.includes('4o'), // gpt-4o 계열만 PDF 지원 간주
-                        supportsVideo: false 
+                        supportsVideo: false,
+                        isRecommendedForLearning: m.id.includes('4o') && !m.id.includes('mini'),
+                        isRecommendedForNews: m.id.includes('mini')
                     })));
             } catch (err) {
                 console.error('OpenAI 모델 목록 조회 오류:', err);
@@ -46,21 +49,22 @@ export async function GET() {
                 const data = await response.json();
                 if (data.models) {
                     const geminiModels = data.models
-                        .filter((m: any) => m.supportedGenerationMethods?.includes('generateContent'))
+                        .filter((m: any) => (m.supportedGenerationMethods || []).includes('generateContent'))
                         .map((m: any) => {
-                            const name = m.name.replace('models/', '').toLowerCase();
-                            // 'generateContent'가 가능하면 기본적으로 텍스트/이미지/PDF 등 멀티모달 지원으로 간주 (Gemini 정책)
+                            const rawId = m.name.replace('models/', '');
+                            const name = rawId.toLowerCase();
                             const isGeminiModel = name.includes('gemini');
-                            const hasGenerateContent = m.supportedGenerationMethods?.includes('generateContent');
+                            const hasGenerateContent = (m.supportedGenerationMethods || []).includes('generateContent');
+                            
                             return {
-                                value: m.name.replace('models/', ''),
-                                label: m.displayName || m.name.replace('models/', ''),
+                                value: rawId,
+                                label: m.displayName || rawId,
                                 reqKey: 'GEMINI_API_KEY',
                                 provider: 'google',
-                                // Gemini- 계열 중 generateContent 역량이 있으면 PDF(멀티모달) 지원으로 간주
                                 supportsPDF: isGeminiModel && hasGenerateContent,
-                                // 비디오는 보통 Flash나 Pro 급 이상에서 지원하므로 이름 기반 추론 (버전 숫자 무관)
                                 supportsVideo: isGeminiModel && hasGenerateContent && (name.includes('flash') || name.includes('pro')),
+                                isRecommendedForLearning: name.includes('pro'),
+                                isRecommendedForNews: name.includes('flash') && !name.includes('8b')
                             };
                         });
                     models.push(...geminiModels);

@@ -30,7 +30,9 @@ interface AIModel {
     reqKey: string;
     supportsPDF: boolean;
     supportsVideo: boolean;
-    provider: string; // 추가됨
+    provider: string;
+    isRecommendedForLearning?: boolean;
+    isRecommendedForNews?: boolean;
 }
 
 export default function SettingsPage() {
@@ -320,7 +322,14 @@ export default function SettingsPage() {
                                                 className="text-white hover:bg-gray-800 cursor-pointer"
                                             >
                                                 <div className="flex items-center justify-between gap-4 w-full">
-                                                    <span>{model.label}</span>
+                                                    <div className="flex items-center gap-2">
+                                                        <span>{model.label}</span>
+                                                        {model.isRecommendedForNews && (
+                                                            <Badge variant="secondary" className="bg-blue-500/10 text-blue-400 border-blue-500/20 text-[9px] h-4 px-1.5 font-bold">
+                                                                추천
+                                                            </Badge>
+                                                        )}
+                                                    </div>
                                                     {!isRegistered && (
                                                         <Badge variant="outline" className="text-[10px] border-red-500/50 text-red-500">
                                                             API 키 미등록

@@ -84,9 +84,9 @@ export async function resolveTickerSymbol(
 }
 
 export async function fetchBatchQuotes(tickers: string[]): Promise<YahooFinanceData[]> {
+  console.log(`[Yahoo] Fetching batch quotes for ${tickers.length} tickers...`);
   const quotes = await yahooFinance.quote(tickers, {}, { validateResult: false });
   const results: YahooFinanceData[] = [];
-
 
   for (const q of quotes) {
     const currency = detectTickerCurrency(q.symbol, q.currency);

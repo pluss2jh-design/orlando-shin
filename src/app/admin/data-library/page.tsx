@@ -74,6 +74,8 @@ interface AIModel {
     reqKey: string;
     supportsPDF: boolean;
     supportsVideo: boolean;
+    isRecommendedForLearning?: boolean;
+    isRecommendedForNews?: boolean;
 }
 
 /** API 키 정보 */
@@ -117,7 +119,14 @@ const ModelSelector = ({ ext, currentModel, models, keys, onSelect }: { ext: str
                         return (
                             <SelectItem key={model.value} value={model.value} disabled={!hasKey} className="text-white focus:bg-gray-800">
                                 <div className="flex items-center justify-between w-full gap-4">
-                                    <span>{model.label}</span>
+                                    <div className="flex items-center gap-2">
+                                        <span>{model.label}</span>
+                                        {model.isRecommendedForLearning && (
+                                            <Badge variant="secondary" className="bg-green-500/10 text-green-400 border-green-500/20 text-[9px] h-4 px-1.5 font-bold">
+                                                추천
+                                            </Badge>
+                                        )}
+                                    </div>
                                     {!hasKey && <span className="text-[10px] text-rose-500">API 키 미등록</span>}
                                 </div>
                             </SelectItem>

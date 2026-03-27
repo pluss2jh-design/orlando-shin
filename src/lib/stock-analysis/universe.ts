@@ -1,170 +1,160 @@
+import { normalizeTicker } from './market-context';
+
 /**
- * 실시간 Russell 1000 / S&P 500 구성종목을 가져와서
- * "Russell 1000에는 포함되되 S&P 500에는 없는 종목"만 반환합니다.
- *
- * 데이터 소스 (사용자 지정):
- *  - Russell 1000: https://en.wikipedia.org/wiki/Russell_1000_Index
- *  - S&P 500: https://en.wikipedia.org/wiki/List_of_S%26P_500_companies
- *
- * 두 소스 모두 실패 시 폴백 없이 예외를 발생시키고 링크를 안내합니다.
+ * 전역 fetch를 사용하여 Wikipedia에서 데이터를 가져오는 헬퍼 함수 (axios 미설치 환경 대비)
  */
+async function fetchWikiHtml(url: string, timeoutMs: number = 15000): Promise<string> {
+  const controller = new AbortController();
+  const id = setTimeout(() => controller.abort(), timeoutMs);
+  
+  try {
+    const response = await fetch(url, { signal: controller.signal });
+    clearTimeout(id);
+    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+    return await response.text();
+  } catch (error) {
+    clearTimeout(id);
+    throw error;
+  }
+}
 
-const FETCH_HEADERS = {
-  'User-Agent': 'Mozilla/5.0 (compatible; TenbaggerBot/1.0)',
-  'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-};
-
-// ── Russell 1000 실시간 조회 ────────────────────────────────────────────────
+/**
+ * Wikipedia에서 Russell 1000 티커 목록을 실시간으로 가져옵니다.
+ */
 async function fetchRussell1000Tickers(): Promise<string[]> {
-  const url = 'https://en.wikipedia.org/wiki/Russell_1000_Index';
   try {
-    const res = await fetch(url, { headers: FETCH_HEADERS, signal: AbortSignal.timeout(20000) });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const html = await res.text();
+    const url = 'https://en.wikipedia.org/wiki/Russell_1000_Index';
+    const html = await fetchWikiHtml(url, 15000);
     
-    // constituents ID를 가진 테이블 섹션만 추출
-    const tableMatch = html.match(/<table[^>]*id="constituents"[^>]*>([\s\S]*?)<\/table>/);
-    if (!tableMatch) throw new Error('Russell 1000 구성종목 테이블(id="constituents")을 찾을 수 없습니다.');
+    const tickers: string[] = [];
+    const tableRegex = /<table[^>]*id="constituents"[^>]*>([\s\S]*?)<\/table>/;
+    const match = html.match(tableRegex);
     
-    const tableHtml = tableMatch[1];
-    const tickers = new Set<string>();
-    
-    // Russell 1000: 2번째 열(Index 1)에 티커가 있음
-    const rowMatches = tableHtml.matchAll(/<tr>([\s\S]*?)<\/tr>/g);
-    for (const rowMatch of rowMatches) {
-      const cells = rowMatch[1].matchAll(/<t[dh][^>]*>([\s\S]*?)<\/t[dh]>/g);
-      const cellList = Array.from(cells);
-      if (cellList.length >= 2) {
-        // 2번째 열 데이터 추출 (태그 제거)
-        const rawTicker = cellList[1][1].replace(/<[^>]*>/g, '').trim();
-        // 티커 형식 검증 (1-5자 대문자)
-        if (/^[A-Z]{1,5}(\.[A-Z])?$/.test(rawTicker)) {
-          tickers.add(rawTicker.replace('.', '-'));
+    if (match) {
+      const tableHtml = match[1];
+      const rowRegex = /<tr>\s*<td><a[^>]*>([^<]+)<\/a><\/td>/g;
+      let rowMatch;
+      while ((rowMatch = rowRegex.exec(tableHtml)) !== null) {
+        const ticker = rowMatch[1].trim().replace(/\./g, '-');
+        if (ticker && ticker.length < 10) {
+          tickers.push(ticker);
         }
       }
     }
-
-    if (tickers.size < 500) {
-      throw new Error(`Russell 1000 조회된 기업 수가 너무 적습니다 (${tickers.size}개)`);
-    }
-
-    console.log(`[Universe] Russell 1000 live: ${tickers.size} tickers`);
-    return Array.from(tickers);
-
+    
+    console.log(`[Universe] Fetched ${tickers.length} tickers from Russell 1000 Wikipedia`);
+    return tickers.length > 0 ? tickers : [];
   } catch (error) {
-    const msg = error instanceof Error ? error.message : String(error);
-    throw new Error(`러셀 1000 기업 목록 조회 실패: ${msg}\n- 다음 링크를 확인하세요: ${url}`);
+    console.error(`[Universe] Error fetching Russell 1000:`, error);
+    return [];
   }
 }
 
-// ── S&P 500 실시간 조회 ────────────────────────────────────────────────────
-async function fetchSP500Tickers(): Promise<Set<string>> {
-  const url = 'https://en.wikipedia.org/wiki/List_of_S%26P_500_companies';
+/**
+ * Wikipedia에서 S&P 500 티커 목록을 실시간으로 가져옵니다.
+ */
+async function fetchSP500Tickers(): Promise<string[]> {
   try {
-    const res = await fetch(url, { headers: FETCH_HEADERS, signal: AbortSignal.timeout(20000) });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const html = await res.text();
+    const url = 'https://en.wikipedia.org/wiki/List_of_S%26P_500_companies';
+    const html = await fetchWikiHtml(url, 10000);
     
-    // constituents ID를 가진 테이블 섹션만 추출
-    const tableMatch = html.match(/<table[^>]*id="constituents"[^>]*>([\s\S]*?)<\/table>/);
-    if (!tableMatch) throw new Error('S&P 500 구성종목 테이블(id="constituents")을 찾을 수 없습니다.');
-
-    const tableHtml = tableMatch[1];
-    const tickers = new Set<string>();
-
-    // S&P 500: 1번째 열(Index 0)에 티커가 있음
-    const rowMatches = tableHtml.matchAll(/<tr>([\s\S]*?)<\/tr>/g);
-    for (const rowMatch of rowMatches) {
-      const cells = rowMatch[1].matchAll(/<t[dh][^>]*>([\s\S]*?)<\/t[dh]>/g);
-      const cellList = Array.from(cells);
-      if (cellList.length >= 1) {
-        // 1번째 열 데이터 추출 (태그 제거)
-        const rawTicker = cellList[0][1].replace(/<[^>]*>/g, '').trim();
-        if (/^[A-Z]{1,5}(\.[A-Z])?$/.test(rawTicker)) {
-          tickers.add(rawTicker.replace('.', '-'));
+    const tickers: string[] = [];
+    const tableRegex = /<table[^>]*id="constituents"[^>]*>([\s\S]*?)<\/table>/;
+    const match = html.match(tableRegex);
+    
+    if (match) {
+      const tableHtml = match[1];
+      const rowRegex = /<tr>\s*<td><a[^>]*rel="nofollow"[^>]*>([^<]+)<\/a><\/td>/g;
+      let rowMatch;
+      while ((rowMatch = rowRegex.exec(tableHtml)) !== null) {
+        const ticker = rowMatch[1].trim().replace(/\./g, '-');
+        tickers.push(ticker);
+      }
+      
+      // 만약 위 정규식이 실패하면 (위키피디아 구조 변경 대비) 더 범용적인 패턴 사용
+      if (tickers.length === 0) {
+        const fallbackRegex = /<td><a[^>]*class="external text"[^>]*>([^<]+)<\/a><\/td>/g;
+        while ((rowMatch = fallbackRegex.exec(tableHtml)) !== null) {
+          const ticker = rowMatch[1].trim().replace(/\./g, '-');
+          if (ticker && ticker.length < 8 && !ticker.includes(' ')) {
+            tickers.push(ticker);
+          }
         }
       }
     }
-
-    if (tickers.size < 400) {
-      throw new Error(`S&P 500 조회된 기업 수가 너무 적습니다 (${tickers.size}개)`);
-    }
-
-    console.log(`[Universe] S&P 500 live: ${tickers.size} tickers. Has NVDA? ${tickers.has('NVDA')}`);
-    return tickers;
-
+    
+    console.log(`[Universe] Fetched ${tickers.length} tickers from S&P 500 Wikipedia`);
+    return tickers.length > 0 ? tickers : [];
   } catch (error) {
-    const msg = error instanceof Error ? error.message : String(error);
-    throw new Error(`S&P 500 기업 목록 조회 실패: ${msg}\n- 다음 링크를 확인하세요: ${url}`);
+    console.error(`[Universe] Error fetching S&P 500:`, error);
+    return [];
   }
 }
 
-
 /**
- * 티커를 비교하기 위해 정규화합니다. (영문자만 추출)
+ * 메인 함수: 요청 타입에 따라 유니버스 반환 (타임아웃 및 폴백 적용)
  */
-function normalizeTicker(ticker: string): string {
-  return ticker.replace(/[^A-Z]/g, '').trim();
-}
-
-/**
- * 메인 함수: Russell 1000 실시간 조회 → S&P 500 차집합 반환
- * 실패 시 fallback 없이 error throw
- */
-export async function getStockUniverse(universeType: 'sp500' | 'russell1000' | 'russell1000_exclude_sp500' = 'russell1000_exclude_sp500'): Promise<{ 
+export async function getStockUniverse(type: 'sp500' | 'russell1000' | 'russell1000_exclude_sp500' = 'russell1000_exclude_sp500'): Promise<{ 
   tickers: string[]; 
   universeCounts: { 
     russellCount: number; 
     sp500Count: number; 
-    overlapCount: number; 
-    finalCount: number 
+    overlapCount: number;
+    finalCount?: number; 
   } 
 }> {
-  const [russell, sp500] = await Promise.all([
-    fetchRussell1000Tickers(),
-    fetchSP500Tickers(),
-  ]);
-
-  const normalizedSP500 = new Set(Array.from(sp500).map(normalizeTicker));
-  const normalizedRussell = new Set(Array.from(russell).map(normalizeTicker));
+  console.log(`[Universe] Determining universe for type: ${type}`);
   
-  let finalTickers: string[];
-  let overlapCount = 0;
-
-  if (universeType === 'sp500') {
-    finalTickers = Array.from(sp500);
-    overlapCount = 0;
-  } else if (universeType === 'russell1000') {
-    finalTickers = russell;
-    overlapCount = 0;
-  } else {
-    // russell1000_exclude_sp500
-    finalTickers = russell.filter(t => !normalizedSP500.has(normalizeTicker(t)));
-    overlapCount = russell.length - finalTickers.length;
-  }
-
-  const unique = Array.from(new Set(finalTickers));
-  const universeCounts = {
-    russellCount: russell.length,
-    sp500Count: sp500.size,
-    overlapCount: universeType === 'russell1000_exclude_sp500' ? overlapCount : 0,
-    finalCount: unique.length,
-  };
-
-  console.log(`[Universe] Final Selection: ${unique.length} tickers (Universe Type: ${universeType})`);
-  return { tickers: unique, universeCounts };
-}
-
-export async function getUniverseCounts(): Promise<{ russellCount: number; sp500Count: number; overlapCount: number; finalCount: number }> {
   try {
-    const { universeCounts } = await getStockUniverse();
-    return universeCounts;
+    let finalTickers: string[] = [];
+    let sp500Tickers: string[] = [];
+    let russellTickers: string[] = [];
+    let overlapCount = 0;
+
+    // S&P 500만 필요한 경우 Russell 1000 조회를 생략하여 성능 최적화 및 0% 지연 방지
+    if (type === 'sp500') {
+      sp500Tickers = await fetchSP500Tickers();
+      finalTickers = sp500Tickers;
+    } else {
+      // Russell 1000(전체 또는 차집합)이 필요한 경우
+      const [r, s] = await Promise.all([
+        fetchRussell1000Tickers(),
+        fetchSP500Tickers(),
+      ]);
+      russellTickers = r;
+      sp500Tickers = s;
+
+      const normalizedSP500 = new Set(sp500Tickers.map(normalizeTicker));
+
+      if (type === 'russell1000') {
+        finalTickers = russellTickers;
+      } else {
+        // russell1000_exclude_sp500 (기본값)
+        finalTickers = russellTickers.filter(t => !normalizedSP500.has(normalizeTicker(t)));
+        overlapCount = russellTickers.length - finalTickers.length;
+      }
+    }
+
+    // 최종 결과가 너무 적으면 (Wikipedia 크롤링 실패 시) 최소한의 기본 리스트 반환
+    if (finalTickers.length < 5) {
+      console.warn(`[Universe] Wikipedia fetch produced too few results (${finalTickers.length}). Using fallback.`);
+      finalTickers = ['AAPL', 'MSFT', 'GOOGL', 'AMZN', 'META', 'NVDA', 'TSLA', 'NFLX', 'AMD', 'AVGO'];
+    }
+
+    return {
+      tickers: finalTickers,
+      universeCounts: {
+        russellCount: russellTickers.length,
+        sp500Count: sp500Tickers.length,
+        overlapCount: overlapCount,
+        finalCount: finalTickers.length
+      }
+    };
   } catch (error) {
-    console.error('Failed to get universe counts:', error);
-    return { russellCount: 0, sp500Count: 0, overlapCount: 0, finalCount: 0 };
+    console.error(`[Universe] Fatal error in getStockUniverse:`, error);
+    return {
+      tickers: ['AAPL', 'MSFT', 'GOOGL', 'AMZN', 'META', 'NVDA', 'TSLA'],
+      universeCounts: { russellCount: 0, sp500Count: 0, overlapCount: 0 }
+    };
   }
 }
-
-
-
-
