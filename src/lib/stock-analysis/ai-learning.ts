@@ -54,12 +54,13 @@ export function resetLearningStatus(totalCount: number = 0, force: boolean = fal
                   learningStatus.startTime && 
                   (Date.now() - new Date(learningStatus.startTime).getTime()) > STALE_THRESHOLD_MS;
 
-  if (learningStatus.isLearning && !force && !isStale) {
+  // 이미 취소된 상태(isCancelled)이거나 너무 오래된 상태(isStale)인 경우 혹은 강제(force)인 경우 진행 허용
+  if (learningStatus.isLearning && !force && !isStale && !learningStatus.isCancelled) {
     throw new Error('현재 다른 학습이 진행 중입니다. 잠시 후 다시 시도해주세요.');
   }
 
   learningStatus.isLearning = true;
-  learningStatus.isCancelled = false;
+  learningStatus.isCancelled = false; // 새 학습 시작 시 취소 플래그 초기화
   learningStatus.startTime = new Date();
   learningStatus.error = null;
   learningStatus.message = '학습 초기화 중...';
@@ -69,8 +70,11 @@ export function resetLearningStatus(totalCount: number = 0, force: boolean = fal
 }
 
 export function cancelLearningPipeline() {
-  if (learningStatus.isLearning) {
+  if (learningStatus.isLearning || learningStatus.message?.includes('분석 중')) {
     learningStatus.isCancelled = true;
+    learningStatus.isLearning = false; // 즉시 false로 설정하여 UI 및 재신청 허용
+    learningStatus.message = '학습이 사용자에 의해 중지되었습니다.';
+    console.log('[Learning] Cancellation requested and status reset.');
   }
 }
 
@@ -141,11 +145,12 @@ export async function runLearningPipeline(
   targetFileIds?: string[],
   aiModels?: Record<string, string>
 ): Promise<LearnedKnowledge> {
-  // 학습 시작 시 상태 초기화 (이미 StockService에서 호출되었을 수 있으나 안정성 위해 한 번 더)
-  if (!learningStatus.isLearning) {
+  // 내부 추적용 시작 시간 (세션 구분용)
+  if (!learningStatus.startTime) {
     resetLearningStatus(targetFileIds?.length || 0);
   }
-  
+  const myStartTime = learningStatus.startTime!;
+
   learningStatus.message = '학습 대상 파일 분석 중...';
 
   try {
@@ -355,7 +360,16 @@ export async function runLearningPipeline(
     console.log(`[Learning] File analyses complete. Starting strategy synthesis...`);
     learningStatus.message = '개별 분석 결과 기반 종합 투자 전략 도출 중...';
 
-    const docConditions = fileAnalyses.flatMap(fa => fa.keyConditions).join('\n');
+    // 개별 파일 분석 결과들을 파일명 정보와 함께 문자열화하여 통합
+    const docConditions = fileAnalyses.map(fa => {
+      return fa.keyConditions.map((kc: any) => 
+        JSON.stringify({
+          ...kc,
+          sourceFileName: fa.fileName,
+          sourceType: fa.fileName.toLowerCase().endsWith('.mp4') ? 'mp4' : 'pdf'
+        })
+      ).join('\n');
+    }).join('\n');
     // 전략 도출용 모델 선택 (PDF/문서 모델 우선, 없으면 '전체' 또는 선택된 모델 중 아무거나)
     const strategyModelName = 
       aiModels?.pdf || 
@@ -401,11 +415,13 @@ export async function runLearningPipeline(
  3. **isCritical**: 필수 조건인 경우 True.
  4. **source**: 근거 파일명과 위치 명시.
  
- 추출된 개별 파일 분석 결과들:
+ 추출된 개별 파일 분석 결과들 (파일별 출처 정보 포함):
  ${docConditions}
  
- ### [5. 최종 출력 요구사항 - JSON 규격]
- **반드시 아래 구조로만 응답하세요. 다른 텍스트는 절대 포함하지 마십시오.**
+ ### [5. 최종 출력 요구사항 - 중요]
+ - **fileName**: 반드시 위 목록에 나열된 **실제 파일명** (예: something.mp4, report.pdf) 중 하나를 사용하십시오. 절대 'analysis_doc_1'과 같이 임의로 지어내지 마십시오.
+ - **location**: 원문에 표기된 페이지 번호나 타임스탬프(HH:MM:SS)를 그대로 사용하십시오.
+ - **JSON 규격 (아래 구조로만 응답하세요)**:
  {
    "keyConditionsSummary": "통합 투자 철학 핵심 요약 (5문장 내외)",
    "consensusScore": 0~100,
@@ -431,11 +447,11 @@ export async function runLearningPipeline(
        },
        "isCritical": true|false, 
        "visualEvidence": "시각적 근거 요약",
-       "source": { "fileName": "파일명", "location": "위치(페이지/시간)", "content_snippet": "본문에서 발췌한 실제 문구" }
+       "source": { "fileName": "실제제공된파일명.확장자", "location": "원문위치", "content_snippet": "본문 발췌" }
      }
    ],
    "principles": [
-     { "principle": "원칙 내용", "category": "entry|exit|risk|general", "source": { "fileName": "파일명", "location": "위치(페이지/시간)", "content_snippet": "본문에서 발췌한 실제 문구" } }
+     { "principle": "원칙 내용", "category": "entry|exit|risk|general", "source": { "fileName": "실제제공된파일명.확장자", "location": "원문위치", "content_snippet": "본문 발췌" } }
    ]
  }`;
 
@@ -515,10 +531,12 @@ export async function runLearningPipeline(
     console.error('[Learning] Pipeline fatal error:', err);
     throw err;
   } finally {
-    // 수치(completedFiles, totalFiles 등)는 UI에서 완료 후에도 볼 수 있도록 초기화하지 않고 유지함
-    // 새로운 학습이 시작될 때 위(line 109)에서 초기화됨
-    learningStatus.isLearning = false;
-    learningStatus.isCancelled = false;
+    // 본인의 세션인 경우에만(startTime 일치) 상태를 최종 종료 처리함
+    // 만약 중지 후 새 학습이 시작되었다면 startTime이 달라졌을 것이므로 무시함
+    if (learningStatus.startTime?.getTime() === myStartTime.getTime()) {
+      learningStatus.isLearning = false;
+      learningStatus.isCancelled = false;
+    }
   }
 }
 
