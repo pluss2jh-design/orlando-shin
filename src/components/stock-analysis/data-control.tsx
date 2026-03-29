@@ -186,15 +186,19 @@ export function DataControl({ onFilesChange, onSyncStatusChange, onLearningCompl
   // Poll for learning status
   useEffect(() => {
     let interval: any;
+    let pollCount = 0;
+    
     if (isLearning) {
       interval = setInterval(async () => {
+        pollCount++;
         try {
-          const res = await fetch('/api/admin/learning-status');
+          const res = await fetch('/api/admin/learning-status', { cache: 'no-store' });
           if (res.ok) {
             const data = await res.json();
             setBackendLearningStatus(data);
             
-            if (!data.isLearning) {
+            // Wait for backend to set isLearning: true (Ignore first 2 polls)
+            if (!data.isLearning && pollCount > 2) {
               setIsLearning(false);
               const message = data.error 
                 ? `학습 중단됨: ${data.error}`
@@ -338,6 +342,11 @@ export function DataControl({ onFilesChange, onSyncStatusChange, onLearningCompl
 
       setLearningStatus('학습이 시작되었습니다. 원격 서버에서 진행률을 추적합니다...');
       // Polling is handled by useEffect when isLearning is true
+      // Wait for backend to pick up the task
+      setTimeout(() => {
+        setIsLearning(true);
+      }, 500);
+
     } catch (error) {
       const message = error instanceof Error ? error.message : '학습 실패';
       setLearningStatus(`학습 실패: ${message}`);

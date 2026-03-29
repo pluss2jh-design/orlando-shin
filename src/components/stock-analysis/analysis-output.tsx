@@ -730,13 +730,19 @@ export function AnalysisOutput({ results, conditions, isLoading, onSendEmail }: 
                             : "bg-gray-50/20 border-gray-900 grayscale opacity-40"
                         )}>
                           <div className="flex items-center justify-between mb-2">
-                            {getSourceIcon(source.type)}
-                            <Badge variant="outline" className="text-[9px] font-mono border-gray-700 text-gray-500 bg-gray-50">
-                              {source.pageOrTimestamp !== '-' ? `ID.${source.pageOrTimestamp}` : 'SYS.REF'}
+                            <div className="flex items-center gap-2 overflow-hidden mr-2">
+                              {getSourceIcon(source.type)}
+                              <span className="text-[10px] font-bold text-gray-500 truncate">
+                                {source.folderPath && source.folderPath !== '/' ? `${source.folderPath}/` : ''}{source.fileName}
+                                {source.pageOrTimestamp && source.pageOrTimestamp !== '-' ? ` (${source.pageOrTimestamp})` : ''}
+                              </span>
+                            </div>
+                            <Badge variant="outline" className="text-[8px] font-mono border-gray-200 text-gray-400 bg-gray-50 shrink-0">
+                              REF
                             </Badge>
                           </div>
                           {hasAccess ? (
-                            <p className="text-[11px] text-gray-500 line-clamp-2 italic leading-relaxed">
+                            <p className="text-[11px] text-gray-500 line-clamp-3 italic leading-relaxed border-l-2 border-blue-500/20 pl-2">
                               "{source.content}"
                             </p>
                           ) : (

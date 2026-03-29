@@ -69,6 +69,7 @@ export interface ExpertVerdict {
 
 export interface SourceReference {
   fileName: string;
+  folderPath?: string;
   type: 'pdf' | 'mp4';
   pageOrTimestamp: string;
   content: string;

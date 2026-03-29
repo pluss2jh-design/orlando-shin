@@ -108,6 +108,7 @@ export async function runLearningPipeline(
     throw new Error('현재 다른 학습이 진행 중입니다. 잠시 후 다시 시도해주세요.');
   }
 
+  // 학습 시작 시 상태 초기화
   learningStatus.isLearning = true;
   learningStatus.isCancelled = false;
   learningStatus.startTime = new Date();
@@ -153,6 +154,35 @@ export async function runLearningPipeline(
     const fileAnalyses: FileAnalysis[] = [];
     learningStatus.totalFiles = targetFiles.length;
     learningStatus.completedFiles = 0;
+    learningStatus.failedFiles = 0;
+
+    const syncInfo = await getSyncInfo();
+    const allCachedFiles = syncInfo?.files || [];
+    
+    // 경로 생성용 헬퍼 함수
+    const resolveFolderPath = (file: DriveFileInfo): string => {
+      const pathParts: string[] = [];
+      let current = file;
+      const maxLevels = 10;
+      let level = 0;
+      
+      while (current && current.parentId && level < maxLevels) {
+        const parent = allCachedFiles.find(f => f.id === current.parentId);
+        if (parent) {
+          if (parent.name !== 'root') pathParts.unshift(parent.name);
+          current = parent;
+        } else {
+          break;
+        }
+        level++;
+      }
+      return pathParts.join('/') || '/';
+    };
+
+    const fileNameToFolderPath: Record<string, string> = {};
+    for (const f of targetFiles) {
+        fileNameToFolderPath[f.name] = resolveFolderPath(f);
+    }
 
     const client = getGeminiClient();
 
@@ -407,20 +437,22 @@ export async function runLearningPipeline(
         visualEvidence: c.visualEvidence || '',
         source: c.source ? {
           fileName: c.source.fileName || 'unknown',
+          folderPath: fileNameToFolderPath[c.source.fileName] || '/',
           type: (c.source.fileName || '').toLowerCase().endsWith('.mp4') ? 'mp4' : 'pdf',
           pageOrTimestamp: c.source.location || '-',
           content: c.source.content_snippet || c.description // 발췌문 우선, 없으면 설명으로 대체
-        } : defaultSource,
+        } : { ...defaultSource, folderPath: '/' },
       })),
       principles: (strategyData.principles || []).map((p: any) => ({
         principle: p.principle,
         category: p.category || 'general',
         source: p.source ? {
           fileName: p.source.fileName || 'unknown',
+          folderPath: fileNameToFolderPath[p.source.fileName] || '/',
           type: 'pdf',
           pageOrTimestamp: p.source.location || '-',
           content: p.principle
-        } : defaultSource
+        } : { ...defaultSource, folderPath: '/' }
       })),
     };
 
@@ -439,12 +471,13 @@ export async function runLearningPipeline(
 
   } catch (err: any) {
     learningStatus.error = err.message;
+    console.error('[Learning] Pipeline fatal error:', err);
     throw err;
   } finally {
+    // 수치(completedFiles, totalFiles 등)는 UI에서 완료 후에도 볼 수 있도록 초기화하지 않고 유지함
+    // 새로운 학습이 시작될 때 위(line 109)에서 초기화됨
     learningStatus.isLearning = false;
     learningStatus.isCancelled = false;
-    // Finally 블록에서 상태를 초기화하면 프론트엔드 폴링 시 마지막 결과를 볼 수 없으므로 유지하거나, 폴링 시간차를 고려해야 함
-    // 여기서는 isLearning만 false로 바꾸고 수치는 유지 (다음 학습 시작 시 초기화됨)
   }
 }
 

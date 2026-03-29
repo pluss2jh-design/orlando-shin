@@ -164,6 +164,21 @@ export default function ExpertAnalysisPage() {
     return pollInterval;
   };
 
+  const handleStopAnalysis = async () => {
+    try {
+      const res = await fetch('/api/analysis', { method: 'DELETE' });
+      if (res.ok) {
+        setAnalysisState(prev => ({
+          ...prev,
+          isAnalyzing: false,
+          progressMessage: '분석이 사용자에 의해 중단되었습니다.'
+        }));
+      }
+    } catch (error) {
+      console.error('Failed to stop analysis:', error);
+    }
+  };
+
   const handleAnalyze = async (conditions: InvestmentConditions) => {
     setAnalysisState(prev => ({
       ...prev,
@@ -311,9 +326,18 @@ export default function ExpertAnalysisPage() {
               </div>
 
               <div className="space-y-3">
-                <div className="flex justify-between text-xs font-black text-blue-600 uppercase tracking-widest">
-                  <span>Analyzing Universe</span>
-                  <span>{analysisState.progress}%</span>
+                <div className="flex justify-between items-center text-xs font-black text-blue-600 uppercase tracking-widest">
+                  <div className="flex items-center gap-2">
+                    <span>Analyzing Universe</span>
+                    <span className="text-blue-400 font-mono">{analysisState.progress}%</span>
+                  </div>
+                  <button 
+                    onClick={handleStopAnalysis}
+                    className="px-4 py-1.5 bg-rose-500 hover:bg-rose-600 text-white rounded-full transition-all flex items-center gap-1.5 shadow-lg shadow-rose-500/20 active:scale-95 translate-y-[-2px] border-none outline-none font-bold"
+                  >
+                    <AlertCircle className="h-3.5 w-3.5" />
+                    <span>STOP</span>
+                  </button>
                 </div>
                 <Progress value={analysisState.progress} className="h-2 bg-blue-50" />
               </div>
@@ -321,7 +345,7 @@ export default function ExpertAnalysisPage() {
               {universeStats && (
                 <div className="grid grid-cols-3 gap-4">
                   <div className="p-4 rounded-xl bg-gray-50 border border-gray-100">
-                    <p className="text-[10px] font-black text-gray-400 uppercase mb-1">Scanned Pool (A)</p>
+                    <p className="text-[10px] font-black text-gray-400 uppercase mb-1">Scanned Pool</p>
                     <p className="text-xl font-black text-gray-900">{universeStats.finalCount}</p>
                   </div>
                   <div className="p-4 rounded-xl bg-gray-50 border border-gray-100">

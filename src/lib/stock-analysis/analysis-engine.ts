@@ -180,12 +180,12 @@ export async function runAnalysisEngine(
         }
 
         analyzedCount++; // 성공 시에만 증가
-        const donePct = 18 + Math.floor(( (analyzedCount + excludedStockCount - (excludedDetails.length - (analyzedCount === 0 ? 0 : 0))) / validStocks.length) * 65);
+        
         // 정확한 진행률 계산을 위해 (성공 + 실패) / 전체 모수 사용
-        const totalAttempted = analyzedCount + (excludedStockCount - (universe.length - validStocks.length));
-        const progressPct = 20 + Math.floor((totalAttempted / validStocks.length) * 65);
+        const totalAttempted = analyzedCount + excludedStockCount;
+        const progressPct = 20 + Math.floor((totalAttempted / universe.length) * 65);
 
-        if (onProgress) onProgress(progressPct, `[2/2] ${isHistorical ? '과거' : '상세'} 지표 분석 중... ${totalAttempted} / ${validStocks.length}개 완료`, {
+        if (onProgress) onProgress(progressPct, `[2/2] ${isHistorical ? '과거' : '상세'} 지표 분석 중... ${totalAttempted} / ${universe.length}개 완료`, {
           processedCount: analyzedCount, // 성공한 수
           excludedStockCount: excludedStockCount, // 누적 실패 수
           excludedDetails: excludedDetails,
