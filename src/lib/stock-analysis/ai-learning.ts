@@ -48,7 +48,16 @@ export const learningStatus = globalThis.learningStatus || {
 };
 globalThis.learningStatus = learningStatus;
 
-export function resetLearningStatus(totalCount: number = 0) {
+export function resetLearningStatus(totalCount: number = 0, force: boolean = false) {
+  const STALE_THRESHOLD_MS = 1000 * 60 * 60; // 1시간
+  const isStale = learningStatus.isLearning && 
+                  learningStatus.startTime && 
+                  (Date.now() - new Date(learningStatus.startTime).getTime()) > STALE_THRESHOLD_MS;
+
+  if (learningStatus.isLearning && !force && !isStale) {
+    throw new Error('현재 다른 학습이 진행 중입니다. 잠시 후 다시 시도해주세요.');
+  }
+
   learningStatus.isLearning = true;
   learningStatus.isCancelled = false;
   learningStatus.startTime = new Date();
@@ -132,10 +141,6 @@ export async function runLearningPipeline(
   targetFileIds?: string[],
   aiModels?: Record<string, string>
 ): Promise<LearnedKnowledge> {
-  if (learningStatus.isLearning) {
-    throw new Error('현재 다른 학습이 진행 중입니다. 잠시 후 다시 시도해주세요.');
-  }
-
   // 학습 시작 시 상태 초기화 (이미 StockService에서 호출되었을 수 있으나 안정성 위해 한 번 더)
   if (!learningStatus.isLearning) {
     resetLearningStatus(targetFileIds?.length || 0);
