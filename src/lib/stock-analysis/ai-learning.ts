@@ -21,16 +21,32 @@ import {
 import { videoProcessingService } from '../video-processing/processor';
 import { VideoProcessingResult } from '@/types/video-processing';
 
-export const learningStatus = {
+// 학습 상태의 글로벌 영속성 보장 (Next.js 서버 인스턴스 간 공유)
+declare global {
+  // eslint-disable-next-line no-var
+  var learningStatus: {
+    isLearning: boolean;
+    isCancelled: boolean;
+    totalFiles: number;
+    completedFiles: number;
+    failedFiles: number;
+    error: string | null;
+    message: string | null;
+    startTime: Date | null;
+  } | undefined;
+}
+
+export const learningStatus = globalThis.learningStatus || {
   isLearning: false,
   isCancelled: false,
   totalFiles: 0,
   completedFiles: 0,
   failedFiles: 0,
-  error: null as string | null,
-  message: null as string | null,
-  startTime: null as Date | null,
+  error: null,
+  message: null,
+  startTime: null,
 };
+globalThis.learningStatus = learningStatus;
 
 export function resetLearningStatus(totalCount: number = 0) {
   learningStatus.isLearning = true;
@@ -165,6 +181,9 @@ export async function runLearningPipeline(
     learningStatus.totalFiles = targetFiles.length;
     learningStatus.completedFiles = 0;
     learningStatus.failedFiles = 0;
+    learningStatus.message = `학습 대상 ${targetFiles.length}개 파일 처리 준비 중...`;
+    
+    console.log(`[Learning] Pipeline started for ${targetFiles.length} files.`);
 
     const syncInfo = await getSyncInfo();
     const allCachedFiles = syncInfo?.files || [];
@@ -199,8 +218,10 @@ export async function runLearningPipeline(
     for (let i = 0; i < targetFiles.length; i++) {
       const file = targetFiles[i];
       learningStatus.message = `[${i + 1}/${targetFiles.length}] ${file.name} 분석 중...`;
+      console.log(`[Learning] Step ${i + 1}/${targetFiles.length}: Analyzing ${file.name} (${file.id})`);
       
       if (learningStatus.isCancelled) {
+        console.log(`[Learning] Pipeline cancelled by user at file: ${file.name}`);
         throw new Error('학습이 강제 중지되었습니다.');
       }
 
@@ -319,13 +340,15 @@ export async function runLearningPipeline(
         });
 
         learningStatus.completedFiles += 1;
+        console.log(`[Learning] Successfully analyzed ${file.name}. Progress: ${learningStatus.completedFiles}/${targetFiles.length}`);
       } catch (error: any) {
-        console.error(`파일 분석 실패: ${file.name}`, error);
+        console.error(`[Learning] Failed to analyze ${file.name}:`, error.message);
         learningStatus.failedFiles += 1;
-        // 개별 파일 실패 시 중단하지 않고 계속 진행하도록 변경
-        // throw new Error(`파일(${file.name}) 분석 중 오류: ${error.message}`);
       }
     }
+
+    console.log(`[Learning] File analyses complete. Starting strategy synthesis...`);
+    learningStatus.message = '개별 분석 결과 기반 종합 투자 전략 도출 중...';
 
     const docConditions = fileAnalyses.flatMap(fa => fa.keyConditions).join('\n');
     // 전략 도출용 모델 선택 (PDF/문서 모델 우선, 없으면 '전체' 또는 선택된 모델 중 아무거나)

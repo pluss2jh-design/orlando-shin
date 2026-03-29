@@ -19,6 +19,7 @@ export async function GET() {
             completedFiles: learningStatus.completedFiles,
             failedFiles: learningStatus.failedFiles,
             error: learningStatus.error,
+            message: learningStatus.message,
         });
     } catch (error) {
         return NextResponse.json({ error: '상태 조회 실패' }, { status: 500 });

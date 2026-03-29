@@ -55,6 +55,7 @@ export function DataControl({ onFilesChange, onSyncStatusChange, onLearningCompl
   const [isDragging, setIsDragging] = useState(false);
   const [syncStatus, setSyncStatus] = useState<CloudSyncStatus>({ status: 'idle' });
   const [isLearning, setIsLearning] = useState(false);
+  const [isRequesting, setIsRequesting] = useState(false); // NEW
   const [learningStatus, setLearningStatus] = useState<string | null>(null);
   const [learnedKnowledge, setLearnedKnowledge] = useState<LearnedKnowledge | null>(null);
   const [showRules, setShowRules] = useState(false);
@@ -221,8 +222,8 @@ export function DataControl({ onFilesChange, onSyncStatusChange, onLearningCompl
             const data = await res.json();
             setBackendLearningStatus(data);
             
-            // Wait for backend to set isLearning: true (Ignore first 2 polls)
-            if (!data.isLearning && pollCount > 2) {
+            // Wait for backend to set isLearning: true (Ignore polls if still requesting or pollCount <= 2)
+            if (!data.isLearning && !isRequesting && pollCount > 2) {
               setIsLearning(false);
               const message = data.error 
                 ? `학습 중단됨: ${data.error}`
@@ -243,7 +244,7 @@ export function DataControl({ onFilesChange, onSyncStatusChange, onLearningCompl
       }, 2000);
     }
     return () => clearInterval(interval);
-  }, [isLearning, onLearningComplete]);
+  }, [isLearning, isRequesting, onLearningComplete]);
 
   const estimatedTime = useMemo(() => {
     if (!backendLearningStatus || !backendLearningStatus.startTime || backendLearningStatus.completedFiles === 0) return null;
@@ -333,6 +334,7 @@ export function DataControl({ onFilesChange, onSyncStatusChange, onLearningCompl
     if (!confirmed) return;
 
     setIsLearning(true);
+    setIsRequesting(true);
     setLearningStatus('학습 요청을 보내는 중...');
 
     const driveOnlyFiles = files.filter(f => f.type !== 'folder' && selectedIds.has(f.id));
@@ -365,16 +367,12 @@ export function DataControl({ onFilesChange, onSyncStatusChange, onLearningCompl
       }
 
       setLearningStatus('학습이 시작되었습니다. 원격 서버에서 진행률을 추적합니다...');
-      // Polling is handled by useEffect when isLearning is true
-      // Wait for backend to pick up the task
-      setTimeout(() => {
-        setIsLearning(true);
-      }, 500);
-
     } catch (error) {
       const message = error instanceof Error ? error.message : '학습 실패';
       setLearningStatus(`학습 실패: ${message}`);
       setIsLearning(false);
+    } finally {
+      setIsRequesting(false);
     }
   };
 
