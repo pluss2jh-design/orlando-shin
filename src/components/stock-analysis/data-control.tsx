@@ -75,21 +75,42 @@ export function DataControl({ onFilesChange, onSyncStatusChange, onLearningCompl
     error: string | null;
   } | null>(null);
 
+  const processDriveFiles = (files: any[]) => {
+    if (!files || files.length === 0) return [];
+    
+    const driveFiles: UploadedFile[] = files.map((f: any) => ({
+      id: f.id,
+      name: f.name,
+      type: f.mimeType.includes('pdf') ? 'pdf' : f.mimeType.includes('video') ? 'mp4' : f.mimeType === 'application/vnd.google-apps.folder' ? 'folder' : 'other',
+      size: parseInt(f.size || '0', 10),
+      uploadedAt: new Date(f.modifiedTime),
+      status: 'completed',
+      parentId: f.parentId,
+      isDriveFile: true
+    }));
+    
+    // Determine root
+    const ids = new Set(driveFiles.map(f => f.id));
+    const firstParentId = driveFiles.find(f => f.parentId && !ids.has(f.parentId))?.parentId;
+    if (firstParentId) setRootFolderId(firstParentId);
+    
+    return driveFiles;
+  };
+
   useEffect(() => {
     const fetchInitialData = async () => {
       try {
-        // Fetch knowledge existence
-        const response = await fetch('/api/gdrive/learn');
-        const data = await response.json();
-        if (data.exists) {
-          const knowledgeResponse = await fetch('/api/gdrive/knowledge');
-          if (knowledgeResponse.ok) {
-            const knowledgeData = await knowledgeResponse.json();
-            setLearnedKnowledge(knowledgeData.knowledge);
+        // 1. Fetch knowledge existence and AI models
+        const resG = await fetch('/api/gdrive/learn');
+        const dataG = await resG.json();
+        if (dataG.exists) {
+          const resK = await fetch('/api/gdrive/knowledge');
+          if (resK.ok) {
+            const dataK = await resK.json();
+            setLearnedKnowledge(dataK.knowledge);
           }
         }
         
-        // Fetch AI Models and Keys
         const [modelsRes, keysRes] = await Promise.all([
           fetch('/api/admin/models', { cache: 'no-store' }),
           fetch('/api/admin/settings', { cache: 'no-store' })
@@ -105,15 +126,33 @@ export function DataControl({ onFilesChange, onSyncStatusChange, onLearningCompl
           setKeys(kData.keys || {});
         }
 
-        // Check for active learning task (Persistence) - Only once on mount
+        // 2. Check for active learning task (Persistence)
         const learningRes = await fetch('/api/admin/learning-status', { cache: 'no-store' });
         if (learningRes.ok) {
           const lData = await learningRes.json();
           if (lData.isLearning) {
             setIsLearning(true);
             setBackendLearningStatus(lData);
-          } else {
-            setIsLearning(false); // Ensure it's false if not learning
+          }
+        }
+
+        // 3. Check for active sync task and initial file list (Persistence)
+        const syncRes = await fetch('/api/gdrive/sync', { cache: 'no-store' });
+        if (syncRes.ok) {
+          const sData = await syncRes.json();
+          
+          if (sData.isSyncing) {
+            setSyncStatus({
+              status: 'syncing',
+              progress: sData.progress,
+              message: sData.progress.message
+            });
+          }
+
+          if (sData.files && sData.files.length > 0) {
+            const driveFiles = processDriveFiles(sData.files);
+            setFiles(driveFiles);
+            onFilesChange?.(driveFiles);
           }
         }
       } catch (error) {
@@ -129,7 +168,7 @@ export function DataControl({ onFilesChange, onSyncStatusChange, onLearningCompl
     if (syncStatus.status === 'syncing') {
       interval = setInterval(async () => {
         try {
-          const res = await fetch('/api/gdrive/sync');
+          const res = await fetch('/api/gdrive/sync', { cache: 'no-store' });
           if (res.ok) {
             const data = await res.json();
             
@@ -143,22 +182,7 @@ export function DataControl({ onFilesChange, onSyncStatusChange, onLearningCompl
 
             if (!data.isSyncing) {
               if (data.files && data.files.length > 0) {
-                const driveFiles: UploadedFile[] = data.files.map((f: any) => ({
-                  id: f.id,
-                  name: f.name,
-                  type: f.mimeType.includes('pdf') ? 'pdf' : f.mimeType.includes('video') ? 'mp4' : f.mimeType === 'application/vnd.google-apps.folder' ? 'folder' : 'other',
-                  size: parseInt(f.size || '0', 10),
-                  uploadedAt: new Date(f.modifiedTime),
-                  status: 'completed',
-                  parentId: f.parentId,
-                  isDriveFile: true
-                }));
-                
-                // Determine root
-                const ids = new Set(driveFiles.map(f => f.id));
-                const firstParentId = driveFiles.find(f => f.parentId && !ids.has(f.parentId))?.parentId;
-                if (firstParentId) setRootFolderId(firstParentId);
-
+                const driveFiles = processDriveFiles(data.files);
                 setFiles(driveFiles);
                 onFilesChange?.(driveFiles);
                 
