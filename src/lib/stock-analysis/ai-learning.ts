@@ -24,12 +24,24 @@ import { VideoProcessingResult } from '@/types/video-processing';
 export const learningStatus = {
   isLearning: false,
   isCancelled: false,
-  startTime: null as Date | null,
   totalFiles: 0,
   completedFiles: 0,
   failedFiles: 0,
   error: null as string | null,
+  message: null as string | null,
+  startTime: null as Date | null,
 };
+
+export function resetLearningStatus(totalCount: number = 0) {
+  learningStatus.isLearning = true;
+  learningStatus.isCancelled = false;
+  learningStatus.startTime = new Date();
+  learningStatus.error = null;
+  learningStatus.message = '학습 초기화 중...';
+  learningStatus.completedFiles = 0;
+  learningStatus.failedFiles = 0;
+  learningStatus.totalFiles = totalCount;
+}
 
 export function cancelLearningPipeline() {
   if (learningStatus.isLearning) {
@@ -108,14 +120,12 @@ export async function runLearningPipeline(
     throw new Error('현재 다른 학습이 진행 중입니다. 잠시 후 다시 시도해주세요.');
   }
 
-  // 학습 시작 시 상태 초기화
-  learningStatus.isLearning = true;
-  learningStatus.isCancelled = false;
-  learningStatus.startTime = new Date();
-  learningStatus.error = null;
-  learningStatus.completedFiles = 0;
-  learningStatus.failedFiles = 0;
-  learningStatus.totalFiles = 0;
+  // 학습 시작 시 상태 초기화 (이미 StockService에서 호출되었을 수 있으나 안정성 위해 한 번 더)
+  if (!learningStatus.isLearning) {
+    resetLearningStatus(targetFileIds?.length || 0);
+  }
+  
+  learningStatus.message = '학습 대상 파일 분석 중...';
 
   try {
     let allFiles: DriveFileInfo[] = [];
@@ -186,7 +196,10 @@ export async function runLearningPipeline(
 
     const client = getGeminiClient();
 
-    for (const file of targetFiles) {
+    for (let i = 0; i < targetFiles.length; i++) {
+      const file = targetFiles[i];
+      learningStatus.message = `[${i + 1}/${targetFiles.length}] ${file.name} 분석 중...`;
+      
       if (learningStatus.isCancelled) {
         throw new Error('학습이 강제 중지되었습니다.');
       }

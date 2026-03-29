@@ -262,6 +262,10 @@ export class StockService {
     aiModels?: Record<string, string>;
     title?: string;
   }) {
+    // 0. 학습 상태 즉시 초기화 (Race Condition 방지)
+    const { resetLearningStatus } = await import('@/lib/stock-analysis/ai-learning');
+    resetLearningStatus(options.fileIds?.length || 0);
+
     // 1. 학습 파이프라인 시작 (비동기)
     (async () => {
       try {

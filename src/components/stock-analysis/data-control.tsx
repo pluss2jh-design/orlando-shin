@@ -755,8 +755,9 @@ export function DataControl({ onFilesChange, onSyncStatusChange, onLearningCompl
                  <p className="text-[10px] text-blue-400 font-bold">원천 데이터에서 투자 논리를 추출하고 있습니다</p>
                </div>
                 <div className="text-right flex flex-col items-end gap-1">
-                  <span className="text-lg font-black text-blue-600 font-mono">
-                    {Math.round((backendLearningStatus.completedFiles / backendLearningStatus.totalFiles) * 100)}%
+                  <span className="text-lg font-black text-blue-600 font-mono flex items-baseline gap-2">
+                    {Math.round((backendLearningStatus.completedFiles / Math.max(1, backendLearningStatus.totalFiles)) * 100)}%
+                    <span className="text-[10px] text-blue-400">({backendLearningStatus.completedFiles}/{backendLearningStatus.totalFiles})</span>
                   </span>
                   <Button 
                     variant="ghost" 
