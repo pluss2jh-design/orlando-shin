@@ -8,7 +8,12 @@ async function fetchWikiHtml(url: string, timeoutMs: number = 15000): Promise<st
   const id = setTimeout(() => controller.abort(), timeoutMs);
   
   try {
-    const response = await fetch(url, { signal: controller.signal });
+    const response = await fetch(url, { 
+      signal: controller.signal,
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+      }
+    });
     clearTimeout(id);
     if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
     return await response.text();
@@ -32,11 +37,15 @@ async function fetchRussell1000Tickers(): Promise<string[]> {
     
     if (match) {
       const tableHtml = match[1];
-      const rowRegex = /<tr>\s*<td><a[^>]*>([^<]+)<\/a><\/td>/g;
+      // Russell 1000: 1st column is Company, 2nd column is Ticker
+      const rowRegex = /<tr>\s*<td>[\s\S]*?<\/td>\s*<td>([^<]+)<\/td>/g;
       let rowMatch;
       while ((rowMatch = rowRegex.exec(tableHtml)) !== null) {
-        const ticker = rowMatch[1].trim().replace(/\./g, '-');
-        if (ticker && ticker.length < 10) {
+        let ticker = rowMatch[1].trim()
+          .replace(/<[^>]*>/g, '') // remove any internal tags
+          .replace(/\./g, '-');
+        
+        if (ticker && ticker.length < 10 && !ticker.includes(' ')) {
           tickers.push(ticker);
         }
       }
@@ -64,11 +73,15 @@ async function fetchSP500Tickers(): Promise<string[]> {
     
     if (match) {
       const tableHtml = match[1];
-      const rowRegex = /<tr>\s*<td><a[^>]*rel="nofollow"[^>]*>([^<]+)<\/a><\/td>/g;
+      const rowRegex = /<tr>\s*<td>\s*<a[^>]*>([^<]+)<\/a>\s*<\/td>/g;
       let rowMatch;
       while ((rowMatch = rowRegex.exec(tableHtml)) !== null) {
-        const ticker = rowMatch[1].trim().replace(/\./g, '-');
-        tickers.push(ticker);
+        const ticker = rowMatch[1].trim()
+          .replace(/<[^>]*>/g, '') 
+          .replace(/\./g, '-');
+        if (ticker && ticker.length < 10 && !ticker.includes(' ')) {
+          tickers.push(ticker);
+        }
       }
       
       // 만약 위 정규식이 실패하면 (위키피디아 구조 변경 대비) 더 범용적인 패턴 사용
@@ -157,4 +170,12 @@ export async function getStockUniverse(type: 'sp500' | 'russell1000' | 'russell1
       universeCounts: { russellCount: 0, sp500Count: 0, overlapCount: 0 }
     };
   }
+}
+
+/**
+ * 지수 구성을 위한 티커 개수 정보를 반환합니다.
+ */
+export async function getUniverseCounts() {
+  const result = await getStockUniverse('russell1000_exclude_sp500');
+  return result.universeCounts;
 }

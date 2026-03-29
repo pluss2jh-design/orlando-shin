@@ -123,11 +123,16 @@ function StrategyMatchDashboard({ score }: { score: StrategyMatchScore }) {
                   <p className="text-sm text-gray-400 leading-relaxed font-medium mb-3">{rule.reason}</p>
                   
                   {rule.source && (
-                    <div className="flex items-center gap-2 mt-4 pt-3 border-t border-emerald-500/10">
-                      <span className="text-[10px] font-black text-emerald-500/60 uppercase tracking-widest">분석 근거:</span>
-                      <Badge variant="outline" className="text-[10px] font-bold text-emerald-400 bg-emerald-500/10 border-emerald-500/20 px-3 py-1">
-                        {rule.source.fileName} {rule.source.pageOrTimestamp !== '-' ? `| ${rule.source.pageOrTimestamp}` : ''}
-                      </Badge>
+                    <div className="flex flex-col gap-2 mt-4 pt-3 border-t border-emerald-500/10">
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] font-black text-emerald-500/60 uppercase tracking-widest">분석 근거:</span>
+                        <Badge variant="outline" className="text-[10px] font-bold text-emerald-400 bg-emerald-500/10 border-emerald-500/20 px-3 py-1 cursor-help">
+                          {rule.source.fileName} {rule.source.pageOrTimestamp && rule.source.pageOrTimestamp !== '-' ? `| ${rule.source.pageOrTimestamp}` : ''}
+                        </Badge>
+                      </div>
+                      <p className="text-[11px] text-gray-500 bg-emerald-500/5 p-2 rounded-lg border border-emerald-500/10 italic">
+                        "{rule.source.content}"
+                      </p>
                     </div>
                   )}
                 </div>
@@ -538,25 +543,25 @@ export function AnalysisOutput({ results, conditions, isLoading, onSendEmail }: 
                         result.expertVerdict.recommendation === 'SELL' ? "bg-rose-500 text-white" :
                         "bg-gray-100 text-gray-900"
                       )}>
-                        {result.expertVerdict.recommendation} OPINION
+                        {result.expertVerdict.recommendation || 'HOLD'} OPINION
                       </Badge>
                     </div>
 
                     <div className="space-y-2">
                       <h3 className="text-3xl font-black text-gray-900 tracking-tight leading-tight">
-                        {result.expertVerdict.title}
+                        {result.expertVerdict.title || '분석 중인 주제가 없습니다.'}
                       </h3>
                       <div className="flex items-center gap-2 text-xs font-bold text-gray-500">
                         <span>Conviction Score:</span>
-                        <span className="text-blue-600 font-black">{result.expertVerdict.convictionScore}%</span>
+                        <span className="text-blue-600 font-black">{result.expertVerdict.convictionScore || 0}%</span>
                         <div className="h-1 w-24 bg-gray-100 rounded-full overflow-hidden">
-                          <div className="h-full bg-blue-600" style={{ width: `${result.expertVerdict.convictionScore}%` }} />
+                          <div className="h-full bg-blue-600" style={{ width: `${result.expertVerdict.convictionScore || 0}%` }} />
                         </div>
                       </div>
                     </div>
 
                     <p className="text-lg text-gray-700 leading-relaxed font-serif italic border-l-4 border-blue-100 pl-6 py-2">
-                      "{result.expertVerdict.summary}"
+                      "{result.expertVerdict.summary || '상세 요약이 생성되지 않았습니다.'}"
                     </p>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-8 pt-6 border-t border-gray-50">
@@ -565,7 +570,7 @@ export function AnalysisOutput({ results, conditions, isLoading, onSendEmail }: 
                           <Target className="h-3 w-3" /> 결정적 매수 근거
                         </h5>
                         <ul className="space-y-3">
-                          {result.expertVerdict.keyPoints.map((p: string, idx: number) => (
+                          {(result.expertVerdict.keyPoints || []).map((p: string, idx: number) => (
                             <li key={idx} className="flex gap-3 text-sm text-gray-700 font-medium">
                               <CheckCircle2 className="h-4 w-4 text-emerald-500 mt-0.5 shrink-0" />
                               {p}
@@ -578,7 +583,7 @@ export function AnalysisOutput({ results, conditions, isLoading, onSendEmail }: 
                           <AlertCircle className="h-3 w-3 text-rose-400" /> 리스크 점검 사항
                         </h5>
                         <ul className="space-y-3">
-                          {result.expertVerdict.risks.map((r: string, idx: number) => (
+                          {(result.expertVerdict.risks || []).map((r: string, idx: number) => (
                             <li key={idx} className="flex gap-3 text-sm text-gray-700 font-medium">
                               <div className="h-1.5 w-1.5 rounded-full bg-rose-400 mt-2 shrink-0" />
                               {r}
@@ -669,10 +674,17 @@ export function AnalysisOutput({ results, conditions, isLoading, onSendEmail }: 
                       <div className="space-y-1.5 pt-3 border-t border-gray-100">
                         <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1.5 font-mono">분석 대상 뉴스 헤드라인 (Yahoo Finance)</p>
                         {result.sentiment.recentHeadlines.slice(0, 3).map((h, idx) => (
-                           <div key={idx} className="flex gap-2 items-start group/news">
-                             <div className="mt-1.5 w-1 h-1 rounded-full bg-blue-400 shrink-0 group-hover/news:scale-125 transition-transform" />
-                             <span className="text-[10px] text-gray-500 line-clamp-1 group-hover/news:text-gray-900 transition-colors cursor-default">{h}</span>
-                           </div>
+                           <a 
+                             key={idx} 
+                             href={h.url} 
+                             target="_blank" 
+                             rel="noopener noreferrer"
+                             className="flex gap-2 items-start group/news hover:bg-blue-50/50 p-1 rounded transition-colors"
+                           >
+                             <div className="mt-1.5 w-1 h-1 rounded-full bg-blue-400 shrink-0 group-hover/news:bg-blue-600 transition-colors" />
+                             <span className="text-[10px] text-gray-500 line-clamp-1 group-hover/news:text-blue-600 transition-colors font-medium">{h.title}</span>
+                             <ExternalLink className="h-2.5 w-2.5 text-gray-300 opacity-0 group-hover/news:opacity-100 transition-all shrink-0 mt-0.5" />
+                           </a>
                         ))}
                       </div>
                     )}
@@ -701,7 +713,7 @@ export function AnalysisOutput({ results, conditions, isLoading, onSendEmail }: 
                 </div>
               </div>
 
-              {result.sources.length > 0 && (
+              {result.sources && result.sources.length > 0 && (
                 <div className="space-y-4 pt-4 border-t border-gray-200/50">
                   <h4 className="text-[10px] font-black text-gray-500 uppercase tracking-widest flex items-center gap-2">
                     <FileText className="h-3 w-3 text-gray-600" />

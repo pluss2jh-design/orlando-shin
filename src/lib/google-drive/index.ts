@@ -25,7 +25,7 @@ export interface SyncProgress {
   totalFiles: number;
   processedFolders: number;
   currentFolder?: string;
-  status: 'idle' | 'syncing' | 'completed' | 'error';
+  status: 'idle' | 'syncing' | 'completed' | 'error' | 'cancelled';
   message?: string;
 }
 
@@ -103,9 +103,10 @@ function getGoogleDriveClient() {
 
 export async function listDriveFiles(
   folderId: string = GOOGLE_DRIVE_FOLDER_ID || 'root',
-  depth: number = 0
+  depth: number = 0,
+  shouldCancel?: () => boolean
 ): Promise<SyncResult> {
-  if (depth > 5) return { files: [], totalCount: 0, syncedAt: new Date() };
+  if (depth > 5 || (shouldCancel && shouldCancel())) return { files: [], totalCount: 0, syncedAt: new Date() };
 
   const credentials = process.env.GOOGLE_SERVICE_ACCOUNT_KEY;
   if (!credentials) {
@@ -154,7 +155,11 @@ export async function listDriveFiles(
           allFiles.push(fileInfo);
           driveStatus.progress.processedFolders++;
           driveStatus.progress.currentFolder = f.name || '';
-          const subFiles = await listDriveFiles(f.id!, depth + 1);
+          
+          // 취소 여부 체크
+          if (shouldCancel && shouldCancel()) break;
+
+          const subFiles = await listDriveFiles(f.id!, depth + 1, shouldCancel);
           allFiles.push(...subFiles.files);
         } else {
           allFiles.push(fileInfo);
@@ -168,6 +173,9 @@ export async function listDriveFiles(
       } else {
         driveStatus.progress.totalFiles += driveFiles.length;
       }
+
+      // 페이지 단위 취소 체크
+      if (shouldCancel && shouldCancel()) break;
     } while (nextPageToken);
 
     if (depth === 0) {
@@ -255,20 +263,30 @@ export async function downloadTextContent(fileId: string): Promise<string> {
 }
 
 const globalForDrive = globalThis as unknown as {
-  driveStatus?: { 
-    isSyncing: boolean; 
+  driveStatus?: {
+    isSyncing: boolean;
+    isCancelled: boolean; // 추가
     progress: SyncProgress;
-    cache: SyncResult | null 
+    cache: SyncResult | null
   };
 };
 
 export const driveStatus = globalForDrive.driveStatus || {
   isSyncing: false,
-  progress: { totalFiles: 0, processedFolders: 0, status: 'idle' },
+  isCancelled: false, // 초기값
+  progress: { totalFiles: 0, processedFolders: 0, status: 'idle', message: '대기 중' },
   cache: null as SyncResult | null,
 };
 
 if (process.env.NODE_ENV !== 'production') globalForDrive.driveStatus = driveStatus;
+
+export function stopDriveSync() {
+  if (driveStatus.isSyncing) {
+    driveStatus.isCancelled = true;
+    driveStatus.progress.status = 'cancelled';
+    driveStatus.progress.message = '사용자에 의해 동기화가 중지되었습니다.';
+  }
+}
 
 export async function syncAllFiles(): Promise<SyncResult> {
   if (driveStatus.isSyncing) {
@@ -276,20 +294,33 @@ export async function syncAllFiles(): Promise<SyncResult> {
   }
 
   driveStatus.isSyncing = true;
-  driveStatus.progress = { 
-    totalFiles: 0, 
-    processedFolders: 0, 
+  driveStatus.isCancelled = false; // 리셋
+  driveStatus.progress = {
+    totalFiles: 0,
+    processedFolders: 0,
     status: 'syncing',
-    message: '동기화 시작...' 
+    message: '동기화 시작...'
   };
 
   try {
-    const syncResult = await listDriveFiles();
+    // [중요] listDriveFiles 내부적으로 중지 여부를 체크해야 함 (생략 시 여기서 수동 체크 루프 필요)
+    const syncResult = await listDriveFiles(undefined, 0, () => driveStatus.isCancelled);
+
+    // [중요] 중단되더라도 지금까지 찾은 파일들을 캐시에 저장하여 UI에 노출되게 함
     driveStatus.cache = syncResult;
-    driveStatus.progress.status = 'completed';
-    driveStatus.progress.message = `동기화 완료: ${syncResult.totalCount}개 파일 발견`;
+
+    if (driveStatus.isCancelled) {
+      driveStatus.progress.status = 'cancelled';
+    } else {
+      driveStatus.progress.status = 'completed';
+      driveStatus.progress.message = `동기화 완료: ${syncResult.totalCount}개 파일 발견`;
+    }
     return syncResult;
   } catch (error: any) {
+    if (driveStatus.isCancelled) {
+      driveStatus.progress.status = 'cancelled';
+      return driveStatus.cache || { files: [], totalCount: 0, syncedAt: new Date() };
+    }
     driveStatus.progress.status = 'error';
     driveStatus.progress.message = `동기화 실패: ${error.message}`;
     throw error;

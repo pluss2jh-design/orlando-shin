@@ -104,135 +104,124 @@ export function InvestmentInput({ onAnalyze, disabled, activeKnowledge }: Invest
   ];
 
   return (
-    <div className="flex flex-col lg:flex-row items-stretch lg:items-center gap-3 w-full">
-      {/* 현재 로직 표시 */}
-      {activeKnowledge && (
-        <div className="flex items-center gap-3 px-3 py-2 bg-blue-50/50 rounded-xl border border-blue-100 shrink-0 h-12">
-          <div className="p-1.5 bg-blue-600 rounded-lg shadow-sm">
-             <Sparkles className="h-3.5 w-3.5 text-white" />
-          </div>
-          <div className="flex flex-col">
-            <span className="text-[8px] text-blue-500 font-black uppercase tracking-widest leading-none mb-0.5">Expert Brain</span>
-            <span className="text-[10px] text-gray-900 font-black uppercase truncate max-w-[120px]">
-              {activeKnowledge.title}
-            </span>
-          </div>
-          {userFeatures && (
-            <div className="ml-1 pl-2 border-l border-blue-200">
-               <span className={cn(
-                 "text-[9px] font-black font-mono",
-                 isLimitReached ? "text-rose-500" : "text-blue-600"
-               )}>
-                  {userFeatures.weeklyAnalysisLimit === -1 ? '∞' : userFeatures.remainingAnalysis}
-               </span>
-            </div>
-          )}
-        </div>
-      )}
-
+    <div className="flex flex-wrap items-end gap-x-3 gap-y-5 w-full">
       {/* 분석 시점 선택 */}
-      <div className="flex items-center gap-1.5 bg-white border border-gray-200 rounded-xl px-2 py-1.5 shadow-sm h-12">
-        <Clock className="h-3.5 w-3.5 text-gray-400 ml-1" />
-        <div className="flex gap-1">
-          {TIME_OFFSETS.map((t) => (
-            <button
-              key={t.id}
-              onClick={() => setSelectedTimeId(t.id)}
-              className={cn(
-                "px-3 h-8 rounded-lg text-[11px] font-black transition-all whitespace-nowrap",
-                selectedTimeId === t.id
-                  ? "bg-gray-900 text-white shadow-sm"
-                  : "text-gray-500 hover:bg-gray-100"
-              )}
-            >
-              {t.label}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* 유니버스 선택 */}
-      <div className="flex items-center gap-1.5 bg-white border border-gray-200 rounded-xl px-2 py-1.5 shadow-sm h-12">
-        <Search className="h-3.5 w-3.5 text-gray-400 ml-1" />
-        <div className="flex gap-1">
-          {UNIVERSE_OPTIONS.map((opt) => (
-            <button
-              key={opt.id}
-              onClick={() => setUniverseType(opt.id as any)}
-              className={cn(
-                "px-2.5 h-8 rounded-lg text-[10px] font-black transition-all whitespace-nowrap uppercase tracking-tighter",
-                universeType === opt.id
-                  ? "bg-rose-500 text-white shadow-sm"
-                  : "text-gray-500 hover:bg-gray-100"
-              )}
-            >
-              {opt.label}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* 분석 모델 선택 */}
-      <div className="flex items-center gap-1.5 bg-white border border-gray-200 rounded-xl px-2 py-1.5 shadow-sm h-12">
-        <Brain className="h-3.5 w-3.5 text-gray-400 ml-1" />
-        <Select value={selectedModel} onValueChange={setSelectedModel}>
-          <SelectTrigger className="w-[140px] border-none shadow-none h-8 text-[10px] font-black uppercase tracking-widest">
-            <SelectValue placeholder="AI Model" />
-          </SelectTrigger>
-          <SelectContent>
-            {availableModels.map(model => (
-              <SelectItem key={model.value} value={model.value} className="text-[10px] font-bold">
-                <div className="flex items-center gap-2">
-                  <span>{model.label}</span>
-                  {model.isRecommendedForNews && (
-                    <Badge variant="secondary" className="bg-blue-500/10 text-blue-500 border-blue-500/20 text-[8px] h-3.5 px-1 font-black">
-                      추천
-                    </Badge>
-                  )}
-                </div>
-              </SelectItem>
-            ))}
-            {availableModels.length === 0 && (
-              <SelectItem value="gemini-1.5-flash" className="text-[10px] font-bold">GEMINI 1.5 FLASH</SelectItem>
-            )}
-          </SelectContent>
-        </Select>
-      </div>
-
-      <div className="flex items-center gap-3 flex-1 lg:flex-initial">
-        {/* 분석 기업 수 선택 */}
-        <div className="flex items-center gap-1.5 bg-white border border-gray-200 rounded-xl px-2 py-1.5 shadow-sm h-12">
-          <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest pl-2">TOP</span>
-          <div className="flex gap-1">
-            {COUNTS.map((n) => (
+      <div className="flex flex-col gap-1.5 min-w-0">
+        <span className="text-[10px] font-black text-gray-500 pl-1 uppercase tracking-tight">분석 기준 시점</span>
+        <div className="flex items-center gap-1 bg-white border border-gray-200 rounded-xl px-2 py-1 shadow-sm h-11">
+          <Clock className="h-3 w-3 text-gray-400 ml-0.5" />
+          <div className="flex gap-0.5">
+            {TIME_OFFSETS.map((t) => (
               <button
-                key={n}
-                onClick={() => setCompanyCount(n)}
+                key={t.id}
+                onClick={() => setSelectedTimeId(t.id)}
                 className={cn(
-                  "w-8 h-8 rounded-lg text-xs font-black transition-all",
-                  companyCount === n
-                    ? "bg-blue-600 text-white shadow-sm"
+                  "px-2.5 h-7 rounded-lg text-[10px] font-black transition-all whitespace-nowrap",
+                  selectedTimeId === t.id
+                    ? "bg-gray-900 text-white shadow-sm"
                     : "text-gray-500 hover:bg-gray-100"
                 )}
               >
-                {n}
+                {t.label}
               </button>
             ))}
           </div>
         </div>
+      </div>
+
+      {/* 유니버스 선택 */}
+      <div className="flex flex-col gap-1.5 min-w-0">
+        <span className="text-[10px] font-black text-gray-500 pl-1 uppercase tracking-tight">분석 대상 유니버스</span>
+        <div className="flex items-center gap-1.5 bg-white border border-gray-200 rounded-xl px-2 py-1 shadow-sm h-11">
+          <Search className="h-3 w-3 text-gray-400 ml-0.5" />
+          <div className="flex gap-0.5">
+            {UNIVERSE_OPTIONS.map((opt) => (
+              <button
+                key={opt.id}
+                onClick={() => setUniverseType(opt.id as any)}
+                className={cn(
+                  "px-2 h-7 rounded-lg text-[9px] font-black transition-all whitespace-nowrap uppercase tracking-tighter",
+                  universeType === opt.id
+                    ? "bg-rose-500 text-white shadow-sm"
+                    : "text-gray-500 hover:bg-gray-100"
+                )}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* 분석 모델 선택 */}
+      <div className="flex flex-col gap-1.5 min-w-0">
+        <span className="text-[10px] font-black text-gray-500 pl-1 uppercase tracking-tight">인공지능 분석 모델</span>
+        <div className="flex items-center gap-1.5 bg-white border border-gray-200 rounded-xl px-2 py-1 shadow-sm h-11">
+          <Brain className="h-3 w-3 text-gray-400 ml-0.5" />
+          <Select value={selectedModel} onValueChange={setSelectedModel}>
+            <SelectTrigger className="w-[124px] border-none shadow-none h-7 text-[9px] font-black uppercase tracking-widest leading-none outline-none focus:ring-0">
+              <SelectValue placeholder="AI Model" />
+            </SelectTrigger>
+            <SelectContent>
+              {availableModels.map(model => (
+                <SelectItem key={model.value} value={model.value} className="text-[10px] font-bold">
+                  <div className="flex items-center gap-2">
+                    <span>{model.label}</span>
+                    {model.isRecommendedForNews && (
+                      <Badge variant="secondary" className="bg-blue-500/10 text-blue-500 border-blue-500/20 text-[8px] h-3.5 px-1 font-black">
+                        추천
+                      </Badge>
+                    )}
+                  </div>
+                </SelectItem>
+              ))}
+              {availableModels.length === 0 && (
+                <SelectItem value="gemini-1.5-flash" className="text-[10px] font-bold">GEMINI 1.5 FLASH</SelectItem>
+              )}
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
+      <div className="flex flex-wrap items-end gap-x-3 gap-y-5">
+        {/* 분석 기업 수 선택 */}
+        <div className="flex flex-col gap-1.5 min-w-0">
+          <span className="text-[10px] font-black text-gray-500 pl-1 uppercase tracking-tight">최종 선정 기업 수</span>
+          <div className="flex items-center gap-1 bg-white border border-gray-200 rounded-xl px-2 py-1 shadow-sm h-11">
+            <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest pl-1">TOP</span>
+            <div className="flex gap-0.5">
+              {COUNTS.map((n) => (
+                <button
+                  key={n}
+                  onClick={() => setCompanyCount(n)}
+                  className={cn(
+                    "w-7 h-7 rounded-lg text-[10px] font-black transition-all",
+                    companyCount === n
+                      ? "bg-blue-600 text-white shadow-sm"
+                      : "text-gray-500 hover:bg-gray-100"
+                  )}
+                >
+                  {n}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
 
         {/* 메인 스캔 버튼 */}
-        <Button
-          onClick={handleAnalyze}
-          disabled={disabled || isLimitReached || !selectedModel}
-          className={cn(
-            "flex-1 lg:flex-none lg:min-w-[160px] h-12 font-black shadow-lg transition-all transform hover:-translate-y-0.5 active:scale-[0.99] rounded-xl text-sm gap-2 px-6 uppercase tracking-widest",
-            !selectedModel ? "bg-gray-200 text-gray-400 cursor-not-allowed" : "bg-black hover:bg-gray-800 text-white shadow-black/10"
-          )}
-        >
-          <Sparkles className="h-4 w-4" />
-          {disabled ? 'Scanning...' : 'Scan Alpha'}
-        </Button>
+        <div className="h-11 flex items-end">
+          <Button
+            onClick={handleAnalyze}
+            disabled={disabled || isLimitReached || !selectedModel}
+            className={cn(
+              "min-w-[130px] h-11 font-black shadow-lg transition-all transform hover:-translate-y-0.5 active:scale-[0.99] rounded-xl text-xs gap-2 px-6 uppercase tracking-widest",
+              !selectedModel ? "bg-gray-200 text-gray-400 cursor-not-allowed" : "bg-black hover:bg-gray-800 text-white shadow-black/10"
+            )}
+          >
+            <Sparkles className="h-3.5 w-3.5" />
+            {disabled ? 'Scanning...' : 'Scan Alpha'}
+          </Button>
+        </div>
       </div>
     </div>
   );

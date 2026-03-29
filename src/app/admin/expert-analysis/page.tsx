@@ -10,6 +10,7 @@ import { Brain, Sparkles, Target, Activity, FileText, ChevronRight, Loader2, Che
 import { AnalysisResult, AnalysisState, InvestmentConditions } from '@/types/stock-analysis';
 import { cn } from '@/lib/utils';
 import { Progress } from '@/components/ui/progress';
+import { AnalysisReport } from '@/components/stock-analysis/analysis-report';
 
 export default function ExpertAnalysisPage() {
   const [analysisState, setAnalysisState] = useState<AnalysisState>({
@@ -20,18 +21,31 @@ export default function ExpertAnalysisPage() {
     error: null,
     excludedStockCount: 0,
     excludedDetails: [],
-    conditions: null
+    conditions: null,
+    processedCount: 0
   });
 
-  const [activeKnowledge, setActiveKnowledge] = useState<{ title: string; filesAnalyzed?: number; rulesLearned?: number } | null>(null);
+  const [showKnowledgeModal, setShowKnowledgeModal] = useState(false);
+  const [activeKnowledge, setActiveKnowledge] = useState<{ 
+    title: string; 
+    filesAnalyzed?: number; 
+    rulesLearned?: number;
+    content?: any;
+    learnedAt?: string;
+  } | null>(null);
+
   const [universeStats, setUniverseStats] = useState<{
     russellCount: number;
+    sp500Count: number;
     overlapCount: number;
     finalCount: number;
   } | null>(null);
 
+  const [showReport, setShowReport] = useState(false);
+  
   useEffect(() => {
     fetchActiveKnowledge();
+    checkInitialStatus();
   }, []);
 
   const fetchActiveKnowledge = async () => {
@@ -43,13 +57,111 @@ export default function ExpertAnalysisPage() {
           setActiveKnowledge({ 
             title: data.title || '기본 AI 투자 로직',
             filesAnalyzed: data.filesAnalyzed,
-            rulesLearned: data.rulesLearned
+            rulesLearned: data.rulesLearned,
+            content: data.content,
+            learnedAt: data.learnedAt
           });
         }
       }
     } catch (error) {
       console.error('Failed to fetch active knowledge:', error);
     }
+  };
+
+  const checkInitialStatus = async () => {
+    try {
+      const res = await fetch('/api/analysis');
+      if (!res.ok) return;
+
+      const data = await res.json();
+      if (data.status === 'processing' || data.status === 'completed') {
+        // 이미 진행 중이거나 완료된 작업이 있으면 상태 복구
+        if (data.status === 'completed' && data.result) {
+          setAnalysisState({
+            isAnalyzing: false,
+            progress: 100,
+            progressMessage: '분석 완료',
+            results: data.result,
+            error: null,
+            conditions: data.result.investmentConditions,
+            processedCount: data.result.candidates?.length || 0,
+            excludedStockCount: data.excludedStockCount || 0,
+            excludedDetails: data.excludedDetails || []
+          });
+          
+          if (data.universeCounts) {
+            setUniverseStats({
+              russellCount: data.universeCounts.russellCount,
+              sp500Count: data.universeCounts.sp500Count,
+              overlapCount: data.universeCounts.overlapCount,
+              finalCount: data.universeCounts.finalCount
+            });
+          }
+        } else if (data.status === 'processing') {
+          // 진행 중이면 폴링 시작
+          startPolling();
+        }
+      }
+    } catch (error) {
+      console.error('Failed to check initial status:', error);
+    }
+  };
+
+  const startPolling = () => {
+    const pollInterval = setInterval(async () => {
+      try {
+        const res = await fetch('/api/analysis');
+        if (!res.ok) {
+          clearInterval(pollInterval);
+          return;
+        }
+
+        const data = await res.json();
+        if (data.status === 'processing') {
+          setAnalysisState((prev: AnalysisState) => ({
+            ...prev,
+            isAnalyzing: true,
+            progress: data.progress || 0,
+            progressMessage: data.progressMessage || '분석 중...',
+            processedCount: data.processedCount || prev.processedCount,
+            excludedStockCount: data.excludedStockCount || prev.excludedStockCount,
+            excludedDetails: data.excludedDetails || prev.excludedDetails
+          }));
+          
+          if (data.universeCounts) {
+            setUniverseStats({
+              russellCount: data.universeCounts.russellCount,
+              sp500Count: data.universeCounts.sp500Count,
+              overlapCount: data.universeCounts.overlapCount,
+              finalCount: data.universeCounts.finalCount
+            });
+          }
+        } else if (data.status === 'completed') {
+          clearInterval(pollInterval);
+          setAnalysisState((prev: AnalysisState) => ({
+            ...prev,
+            isAnalyzing: false,
+            progress: 100,
+            results: data.result,
+            processedCount: data.processedCount || prev.processedCount // 유지
+          }));
+        } else if (data.status === 'error') {
+          clearInterval(pollInterval);
+          setAnalysisState((prev: AnalysisState) => ({
+            ...prev,
+            isAnalyzing: false,
+            error: data.error
+          }));
+        } else if (data.status === 'idle') {
+          // 서버에서 실시간 작업이 사라졌으면 중단
+          clearInterval(pollInterval);
+        }
+      } catch (pollError) {
+        console.error('Polling error:', pollError);
+      }
+    }, 1500);
+
+    return pollInterval;
   };
 
   const handleAnalyze = async (conditions: InvestmentConditions) => {
@@ -60,7 +172,9 @@ export default function ExpertAnalysisPage() {
       progressMessage: '분석 준비 중...',
       error: null,
       results: null,
-      conditions
+      conditions,
+      processedCount: 0,
+      excludedStockCount: 0,
     }));
 
     try {
@@ -74,52 +188,9 @@ export default function ExpertAnalysisPage() {
         throw new Error('분석 요청에 실패했습니다.');
       }
 
-      const reader = response.body?.getReader();
-      if (!reader) throw new Error('ReadableStream not supported');
+      // Start Polling
+      startPolling();
 
-      const decoder = new TextDecoder();
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        const chunk = decoder.decode(value);
-        const lines = chunk.split('\n');
-
-        for (const line of lines) {
-          if (!line.trim()) continue;
-          try {
-            const data = JSON.parse(line);
-            if (data.type === 'progress') {
-              setAnalysisState((prev: AnalysisState) => ({
-                ...prev,
-                progress: data.progress,
-                progressMessage: data.message
-              }));
-              if (data.universeStats) {
-                setUniverseStats(data.universeStats);
-              }
-              if (data.excludedCount !== undefined) {
-                 setAnalysisState((prev: AnalysisState) => ({
-                   ...prev,
-                   excludedStockCount: data.excludedCount,
-                   excludedDetails: data.excludedDetails || []
-                 }));
-              }
-            } else if (data.type === 'result') {
-              setAnalysisState((prev: AnalysisState) => ({
-                ...prev,
-                isAnalyzing: false,
-                progress: 100,
-                results: data.result,
-              }));
-            } else if (data.type === 'error') {
-              throw new Error(data.message);
-            }
-          } catch (e) {
-            console.error('Failed to parse chunk:', e);
-          }
-        }
-      }
     } catch (err) {
       setAnalysisState((prev: AnalysisState) => ({
         ...prev,
@@ -130,7 +201,7 @@ export default function ExpertAnalysisPage() {
   };
 
   return (
-    <div className="p-8 max-w-7xl mx-auto space-y-8 animate-in fade-in duration-500">
+    <div className="p-4 lg:p-8 max-w-full mx-auto space-y-6 animate-in fade-in duration-500">
       {/* Header */}
       <div className="flex flex-col gap-2">
         <div className="flex items-center gap-2 text-blue-600 mb-1">
@@ -143,31 +214,77 @@ export default function ExpertAnalysisPage() {
         </p>
       </div>
 
+      {/* 전략 실행 가이드 (화면 상단으로 이동) */}
+      <div className="p-6 rounded-2xl bg-white border border-gray-100 shadow-sm space-y-4">
+        <h4 className="text-sm font-bold flex items-center gap-2">
+          <Target className="h-4 w-4 text-blue-600" />
+          전략 실행 가이드 (Strategic Action Plan)
+        </h4>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="flex items-start gap-3">
+            <div className="w-6 h-6 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center text-xs font-black shrink-0 mt-0.5">1</div>
+            <div>
+              <p className="text-[11px] font-bold text-gray-900 uppercase mb-1">Knowledge Extraction</p>
+              <p className="text-[11px] text-gray-600 leading-relaxed">구글 드라이브의 원천 데이터를 학습하여 **저자의 투자 조건**을 먼저 추출하세요.</p>
+            </div>
+          </div>
+          <div className="flex items-start gap-3">
+            <div className="w-6 h-6 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center text-xs font-black shrink-0 mt-0.5">2</div>
+            <div>
+              <p className="text-[11px] font-bold text-gray-900 uppercase mb-1">Universe Scanning</p>
+              <p className="text-[11px] text-gray-600 leading-relaxed">우측 상단에서 **유니버스 및 시점**을 선택한 후 'Scan Alpha'를 클릭하세요.</p>
+            </div>
+          </div>
+          <div className="flex items-start gap-3">
+            <div className="w-6 h-6 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center text-xs font-black shrink-0 mt-0.5">3</div>
+            <div>
+              <p className="text-[11px] font-bold text-gray-900 uppercase mb-1">Deep Intelligence</p>
+              <p className="text-[11px] text-gray-600 leading-relaxed">검색된 **후보 기업** 중 하나를 선택하여 저자의 관점에서 작성된 **심층 분석 보고서**를 확인하세요.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
         {/* Left: Knowledge & Scan Control */}
         <div className="lg:col-span-4 space-y-6">
            <DataControl onLearningComplete={fetchActiveKnowledge} />
            
-           <div className="p-6 rounded-2xl bg-white border border-gray-200 shadow-sm space-y-4">
-             <h4 className="text-sm font-bold flex items-center gap-2">
-               <Target className="h-4 w-4 text-blue-600" />
-               전략 실행 가이드
-             </h4>
-             <div className="space-y-3">
-               <div className="flex items-start gap-3">
-                 <div className="w-5 h-5 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center text-[10px] font-black shrink-0 mt-0.5">1</div>
-                 <p className="text-[11px] text-gray-600 leading-relaxed">구글 드라이브의 원천 데이터를 학습하여 **저자의 투자 조건**을 먼저 추출하세요.</p>
+           {activeKnowledge && (
+             <div className="p-6 rounded-2xl bg-gradient-to-br from-blue-600 to-indigo-700 shadow-xl text-white space-y-4 relative overflow-hidden group">
+               <div className="absolute -right-4 -top-4 opacity-10 group-hover:scale-110 transition-transform">
+                 <Brain className="h-24 w-24" />
                </div>
-               <div className="flex items-start gap-3">
-                 <div className="w-5 h-5 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center text-[10px] font-black shrink-0 mt-0.5">2</div>
-                 <p className="text-[11px] text-gray-600 leading-relaxed">우측 상단에서 **유니버스 및 시점**을 선택한 후 'Scan Alpha'를 클릭하세요.</p>
-               </div>
-               <div className="flex items-start gap-3">
-                 <div className="w-5 h-5 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center text-[10px] font-black shrink-0 mt-0.5">3</div>
-                 <p className="text-[11px] text-gray-600 leading-relaxed">검색된 **후보 기업** 중 하나를 선택하여 저자의 관점에서 작성된 **심층 분석 보고서**를 확인하세요.</p>
+               <div className="relative z-10">
+                 <div className="flex items-center gap-2 text-blue-100 mb-2">
+                   <Sparkles className="h-4 w-4" />
+                   <span className="text-[10px] font-black uppercase tracking-widest">Active Intelligence</span>
+                 </div>
+                 <h3 className="text-xl font-black truncate mb-1">{activeKnowledge.title}</h3>
+                 <p className="text-blue-100 text-xs font-medium opacity-80 mb-4">
+                   학습일: {activeKnowledge.learnedAt ? new Date(activeKnowledge.learnedAt).toLocaleDateString() : '최근'}
+                 </p>
+                 
+                 <div className="grid grid-cols-2 gap-4 mb-4">
+                   <div className="bg-white/10 rounded-xl p-3">
+                     <p className="text-[9px] font-black text-blue-200 uppercase mb-1">Files</p>
+                     <p className="text-lg font-black">{activeKnowledge.filesAnalyzed}건</p>
+                   </div>
+                   <div className="bg-white/10 rounded-xl p-3">
+                     <p className="text-[9px] font-black text-blue-200 uppercase mb-1">AI Rules</p>
+                     <p className="text-lg font-black">{activeKnowledge.rulesLearned}개</p>
+                   </div>
+                 </div>
+
+                 <button 
+                   onClick={() => setShowKnowledgeModal(true)}
+                   className="w-full py-3 bg-white text-blue-600 rounded-xl font-black text-xs hover:bg-blue-50 transition-colors shadow-lg"
+                 >
+                   학습 데이터(지식) 상세보기
+                 </button>
                </div>
              </div>
-           </div>
+           )}
         </div>
 
         {/* Right: Analysis Engine & Results */}
@@ -204,16 +321,16 @@ export default function ExpertAnalysisPage() {
               {universeStats && (
                 <div className="grid grid-cols-3 gap-4">
                   <div className="p-4 rounded-xl bg-gray-50 border border-gray-100">
-                    <p className="text-[10px] font-black text-gray-400 uppercase mb-1">Total Pool</p>
-                    <p className="text-xl font-black text-gray-900">{universeStats.russellCount}</p>
+                    <p className="text-[10px] font-black text-gray-400 uppercase mb-1">Scanned Pool (A)</p>
+                    <p className="text-xl font-black text-gray-900">{universeStats.finalCount}</p>
                   </div>
                   <div className="p-4 rounded-xl bg-gray-50 border border-gray-100">
-                    <p className="text-[10px] font-black text-gray-400 uppercase mb-1">Excluded</p>
+                    <p className="text-[10px] font-black text-gray-400 uppercase mb-1">Failed</p>
                     <p className="text-xl font-black text-rose-500">-{analysisState.excludedStockCount}</p>
                   </div>
                   <div className="p-4 rounded-xl bg-blue-600 text-white">
-                    <p className="text-[10px] font-black text-blue-200 uppercase mb-1">Qualified</p>
-                    <p className="text-xl font-black">{universeStats.finalCount}</p>
+                    <p className="text-[10px] font-black text-blue-200 uppercase mb-1">Processed</p>
+                    <p className="text-xl font-black">{analysisState.processedCount}</p>
                   </div>
                 </div>
               )}
@@ -227,28 +344,70 @@ export default function ExpertAnalysisPage() {
             </div>
           )}
 
-          {analysisState.results && (
-            <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-emerald-100 rounded-lg">
-                    <CheckCircle2 className="h-5 w-5 text-emerald-600" />
-                  </div>
-                  <div>
-                    <h2 className="text-2xl font-black text-gray-900 tracking-tight">1단계 스캔 결과: 최적 후보군</h2>
-                    <p className="text-sm text-gray-500 font-medium">저자의 공통 투자 원칙에 가장 부합하는 기업 리스트입니다.</p>
-                  </div>
-                </div>
-                <Badge variant="outline" className="h-8 px-4 font-black border-gray-200">
-                  FOUND {analysisState.results.candidates.length} CANDIDATES
-                </Badge>
+      {analysisState.results && (
+        <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
+          {/* Transparency Card */}
+          <div className="bg-emerald-50 border border-emerald-100/50 rounded-2xl p-6 flex flex-col md:flex-row md:items-center justify-between gap-6 shadow-sm mb-6 relative overflow-hidden">
+            <div className="absolute top-0 right-0 p-4 opacity-5">
+               <Target className="h-20 w-20 text-emerald-900" />
+            </div>
+            <div className="space-y-1 relative z-10">
+              <h3 className="text-emerald-950 font-black text-lg">전수 조사 완료 리포트</h3>
+              <p className="text-emerald-700 text-sm font-medium">선택하신 유니버스의 모든 기업을 대상으로 전수 조사를 완료했습니다.</p>
+              <button 
+                onClick={() => setShowReport(!showReport)}
+                className="mt-2 text-xs font-black text-blue-600 hover:text-blue-700 flex items-center gap-1 group/btn"
+              >
+                {showReport ? '상세 리포트 닫기' : '전체 성공/실패 현황 상세 보기'}
+                <ChevronRight className={cn("h-3 w-3 transition-transform", showReport ? "rotate-90" : "group-hover/btn:translate-x-0.5")} />
+              </button>
+            </div>
+            <div className="flex gap-4 relative z-10">
+              <div className="px-5 py-3 bg-white rounded-xl border border-emerald-100 text-center min-w-[100px] shadow-sm">
+                <p className="text-[10px] font-black text-emerald-600 uppercase mb-1">Scanned</p>
+                <p className="text-xl font-black text-emerald-950">{universeStats?.finalCount || 0}</p>
               </div>
+              <div className="px-5 py-3 bg-white rounded-xl border border-emerald-100 text-center min-w-[100px] shadow-sm">
+                <p className="text-[10px] font-black text-rose-500 uppercase mb-1">Failed</p>
+                <p className="text-xl font-black text-rose-600">-{analysisState.excludedStockCount}</p>
+              </div>
+              <div className="px-5 py-3 bg-white rounded-xl border border-emerald-100 text-center min-w-[100px] shadow-sm">
+                <p className="text-[10px] font-black text-blue-600 uppercase mb-1">Processed</p>
+                <p className="text-xl font-black text-blue-900">{analysisState.processedCount || 0}</p>
+              </div>
+            </div>
+          </div>
 
-              <AnalysisOutput 
-                results={analysisState.results.candidates as any} 
-                conditions={analysisState.conditions}
-                isLoading={false}
+          {showReport && (
+            <div className="mb-8 animate-in slide-in-from-top-4 duration-500">
+              <AnalysisReport 
+                candidates={analysisState.results.candidates} 
+                excludedDetails={analysisState.excludedDetails} 
+                totalUniverse={universeStats?.finalCount || 0}
               />
+            </div>
+          )}
+
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-emerald-100 rounded-lg">
+                <CheckCircle2 className="h-5 w-5 text-emerald-600" />
+              </div>
+              <div>
+                <h2 className="text-2xl font-black text-gray-900 tracking-tight">1단계 스캔 결과: 최적 후보군</h2>
+                <p className="text-sm text-gray-500 font-medium">저자의 공통 투자 원칙에 가장 부합하는 기업 리스트입니다.</p>
+              </div>
+            </div>
+            <Badge variant="outline" className="h-8 px-4 font-black border-gray-200">
+              FOUND {analysisState.results.candidates.length} CANDIDATES
+            </Badge>
+          </div>
+
+          <AnalysisOutput 
+            results={analysisState.results.candidates as any} 
+            conditions={analysisState.conditions}
+            isLoading={false}
+          />
               
               <div className="p-8 rounded-3xl bg-blue-900 text-white shadow-2xl relative overflow-hidden group">
                 <div className="absolute top-0 right-0 p-8 opacity-10 group-hover:scale-110 transition-transform">
@@ -276,6 +435,93 @@ export default function ExpertAnalysisPage() {
           )}
         </div>
       </div>
+
+      {/* Knowledge Detail Modal */}
+      {showKnowledgeModal && activeKnowledge && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-gray-900/60 backdrop-blur-sm" onClick={() => setShowKnowledgeModal(false)} />
+          <div className="bg-white rounded-3xl w-full max-w-4xl max-h-[90vh] overflow-hidden shadow-2xl relative z-10 flex flex-col animate-in zoom-in-95 duration-200">
+            <div className="p-6 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-blue-600 rounded-xl">
+                  <Brain className="h-6 w-6 text-white" />
+                </div>
+                <div>
+                  <h2 className="text-xl font-black text-gray-900 tracking-tight">학습된 AI 투자 전략 상세</h2>
+                  <p className="text-sm text-gray-500 font-medium">{activeKnowledge.title}</p>
+                </div>
+              </div>
+              <button 
+                onClick={() => setShowKnowledgeModal(false)}
+                className="p-2 hover:bg-gray-200 rounded-full transition-colors"
+              >
+                <Loader2 className="h-6 w-6 text-gray-400 rotate-45" /> 
+              </button>
+            </div>
+            
+            <div className="flex-1 overflow-y-auto p-8 space-y-8">
+              {/* Category Rules */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-4">
+                  <h4 className="text-xs font-black text-blue-600 uppercase tracking-widest flex items-center gap-2">
+                    <Target className="h-4 w-4" />
+                    추출된 투자 조건 ({activeKnowledge.rulesLearned}개)
+                  </h4>
+                  <div className="space-y-3">
+                    {activeKnowledge.content?.criteria?.criterias?.map((rule: any, idx: number) => (
+                      <div key={idx} className="p-4 rounded-xl bg-gray-50 border border-gray-100 space-y-2">
+                        <div className="flex items-center justify-between">
+                          <Badge className="bg-white text-gray-500 border-gray-200 text-[9px] font-black">{rule.category}</Badge>
+                          <span className="text-[10px] font-black text-blue-600">가중치: {rule.weight}</span>
+                        </div>
+                        <p className="text-sm font-bold text-gray-900">{rule.name}</p>
+                        <p className="text-xs text-gray-500 leading-relaxed line-clamp-2">{rule.description}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="space-y-6">
+                   <div className="space-y-4">
+                    <h4 className="text-xs font-black text-indigo-600 uppercase tracking-widest flex items-center gap-2">
+                      <Sparkles className="h-4 w-4" />
+                      전략적 원칙 (Strategy Principles)
+                    </h4>
+                    <div className="p-5 rounded-2xl bg-indigo-50 border border-indigo-100 space-y-4">
+                      {activeKnowledge.content?.strategy?.corePrinciples?.map((p: string, i: number) => (
+                        <div key={i} className="flex gap-3">
+                          <CheckCircle2 className="h-4 w-4 text-indigo-500 shrink-0 mt-0.5" />
+                          <p className="text-xs font-bold text-indigo-900 leading-relaxed">{p}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <h4 className="text-xs font-black text-gray-400 uppercase tracking-widest">참고 원천 데이터</h4>
+                    <div className="flex flex-wrap gap-2">
+                      {activeKnowledge.content?.fileAnalyses?.map((f: any, i: number) => (
+                        <Badge key={i} variant="outline" className="bg-gray-50 text-gray-600 font-bold border-gray-200">
+                          {f.fileName}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="p-6 border-t border-gray-100 bg-gray-50/50 flex justify-end">
+              <button 
+                onClick={() => setShowKnowledgeModal(false)}
+                className="px-6 py-2.5 bg-gray-900 text-white rounded-xl font-bold text-sm shadow-lg hover:bg-gray-800 transition-all"
+              >
+                닫기
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

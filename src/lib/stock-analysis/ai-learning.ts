@@ -27,6 +27,8 @@ export const learningStatus = {
   startTime: null as Date | null,
   totalFiles: 0,
   completedFiles: 0,
+  failedFiles: 0,
+  error: null as string | null,
 };
 
 export function cancelLearningPipeline() {
@@ -109,6 +111,10 @@ export async function runLearningPipeline(
   learningStatus.isLearning = true;
   learningStatus.isCancelled = false;
   learningStatus.startTime = new Date();
+  learningStatus.error = null;
+  learningStatus.completedFiles = 0;
+  learningStatus.failedFiles = 0;
+  learningStatus.totalFiles = 0;
 
   try {
     let allFiles: DriveFileInfo[] = [];
@@ -214,7 +220,16 @@ export async function runLearningPipeline(
         const ext = getFileExt(file.name, file.mimeType);
         const chosenModelGrp = aiModels?.[ext] || aiModels?.['전체'] || 'gemini-1.5-flash';
         
-        const promptText = `주식 투자 분석가로서 다음 파일의 핵심 조건을 추출하세요: ${file.name}. JSON 형식 {"keyConditions": []}로 응답하세요.`;
+        const promptText = `주식 투자 분석가로서 다음 파일의 투자 조건을 추출하세요: ${file.name}.
+        각 조건에 대해 다음 정보를 JSON 형식으로 응답하세요:
+        {"keyConditions": [
+          {
+            "name": "조건 이름",
+            "description": "상세 설명",
+            "content_snippet": "본문에서 이 조건을 설명하는 가장 핵심적인 문장을 있는 그대로 복사(발췌)하세요.",
+            "location": "페이지 번호 또는 대략적인 타임스탬프"
+          }
+        ]}`;
         let responseText = '';
 
         if (chosenModelGrp.startsWith('gpt')) {
@@ -263,7 +278,9 @@ export async function runLearningPipeline(
         learningStatus.completedFiles += 1;
       } catch (error: any) {
         console.error(`파일 분석 실패: ${file.name}`, error);
-        throw new Error(`파일(${file.name}) 분석 중 오류: ${error.message}`);
+        learningStatus.failedFiles += 1;
+        // 개별 파일 실패 시 중단하지 않고 계속 진행하도록 변경
+        // throw new Error(`파일(${file.name}) 분석 중 오류: ${error.message}`);
       }
     }
 
@@ -343,11 +360,11 @@ export async function runLearningPipeline(
        },
        "isCritical": true|false, 
        "visualEvidence": "시각적 근거 요약",
-       "source": { "fileName": "파일명", "location": "위치" }
+       "source": { "fileName": "파일명", "location": "위치(페이지/시간)", "content_snippet": "본문에서 발췌한 실제 문구" }
      }
    ],
    "principles": [
-     { "principle": "원칙 내용", "category": "entry|exit|risk|general", "source": { "fileName": "파일명", "location": "위치" } }
+     { "principle": "원칙 내용", "category": "entry|exit|risk|general", "source": { "fileName": "파일명", "location": "위치(페이지/시간)", "content_snippet": "본문에서 발췌한 실제 문구" } }
    ]
  }`;
 
@@ -388,7 +405,12 @@ export async function runLearningPipeline(
         },
         isCritical: c.isCritical || false,
         visualEvidence: c.visualEvidence || '',
-        source: c.source || defaultSource,
+        source: c.source ? {
+          fileName: c.source.fileName || 'unknown',
+          type: (c.source.fileName || '').toLowerCase().endsWith('.mp4') ? 'mp4' : 'pdf',
+          pageOrTimestamp: c.source.location || '-',
+          content: c.source.content_snippet || c.description // 발췌문 우선, 없으면 설명으로 대체
+        } : defaultSource,
       })),
       principles: (strategyData.principles || []).map((p: any) => ({
         principle: p.principle,
@@ -415,12 +437,14 @@ export async function runLearningPipeline(
 
     return knowledge;
 
+  } catch (err: any) {
+    learningStatus.error = err.message;
+    throw err;
   } finally {
     learningStatus.isLearning = false;
     learningStatus.isCancelled = false;
-    learningStatus.startTime = null;
-    learningStatus.totalFiles = 0;
-    learningStatus.completedFiles = 0;
+    // Finally 블록에서 상태를 초기화하면 프론트엔드 폴링 시 마지막 결과를 볼 수 없으므로 유지하거나, 폴링 시간차를 고려해야 함
+    // 여기서는 isLearning만 false로 바꾸고 수치는 유지 (다음 학습 시작 시 초기화됨)
   }
 }
 

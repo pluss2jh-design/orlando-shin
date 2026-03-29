@@ -9,9 +9,11 @@ import { AnalysisOutput } from '@/components/stock-analysis/analysis-output';
 import { NewsSection } from '@/components/stock-analysis/news-section';
 import { BacktestDialog } from '@/components/stock-analysis/backtest-dialog';
 import { Badge } from '@/components/ui/badge';
+import { AnalysisReport } from '@/components/stock-analysis/analysis-report';
 import { Button } from '@/components/ui/button';
-import { History, Search, X } from 'lucide-react';
+import { History, Search, X, ChevronRight } from 'lucide-react';
 import { Input } from '@/components/ui/input';
+import { cn } from '@/lib/utils';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   InvestmentConditions,
@@ -76,6 +78,7 @@ export default function StockAnalysisPage() {
 
   const [userPlan, setUserPlan] = useState<string>('FREE');
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+  const [showDetailReport, setShowDetailReport] = useState(false);
   const analysisAlerted = useRef(false);
 
   useEffect(() => {
@@ -631,6 +634,34 @@ export default function StockAnalysisPage() {
           isLoading={analysisState.isAnalyzing}
           onSendEmail={handleSendEmail}
         />
+
+        {/* 상세 리포트 토글 버튼 - 분석 결과가 있을 때만 표시 */}
+        {!analysisState.isAnalyzing && analysisState.results.length > 0 && (
+          <div className="mt-6 flex flex-col gap-4">
+            <div className="flex justify-center">
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => setShowDetailReport(!showDetailReport)}
+                className="h-10 px-8 border-gray-200 text-gray-600 hover:bg-white hover:text-blue-600 font-black uppercase text-[10px] tracking-widest gap-2 rounded-xl shadow-sm"
+              >
+                <Search className="h-3.5 w-3.5" />
+                {showDetailReport ? '상세 리포트 닫기' : '전수 조사 성공/제외 현황 상세 보기'}
+                <ChevronRight className={cn("h-3.5 w-3.5 transition-transform", showDetailReport ? "rotate-90" : "animate-bounce-x")} />
+              </Button>
+            </div>
+
+            {showDetailReport && (
+              <div className="animate-in slide-in-from-top-3 duration-500">
+                <AnalysisReport 
+                  candidates={analysisState.results} 
+                  excludedDetails={analysisState.excludedDetails} 
+                  totalUniverse={universeStats?.finalCount || 0}
+                />
+              </div>
+            )}
+          </div>
+        )}
 
         {/* 뉴스 섹션 */}
         {analysisState.results.length > 0 && (

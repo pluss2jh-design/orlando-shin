@@ -53,38 +53,16 @@ export interface StrategyMatchScore {
   allocationLabel: string;
 }
 
-export interface AnalysisResult {
-  companyName: string;
-  ticker?: string;
-  market?: StockMarket;
-  expectedReturnRate: number;
-  confidenceScore: number;
-  confidenceDetails?: string[];
-  reasoning: string;
-  sources: SourceReference[];
-  riskLevel: RiskLevel;
-  currentPrice?: number;
-  targetPrice?: number;
-  currency?: CurrencyCode;
-  ruleScores?: RuleScore[];
-  totalRuleScore?: number;
-  maxPossibleScore?: number;
-  financialHistory?: FinancialRecord[];
-  returnRates?: {
-    oneYear?: number;
-    sixMonths?: number;
-    threeMonths?: number;
-    oneMonth?: number;
-  };
-  strategyMatch?: StrategyMatchScore;
-  sector?: string;
-  macroContext?: MacroContext;
-  sentiment?: SentimentAnalysis;
-  prediction?: PredictiveAnalysis;
-  backtestResult?: {
-    pastOneYearReturn: number;
-    winRateVsS_P500: number;
-  };
+// AnalysisResult는 아래에서 정의됩니다.
+
+export interface ExpertVerdict {
+  recommendation: 'BUY' | 'SELL' | 'HOLD';
+  title: string;
+  summary: string;
+  convictionScore: number;
+  keyPoints: string[];
+  risks: string[];
+  authorCitations: { fileName: string; pageOrTimestamp?: string }[];
 }
 
 
@@ -312,6 +290,13 @@ export interface FilteredCandidate {
 }
 
 export interface AnalysisResult extends FilteredCandidate {
+  companyName: string;
+  ticker?: string;
+  market?: StockMarket;
+  sector?: string;
+  reasoning: string;
+  sources: SourceReference[];
+
   score: number;
   expectedReturnRate: number;
   confidenceScore: number;
@@ -326,15 +311,15 @@ export interface AnalysisResult extends FilteredCandidate {
   macroContext?: MacroContext;
   sentiment?: SentimentAnalysis;
   prediction?: PredictiveAnalysis;
-  expertVerdict?: {
-    recommendation: 'BUY' | 'SELL' | 'HOLD' | 'WATCH';
-    convictionScore: number;
-    title: string;
-    summary: string;
-    keyPoints: string[];
-    risks: string[];
-    authorCitations: { fileName: string; pageOrTimestamp?: string; context: string }[];
+  expertVerdict?: ExpertVerdict;
+  
+  returnRates?: {
+    oneYear?: number;
+    sixMonths?: number;
+    threeMonths?: number;
+    oneMonth?: number;
   };
+
   backtestResult?: {
     pastOneYearReturn: number;
     winRateVsS_P500: number;
@@ -348,6 +333,8 @@ export interface MacroContext {
   yieldStatus: 'Bearish' | 'Neutral' | 'Bullish';
   sp500Trend: 'Uptrend' | 'Downtrend' | 'Sideways';
   marketMode: 'Greed' | 'Fear' | 'Neutral';
+  dxy?: number;       // Dollar Index
+  hySpread?: number;  // High Yield Spread Proxy
   extractedAt: Date;
 }
 
@@ -355,8 +342,8 @@ export interface SentimentAnalysis {
   score: number; // -10 to 10
   label: 'Positive' | 'Negative' | 'Neutral';
   summary: string;
-  recentHeadlines: string[];
-  riskHeadlines: string[];
+  recentHeadlines: { title: string; url?: string }[];
+  riskHeadlines: { title: string; url?: string }[];
 }
 
 export interface PredictiveAnalysis {
@@ -398,6 +385,7 @@ export interface EvidenceChain {
 export interface ExcludedStockDetail {
   ticker: string;
   reason: string;
+  category?: string; // Grouping category
 }
 
 export interface RecommendationResult {
@@ -458,4 +446,10 @@ export interface AnalysisState {
   excludedStockCount: number;
   excludedDetails: ExcludedStockDetail[];
   conditions: InvestmentConditions | null;
+  universeCounts?: {
+    russellCount: number;
+    sp500Count: number;
+    overlapCount: number;
+  };
+  processedCount?: number;
 }

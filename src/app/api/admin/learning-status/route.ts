@@ -17,6 +17,8 @@ export async function GET() {
             startTime: learningStatus.startTime,
             totalFiles: learningStatus.totalFiles,
             completedFiles: learningStatus.completedFiles,
+            failedFiles: learningStatus.failedFiles,
+            error: learningStatus.error,
         });
     } catch (error) {
         return NextResponse.json({ error: '상태 조회 실패' }, { status: 500 });

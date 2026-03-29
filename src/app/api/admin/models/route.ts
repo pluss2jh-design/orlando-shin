@@ -56,15 +56,16 @@ export async function GET() {
                             const isGeminiModel = name.includes('gemini');
                             const hasGenerateContent = (m.supportedGenerationMethods || []).includes('generateContent');
                             
+                            const lowerName = name.toLowerCase(); // Redundant as 'name' is already lowercase, but kept for consistency with instruction
                             return {
-                                value: rawId,
-                                label: m.displayName || rawId,
+                                value: rawId, // Use rawId for value as it's the canonical model ID
+                                label: rawId.toUpperCase(), // Use rawId for label and convert to uppercase
                                 reqKey: 'GEMINI_API_KEY',
                                 provider: 'google',
                                 supportsPDF: isGeminiModel && hasGenerateContent,
-                                supportsVideo: isGeminiModel && hasGenerateContent && (name.includes('flash') || name.includes('pro')),
-                                isRecommendedForLearning: name.includes('pro'),
-                                isRecommendedForNews: name.includes('flash') && !name.includes('8b')
+                                supportsVideo: isGeminiModel && hasGenerateContent && (lowerName.includes('flash') || lowerName.includes('pro')),
+                                isRecommendedForLearning: lowerName.includes('pro'),
+                                isRecommendedForNews: lowerName.includes('flash') && !lowerName.includes('8b')
                             };
                         });
                     models.push(...geminiModels);

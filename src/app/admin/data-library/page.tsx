@@ -23,10 +23,13 @@ import {
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Badge } from '@/components/ui/badge';
-import { Checkbox } from '@/components/ui/checkbox';
+import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import {
     Select,
     SelectContent,
@@ -34,8 +37,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import { formatFileSize } from '@/lib/stock-analysis/utils';
 
 interface DriveFile {
     id: string;
@@ -120,9 +122,9 @@ const ModelSelector = ({ ext, currentModel, models, keys, onSelect }: { ext: str
                             <SelectItem key={model.value} value={model.value} disabled={!hasKey} className="text-white focus:bg-gray-800">
                                 <div className="flex items-center justify-between w-full gap-4">
                                     <div className="flex items-center gap-2">
-                                        <span>{model.label}</span>
+                                        <span className="font-bold">{model.label}</span>
                                         {model.isRecommendedForLearning && (
-                                            <Badge variant="secondary" className="bg-green-500/10 text-green-400 border-green-500/20 text-[9px] h-4 px-1.5 font-bold">
+                                            <Badge variant="default" className="bg-blue-600 hover:bg-blue-600 text-white border-none text-[8px] h-3.5 px-1 font-black leading-none flex items-center shadow-sm">
                                                 추천
                                             </Badge>
                                         )}
@@ -174,8 +176,9 @@ export default function DataLibraryPage() {
 
     // UI 상태
     const [selectedFileIds, setSelectedFileIds] = useState<Set<string>>(new Set());
-    const [title, setTitle] = useState('');
     const [aiModels, setAiModels] = useState<Record<string, string>>({});
+    const [title, setTitle] = useState('');
+    const [lastError, setLastError] = useState<string | null>(null);
     const [availableModels, setAvailableModels] = useState<AIModel[]>([]);
     const [keys, setKeys] = useState<{ GEMINI_API_KEY?: string, OPENAI_API_KEY?: string, CLAUDE_API_KEY?: string } | null>(null);
     const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set());
@@ -203,6 +206,11 @@ export default function DataLibraryPage() {
                     const response = await fetch('/api/admin/learning-status', { cache: 'no-store' });
                     if (response.ok) {
                         const data = await response.json();
+                        if (data.error && data.error.includes('QUOTA')) {
+                            setLearning(false);
+                            setLastError('AI 모델 사용량이 초과되었습니다. 잠시 후 다시 시도하거나 다른 모델을 선택해주세요.');
+                            return;
+                        }
                         if (!data.isLearning) {
                             setLearning(false);
                             fetchInitialData();
@@ -341,6 +349,47 @@ export default function DataLibraryPage() {
         });
     };
 
+    /** 폴더 하위의 모든 실제 파일 ID들 가져오기 (폴더 제외) */
+    const getRecursiveFileIds = (folderId: string): string[] => {
+        const children = files.filter(f => f.parentId === folderId);
+        let ids: string[] = [];
+        children.forEach(c => {
+            if (c.mimeType === 'application/vnd.google-apps.folder') {
+                ids = [...ids, ...getRecursiveFileIds(c.id)];
+            } else {
+                ids.push(c.id);
+            }
+        });
+        return ids;
+    };
+
+    /** 폴더의 선택 상태 결정 */
+    const getFolderCheckState = (folderId: string): boolean | 'indeterminate' => {
+        const fileIds = getRecursiveFileIds(folderId);
+        if (fileIds.length === 0) return selectedFileIds.has(folderId);
+        
+        const selectedCount = fileIds.filter(id => selectedFileIds.has(id)).length;
+        if (selectedCount === 0) return false;
+        if (selectedCount === fileIds.length) return true;
+        return 'indeterminate';
+    };
+
+    /** 폴더 토글 - 하위 모든 파일 일괄 처리 */
+    const handleToggleFolderSelection = (folderId: string, checked: boolean) => {
+        const fileIds = getRecursiveFileIds(folderId);
+        setSelectedFileIds(prev => {
+            const next = new Set(prev);
+            if (checked) {
+                next.add(folderId);
+                fileIds.forEach(id => next.add(id));
+            } else {
+                next.delete(folderId);
+                fileIds.forEach(id => next.delete(id));
+            }
+            return next;
+        });
+    };
+
     const handleRunLearning = async () => {
         if (selectedFileIds.size === 0) {
             alert('학습할 파일을 선택해주세요.');
@@ -350,7 +399,6 @@ export default function DataLibraryPage() {
         const currentTitle = title;
 
         setIsRequesting(true);
-        setSelectedFileIds(new Set());
         setTitle('');
 
         try {
@@ -361,8 +409,6 @@ export default function DataLibraryPage() {
             });
             if (response.ok) {
                 setLearning(true);
-                // Instead of processing result, we just started background execution
-                // The useEffect pollStatus will handle the rest!
                 alert('AI 엔진 학습 요청이 접수되었습니다. 백그라운드에서 진행됩니다.');
                 await fetchInitialData();
             } else {
@@ -378,19 +424,29 @@ export default function DataLibraryPage() {
     };
 
     const handleCancelLearning = async () => {
-        if (!confirm('현재 진행중인 AI 학습을 강제로 중지하시겠습니까? 처리중이던 파일 분석 데이터는 모두 삭제됩니다.')) return;
+        if (!confirm('현재 진행중인 AI 학습을 강제로 중지하시겠습니까?')) return;
+        setLearning(false); // 낙관적 UI 업데이트
         try {
             const response = await fetch('/api/admin/learning-status', { method: 'DELETE' });
-            if (response.ok) {
-                alert('학습을 강제로 중지하는 명령을 서버에 전달했습니다.');
-                setLearning(false);
-            } else {
+            if (!response.ok) {
                 const err = await response.json();
                 alert(`중지 요청 실패: ${err.error}`);
             }
         } catch (error) {
             console.error('중지 실패:', error);
-            alert('중지 요청 중 오류가 발생했습니다.');
+        }
+    };
+
+    const handleStopSync = async () => {
+        setSyncing(false); // 낙관적 UI 업데이트
+        try {
+            await fetch('/api/gdrive/sync', { method: 'DELETE' });
+            // 중지 직전까지의 최종 파일 목록을 가져오기 위한 지연 호출
+            setTimeout(() => {
+                fetchFiles();
+            }, 1000);
+        } catch (error) {
+            console.error('동기화 중지 실패:', error);
         }
     };
 
@@ -477,13 +533,14 @@ export default function DataLibraryPage() {
         return children.map(file => {
             const isFolder = file.mimeType === 'application/vnd.google-apps.folder';
             const isExpanded = expandedFolders.has(file.id);
+            const folderState = isFolder ? getFolderCheckState(file.id) : selectedFileIds.has(file.id);
 
             return (
                 <div key={file.id}>
                     <div 
-                        className={`flex items-center gap-4 p-4 hover:bg-gray-800/20 transition-all cursor-pointer group ${selectedFileIds.has(file.id) ? 'bg-blue-500/5' : ''}`}
-                        style={{ paddingLeft: `${level * 24 + 16}px` }}
-                        onClick={() => {
+                        className={`flex items-center gap-4 p-4 hover:bg-gray-800/10 transition-all cursor-pointer group ${selectedFileIds.has(file.id) ? 'bg-blue-500/5' : ''}`}
+                        style={{ paddingLeft: `${level * 40 + 16}px` }}
+                        onClick={(e) => {
                             if (isFolder) {
                                 setExpandedFolders(prev => {
                                     const next = new Set(prev);
@@ -496,31 +553,45 @@ export default function DataLibraryPage() {
                             }
                         }}
                     >
-                        {!isFolder && (
-                            <Checkbox checked={selectedFileIds.has(file.id)} onCheckedChange={() => handleToggleFileSelection(file.id)} onClick={(e) => e.stopPropagation()} />
-                        )}
+                        {/* 체크박스 로직 개선 */}
+                        <Checkbox 
+                            checked={folderState} 
+                            onCheckedChange={(checked) => {
+                                if (isFolder) handleToggleFolderSelection(file.id, !!checked);
+                                else handleToggleFileSelection(file.id);
+                            }} 
+                            onClick={(e) => e.stopPropagation()} 
+                        />
+
                         {isFolder && (
-                            isExpanded ? <ChevronDown className="h-4 w-4 text-gray-500" /> : <ChevronRight className="h-4 w-4 text-gray-500" />
+                            <div className="shrink-0 group-hover:text-blue-500 transition-colors">
+                                {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                            </div>
                         )}
-                        <div className="p-2 bg-gray-950 rounded-lg group-hover:scale-110 transition-transform">
+                        <div className="p-2 bg-gray-950 rounded-lg group-hover:scale-110 transition-transform shadow-inner">
                             {getFileIcon(file.mimeType, file.name)}
                         </div>
                         <div className="flex-1 min-w-0">
-                            <h4 className="text-white font-bold truncate text-sm">{file.name}</h4>
-                            <p className="text-xs flex items-center gap-2 text-gray-500 font-medium">
+                            <h4 className="text-white font-bold truncate text-sm tracking-tight">{file.name}</h4>
+                            <p className="text-[10px] flex items-center gap-2 text-gray-500 font-bold uppercase tracking-widest">
                                 {!isFolder && <span>{formatFileSize(file.size)}</span>}
                                 {!isFolder && <span>•</span>}
                                 <span>{new Date(file.modifiedTime).toLocaleDateString('ko-KR')}</span>
                             </p>
                         </div>
                         {file.learnStatus === 'completed' && !isFolder && (
-                            <Badge className="bg-emerald-500/10 text-emerald-500 border-none">
+                            <Badge className="bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 text-[9px] font-black tracking-tighter shadow-sm">
                                 <CheckCircle className="h-3 w-3 mr-1" /> PROCESSED
                             </Badge>
                         )}
                     </div>
                     {isFolder && isExpanded && (
-                        <div className="border-l border-gray-800 ml-6">
+                        <div className="relative">
+                            {/* 트리 라인 표시 (더 선명하고 명확한 세로선) */}
+                            <div 
+                                className="absolute left-[38px] top-0 bottom-0 w-px bg-gradient-to-b from-gray-800 via-gray-700 to-gray-800 opacity-60" 
+                                style={{ left: `${level * 40 + 26}px` }} 
+                            />
                             {renderFileTreeView(file.id, allItems, level + 1)}
                         </div>
                     )}
@@ -535,6 +606,17 @@ export default function DataLibraryPage() {
 
     return (
         <div className="p-8 space-y-8 animate-in fade-in duration-500">
+            {lastError && (
+                <Alert variant="destructive" className="bg-rose-500/10 border-rose-500/50 animate-in slide-in-from-top-2">
+                    <AlertCircle className="h-4 w-4 text-rose-500" />
+                    <AlertTitle className="text-rose-600 font-bold">분석 엔진 오류</AlertTitle>
+                    <AlertDescription className="text-rose-500 font-medium">
+                        {lastError}
+                        <Button variant="link" className="text-rose-600 h-auto p-0 ml-2 font-bold underline" onClick={() => setLastError(null)}>닫기</Button>
+                    </AlertDescription>
+                </Alert>
+            )}
+
             {(isRequesting || learning) && (
                 <div className="bg-blue-600/20 border border-blue-500/50 rounded-xl p-4 flex items-center gap-4 animate-pulse shadow-lg shadow-blue-900/20">
                     <RefreshCw className="h-6 w-6 text-blue-400 animate-spin" />
@@ -547,13 +629,20 @@ export default function DataLibraryPage() {
             <div className="flex items-center justify-between">
                 <div>
                     <h1 className="text-4xl font-black text-gray-900 mb-2 tracking-tighter">데이터 라이브러리</h1>
-                    <p className="text-gray-500 font-medium">Google Drive 기반 AI 지식 베이스 구축 및 투자 로직 관리</p>
+                    <p className="text-gray-500 font-medium italic">Google Drive 기반 AI 지식 베이스 구축 및 투자 로직 관리</p>
                 </div>
                 <div className="flex gap-3">
-                    <Button onClick={handleSync} disabled={syncing} variant="outline" className="border-gray-300 text-gray-700 hover:bg-gray-200">
-                        <RefreshCw className={`h-4 w-4 mr-2 ${syncing ? 'animate-spin' : ''}`} />
-                        Drive 동기화
-                    </Button>
+                    {syncing ? (
+                        <Button onClick={handleStopSync} variant="outline" className="border-rose-300 text-rose-600 hover:bg-rose-50 shadow-sm shadow-rose-100 font-black">
+                            <StopCircle className="h-4 w-4 mr-2" />
+                            동기화 중지
+                        </Button>
+                    ) : (
+                        <Button onClick={handleSync} disabled={syncing} variant="outline" className="border-gray-300 text-gray-700 hover:bg-gray-200 transition-all font-black">
+                            <RefreshCw className={`h-4 w-4 mr-2 ${syncing ? 'animate-spin' : ''}`} />
+                            Drive 동기화
+                        </Button>
+                    )}
                 </div>
             </div>
 

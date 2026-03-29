@@ -23,6 +23,7 @@ interface AnalysisJobStatus {
   progressMessage?: string;
   excludedStockCount?: number;
   excludedDetails?: ExcludedStockDetail[];
+  processedCount?: number;
   universeCounts?: {
     russellCount: number;
     sp500Count: number;
@@ -285,13 +286,15 @@ export class StockService {
     });
 
     if (activeKnowledge) {
-      const content = activeKnowledge.content as KnowledgeContentShape;
+      const content = activeKnowledge.content as unknown as LearnedKnowledge;
       return {
         exists: true,
+        id: activeKnowledge.id, // ID 추가
         title: activeKnowledge.title,
         filesAnalyzed: content.fileAnalyses?.length || 0,
         rulesLearned: this.countTotalRules(content),
         learnedAt: activeKnowledge.createdAt,
+        content: content, // 전체 내용 포함
       };
     }
 

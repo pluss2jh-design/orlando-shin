@@ -120,7 +120,7 @@ export async function fetchYahooFinanceData(
 
   // 2년치 차트 기간 (asOfDate 기준 역산)
   const period1 = new Date(effectiveEnd);
-  period1.setFullYear(period1.getFullYear() - 2);
+  period1.setMonth(period1.getMonth() - 18); // 2년(24개월) -> 1.5년(18개월)로 조정
   const period1Str = period1.toISOString().split('T')[0];
 
   // 타임아웃 헬퍼 (ms 단위)

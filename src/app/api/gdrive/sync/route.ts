@@ -43,8 +43,17 @@ export async function POST() {
       message: '파일 동기화가 백그라운드에서 시작되었습니다.' 
     });
   } catch (error) {
-    const message = error instanceof Error ? error.message : '동기화 시작패';
+    const message = error instanceof Error ? error.message : '동기화 시작 실패';
     console.error('Sync start error:', error);
     return NextResponse.json({ error: message }, { status: 500 });
   }
+}
+
+/**
+ * DELETE: 동기화 중지
+ */
+export async function DELETE() {
+  const { stopDriveSync } = await import('@/lib/google-drive');
+  stopDriveSync();
+  return NextResponse.json({ status: 'cancelling', message: '동기화 중지 명령을 보냈습니다.' });
 }

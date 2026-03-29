@@ -3,7 +3,7 @@
 import React, { useCallback, useState, useEffect, useMemo } from 'react';
 import { 
   Upload, File, Video, FileText, X, Cloud, Check, Loader2, BookOpen, ListChecks, 
-  Settings2, ChevronUp, ChevronDown, AlertCircle, Eye, Folder, ChevronRight, Brain, Clock
+  Settings2, ChevronUp, ChevronDown, AlertCircle, Eye, Folder, ChevronRight, Brain, Clock, StopCircle
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -70,7 +70,9 @@ export function DataControl({ onFilesChange, onSyncStatusChange, onLearningCompl
     isLearning: boolean;
     totalFiles: number;
     completedFiles: number;
+    failedFiles: number;
     startTime: string | null;
+    error: string | null;
   } | null>(null);
 
   useEffect(() => {
@@ -101,6 +103,18 @@ export function DataControl({ onFilesChange, onSyncStatusChange, onLearningCompl
         if (keysRes.ok) {
           const kData = await keysRes.json();
           setKeys(kData.keys || {});
+        }
+
+        // Check for active learning task (Persistence) - Only once on mount
+        const learningRes = await fetch('/api/admin/learning-status', { cache: 'no-store' });
+        if (learningRes.ok) {
+          const lData = await learningRes.json();
+          if (lData.isLearning) {
+            setIsLearning(true);
+            setBackendLearningStatus(lData);
+          } else {
+            setIsLearning(false); // Ensure it's false if not learning
+          }
         }
       } catch (error) {
         console.error('Failed to fetch initial data:', error);
@@ -182,10 +196,12 @@ export function DataControl({ onFilesChange, onSyncStatusChange, onLearningCompl
             
             if (!data.isLearning) {
               setIsLearning(false);
-              setLearningStatus('학습 완료! 분석 엔진이 업데이트되었습니다.');
+              const message = data.error 
+                ? `학습 중단됨: ${data.error}`
+                : `학습 완료! (성공: ${data.completedFiles}개, 실패: ${data.failedFiles}개)`;
+              setLearningStatus(message);
               onLearningComplete?.();
               
-              // Force refresh knowledge
               const resK = await fetch('/api/gdrive/knowledge');
               if (resK.ok) {
                 const dataK = await resK.json();
@@ -242,9 +258,48 @@ export function DataControl({ onFilesChange, onSyncStatusChange, onLearningCompl
         message,
       };
       setSyncStatus(errorStatus);
-      onSyncStatusChange?.(errorStatus);
     }
   };
+
+  const handleStopSync = async () => {
+    setSyncStatus(prev => ({ ...prev, status: 'idle', message: '동기화 중지됨' }));
+    onSyncStatusChange?.({ status: 'idle' });
+    try {
+      await fetch('/api/gdrive/sync', { method: 'DELETE' });
+      // 중지된 직후의 캐시 데이터를 가져오기 위해 마지막으로 한 번 더 호출
+      setTimeout(async () => {
+        const res = await fetch('/api/gdrive/sync');
+        if (res.ok) {
+          const data = await res.json();
+          if (data.files && data.files.length > 0) {
+            const mappedFiles: UploadedFile[] = data.files.map((f: any) => ({
+              id: f.id,
+              name: f.name,
+              type: f.mimeType === 'application/vnd.google-apps.folder' ? 'folder' : (f.mimeType === 'application/pdf' ? 'pdf' : 'mp4'),
+              size: Number(f.size) || 0,
+              modifiedTime: f.modifiedTime,
+              parentId: f.parentId
+            }));
+            setFiles(mappedFiles);
+            onFilesChange?.(mappedFiles);
+          }
+        }
+      }, 1200);
+    } catch (error) {
+      console.error('Stop sync error:', error);
+    }
+  };
+
+  const handleStopLearning = async () => {
+    if (!window.confirm('현재 진행중인 AI 학습을 중지하시겠습니까?')) return;
+    setIsLearning(false); // 낙관적 업데이트
+    try {
+      await fetch('/api/admin/learning-status', { method: 'DELETE' });
+    } catch (error) {
+      console.error('Stop learning error:', error);
+    }
+  };
+
   const handleLearn = async () => {
     const confirmed = window.confirm('학습을 위해 AI 모델을 사용하며 비용이 발생할 수 있습니다. 계속하시겠습니까?');
     if (!confirmed) return;
@@ -303,40 +358,58 @@ export function DataControl({ onFilesChange, onSyncStatusChange, onLearningCompl
     setSelectedIds(prev => {
       const next = new Set(prev);
       
-      if (isFolder) {
-        // 폴더 내 모든 하위 파일 찾기 (재귀적으로 처리하기 위해 평탄화된 배열 이용)
-        const getDescendants = (parentId: string): string[] => {
-          const directChildren = files.filter(f => f.parentId === parentId);
-          let descendants: string[] = [];
-          for (const child of directChildren) {
-            if (child.type === 'folder') {
-              descendants.push(...getDescendants(child.id));
-            } else {
-              descendants.push(child.id);
-            }
+      const getRecursiveFileIds = (folderId: string): string[] => {
+        const children = files.filter(f => f.parentId === folderId);
+        let ids: string[] = [];
+        children.forEach(child => {
+          if (child.type === 'folder') {
+            ids.push(...getRecursiveFileIds(child.id));
+          } else {
+            ids.push(child.id);
           }
-          return descendants;
-        };
+        });
+        return ids;
+      };
 
-        const descendants = getDescendants(id);
-        const folderFiles = files.filter(f => f.parentId === id && f.type !== 'folder').map(f => f.id);
-        const allTargetIds = Array.from(new Set([...descendants, ...folderFiles]));
+      if (isFolder) {
+        const targetIds = getRecursiveFileIds(id);
+        if (targetIds.length === 0) return prev; // 하위에 파일이 없으면 변화 없음
 
-        // 만약 모든 하위 파일이 이미 선택되어 있다면 -> 전체 해제
-        const areAllSelected = allTargetIds.every(tid => next.has(tid));
-        
+        const areAllSelected = targetIds.every(tid => next.has(tid));
         if (areAllSelected) {
-          allTargetIds.forEach(tid => next.delete(tid));
+          targetIds.forEach(tid => next.delete(tid));
         } else {
-          allTargetIds.forEach(tid => next.add(tid));
+          targetIds.forEach(tid => next.add(tid));
         }
       } else {
-        // 단일 파일 토글
         if (next.has(id)) next.delete(id);
         else next.add(id);
       }
       return next;
     });
+  };
+
+  const getFolderSelectionState = (folderId: string): 'checked' | 'unchecked' | 'indeterminate' => {
+      const children = files.filter(f => f.parentId === folderId);
+      if (children.length === 0) return 'unchecked';
+
+      const getRecursiveFiles = (fid: string): string[] => {
+          const innerChildren = files.filter(f => f.parentId === fid);
+          let results: string[] = [];
+          innerChildren.forEach(c => {
+              if (c.type === 'folder') results.push(...getRecursiveFiles(c.id));
+              else results.push(c.id);
+          });
+          return results;
+      };
+
+      const allFileIds = getRecursiveFiles(folderId);
+      if (allFileIds.length === 0) return 'unchecked';
+
+      const selectedCount = allFileIds.filter(id => selectedIds.has(id)).length;
+      if (selectedCount === 0) return 'unchecked';
+      if (selectedCount === allFileIds.length) return 'checked';
+      return 'indeterminate';
   };
 
   const renderFileTree = (parentId: string | null, level: number = 0) => {
@@ -360,71 +433,92 @@ export function DataControl({ onFilesChange, onSyncStatusChange, onLearningCompl
       });
     }
 
-    return itemsToRender.map(file => (
-      <React.Fragment key={file.id}>
-        <div 
-          className={cn(
-            "flex items-center justify-between p-2 rounded-lg transition-colors group",
-            file.type === 'folder' ? "hover:bg-muted/50 cursor-pointer" : "hover:bg-muted/30 border border-transparent hover:border-muted",
-            level > 0 && "ml-4 border-l pl-4"
-          )}
-        >
-          <div className="flex items-center gap-3 overflow-hidden">
-            <Checkbox 
-              checked={file.type === 'folder' 
-                ? files.filter(f => f.parentId === file.id && f.type !== 'folder').every(f => selectedIds.has(f.id)) && files.filter(f => f.parentId === file.id && f.type !== 'folder').length > 0
-                : selectedIds.has(file.id)
-              }
-              onCheckedChange={() => toggleSelection(file.id, file.type === 'folder')}
-              className="translate-y-[1px]"
-            />
-            <div className="flex items-center gap-2 overflow-hidden flex-1" onClick={() => file.type === 'folder' && toggleFolder(file.id)}>
-              {file.type === 'folder' && (
-                expandedFolders.has(file.id) ? <ChevronDown className="h-3 w-3 text-muted-foreground" /> : <ChevronRight className="h-3 w-3 text-muted-foreground" />
-              )}
-              <div className={cn(
-                "p-1.5 rounded-md shrink-0",
-                file.type === 'mp4' ? "bg-blue-500/10 text-blue-500" : 
-                file.type === 'pdf' ? "bg-red-500/10 text-red-500" :
-                file.type === 'folder' ? "bg-yellow-500/10 text-yellow-500" :
-                "bg-gray-500/10 text-gray-500"
-              )}>
-                {file.type === 'mp4' ? <Video className="h-3.5 w-3.5" /> : 
-                 file.type === 'pdf' ? <FileText className="h-3.5 w-3.5" /> : 
-                 file.type === 'folder' ? <Folder className="h-3.5 w-3.5" /> :
-                 <File className="h-3.5 w-3.5" />}
-              </div>
-              <div className="overflow-hidden">
-                <p className="text-xs font-medium truncate">{file.name}</p>
-                {file.type !== 'folder' && (
-                  <p className="text-[10px] text-muted-foreground">{formatFileSize(file.size)} • {file.type.toUpperCase()}</p>
+    return itemsToRender.map(file => {
+      const isFolder = file.type === 'folder';
+      const selectionState = isFolder ? getFolderSelectionState(file.id) : (selectedIds.has(file.id) ? 'checked' : 'unchecked');
+      const isExpanded = expandedFolders.has(file.id);
+
+      return (
+        <React.Fragment key={file.id}>
+          <div 
+            className={cn(
+              "group flex items-center justify-between py-2.5 px-3 rounded-xl transition-all duration-200 relative",
+              isFolder ? "hover:bg-muted/60 cursor-pointer" : "hover:bg-muted/40 border border-transparent hover:border-muted/50",
+            )}
+            style={{ paddingLeft: `${level * 40 + 12}px` }}
+          >
+            {/* 트리 라인 (부모와의 연결선) */}
+            {level > 0 && (
+                <div 
+                    className="absolute left-0 top-0 bottom-0 w-[2px] bg-muted/20" 
+                    style={{ left: `${(level - 1) * 40 + 26}px` }} 
+                />
+            )}
+
+            <div className="flex items-center gap-3 overflow-hidden flex-1 relative z-10">
+              <div className="flex items-center gap-2 shrink-0">
+                <Checkbox 
+                  checked={selectionState === 'checked' ? true : (selectionState === 'indeterminate' ? 'indeterminate' : false)}
+                  onCheckedChange={() => toggleSelection(file.id, isFolder)}
+                  className="w-4 h-4 rounded-md"
+                  onClick={(e) => e.stopPropagation()}
+                />
+                {isFolder && (
+                    <div 
+                        onClick={(e) => { e.stopPropagation(); toggleFolder(file.id); }} 
+                        className="hover:bg-muted p-1.5 rounded-lg transition-colors cursor-pointer"
+                    >
+                        {isExpanded ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
+                    </div>
                 )}
               </div>
+
+              <div className="flex items-center gap-3 overflow-hidden flex-1" onClick={() => isFolder && toggleFolder(file.id)}>
+                <div className={cn(
+                  "p-2 rounded-xl shrink-0 shadow-sm",
+                  file.type === 'mp4' ? "bg-blue-600/10 text-blue-600" : 
+                  file.type === 'pdf' ? "bg-rose-600/10 text-rose-600" :
+                  file.type === 'folder' ? "bg-amber-500/10 text-amber-500" :
+                  "bg-slate-500/10 text-slate-600"
+                )}>
+                  {file.type === 'mp4' ? <Video className="h-4 w-4" /> : 
+                   file.type === 'pdf' ? <FileText className="h-4 w-4" /> : 
+                   file.type === 'folder' ? <Folder className="h-4 w-4" /> :
+                   <File className="h-4 w-4" />}
+                </div>
+                <div className="flex-1">
+                  <p className="text-sm font-medium whitespace-nowrap">{file.name}</p>
+                  {file.type !== 'folder' && (
+                    <p className="text-[11px] text-muted-foreground whitespace-nowrap">{formatFileSize(file.size)} • {file.type.toUpperCase()}</p>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
+              {file.type !== 'folder' && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setFiles(files.filter(f => f.id !== file.id));
+                  }}
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              )}
             </div>
           </div>
-          <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-            {file.type !== 'folder' && (
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-6 w-6"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setFiles(files.filter(f => f.id !== file.id));
-                }}
-              >
-                <X className="h-3 w-3" />
-              </Button>
-            )}
-          </div>
-        </div>
-        {file.type === 'folder' && expandedFolders.has(file.id) && (
-          <div className="mt-1">
-            {renderFileTree(file.id, level + 1)}
-          </div>
-        )}
-      </React.Fragment>
-    ));
+          {isFolder && isExpanded && (
+            <div className="mt-0.5">
+              {renderFileTree(file.id, level + 1)}
+            </div>
+          )}
+        </React.Fragment>
+      );
+    });
   };
 
   return (
@@ -470,19 +564,27 @@ export function DataControl({ onFilesChange, onSyncStatusChange, onLearningCompl
                 <p className="text-sm font-semibold text-primary">지식 베이스 동기화 중...</p>
               </div>
               
-              <div className="space-y-2 max-w-sm mx-auto">
-                <div className="flex justify-between text-[10px] font-bold text-muted-foreground uppercase">
-                  <span>발견된 파일 수: {syncStatus.progress?.totalFiles || 0}</span>
-                  <span>폴더 수: {syncStatus.progress?.processedFolders || 0}</span>
+                <div className="flex justify-between text-[10px] font-bold text-muted-foreground uppercase pb-1 border-b border-muted-foreground/10">
+                  <span>발견된 파일: {syncStatus.progress?.totalFiles || 0}개</span>
+                  <span>폴더: {syncStatus.progress?.processedFolders || 0}개</span>
                 </div>
                 <Progress value={Math.min(100, (syncStatus.progress?.totalFiles || 0) / 10)} className="h-1.5" />
                 {syncStatus.progress?.currentFolder && (
                   <p className="text-[10px] text-muted-foreground truncate italic">
-                    현재 탐색: {syncStatus.progress.currentFolder}
+                    탐색: {syncStatus.progress.currentFolder}
                   </p>
                 )}
+                
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="w-full mt-4 h-8 text-[10px] font-black border-red-200 text-red-600 hover:bg-red-50"
+                  onClick={handleStopSync}
+                >
+                  <StopCircle className="h-3 w-3 mr-2" />
+                  동기화 중지 (STOP)
+                </Button>
               </div>
-            </div>
           ) : (
             <p className="text-xs text-muted-foreground font-medium">
               구글 드라이브(Research 폴더)의 파일을 읽어와 분석합니다.<br />
@@ -518,8 +620,10 @@ export function DataControl({ onFilesChange, onSyncStatusChange, onLearningCompl
                   </Button>
                 </div>
               </div>
-              <div className="max-h-[350px] overflow-y-auto pr-1 custom-scrollbar space-y-1">
-                {renderFileTree(null)}
+              <div className="max-h-[350px] overflow-auto pr-1 custom-scrollbar space-y-1 border border-muted/20 rounded-xl p-2 bg-muted/5">
+                <div className="min-w-max">
+                  {renderFileTree(null)}
+                </div>
               </div>
             </div>
 
@@ -598,24 +702,6 @@ export function DataControl({ onFilesChange, onSyncStatusChange, onLearningCompl
               </>
             )}
           </Button>
-
-          {isLearning && (
-            <Button
-              variant="destructive"
-              className="px-6 h-11 font-black uppercase text-xs tracking-widest shadow-lg shadow-rose-500/20"
-              onClick={async () => {
-                if (confirm('학습을 중단하시겠습니까? 지금까지 분석된 데이터는 취소됩니다.')) {
-                  try {
-                    await fetch('/api/gdrive/learn/cancel', { method: 'POST' });
-                  } catch (err) {
-                    console.error('Cancel failed:', err);
-                  }
-                }
-              }}
-            >
-              STOP
-            </Button>
-          )}
         </div>
 
         {syncStatus.status !== 'idle' && (
@@ -635,12 +721,20 @@ export function DataControl({ onFilesChange, onSyncStatusChange, onLearningCompl
                  <h4 className="text-xs font-black text-blue-600 uppercase tracking-widest">AI Phase 1: Deep Learning</h4>
                  <p className="text-[10px] text-blue-400 font-bold">원천 데이터에서 투자 논리를 추출하고 있습니다</p>
                </div>
-               <div className="text-right">
-                 <span className="text-lg font-black text-blue-600 font-mono">
-                   {Math.round((backendLearningStatus.completedFiles / backendLearningStatus.totalFiles) * 100)}%
-                 </span>
-               </div>
-             </div>
+                <div className="text-right flex flex-col items-end gap-1">
+                  <span className="text-lg font-black text-blue-600 font-mono">
+                    {Math.round((backendLearningStatus.completedFiles / backendLearningStatus.totalFiles) * 100)}%
+                  </span>
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    className="h-6 text-[9px] font-black text-rose-500 hover:text-rose-600 hover:bg-rose-50 p-1 px-2 border border-rose-100"
+                    onClick={handleStopLearning}
+                  >
+                    중지 (CANCEL)
+                  </Button>
+                </div>
+              </div>
              
              <Progress 
                value={(backendLearningStatus.completedFiles / backendLearningStatus.totalFiles) * 100} 
@@ -648,9 +742,21 @@ export function DataControl({ onFilesChange, onSyncStatusChange, onLearningCompl
              />
 
              <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-tighter">
-               <div className="flex items-center gap-1.5 text-blue-500">
-                 <Loader2 className="h-3 w-3 animate-spin" />
-                 <span>{backendLearningStatus.completedFiles} / {backendLearningStatus.totalFiles} FILES COMPLETE</span>
+               <div className="flex items-center gap-3">
+                 <div className="flex items-center gap-1.5 text-blue-500">
+                   <Check className="h-3 w-3" />
+                   <span>{backendLearningStatus.completedFiles} SUCCESS</span>
+                 </div>
+                 {backendLearningStatus.failedFiles > 0 && (
+                   <div className="flex items-center gap-1.5 text-rose-500">
+                     <AlertCircle className="h-3 w-3" />
+                     <span>{backendLearningStatus.failedFiles} FAILED</span>
+                   </div>
+                 )}
+                 <div className="flex items-center gap-1.5 text-muted-foreground animate-pulse">
+                   <Loader2 className="h-3 w-3 animate-spin" />
+                   <span>PROCESSING {backendLearningStatus.completedFiles + backendLearningStatus.failedFiles} / {backendLearningStatus.totalFiles}</span>
+                 </div>
                </div>
                <div className="text-blue-400 flex items-center gap-1">
                  <Clock className="h-3 w-3" />
