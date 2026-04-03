@@ -138,12 +138,13 @@ export async function analyzeStockSentiment(
       };
     }
 
-    const prompt = `Analyze the sentiment of the following news headlines for stock ticker ${ticker}. 
+    const prompt = `Analyze the sentiment and future potential of the following news headlines and expert articles for stock ticker ${ticker}. 
     Return a JSON object with:
     - score: integer from -10 (very negative) to 10 (very positive)
-    - label: 'Positive', 'Neutral', or 'Negative'
-    - summary: brief 1-sentence summary of the news impact (MUST BE IN KOREAN)
+    - label: 'Positive', 'Neutral', 'Negative' or 'High Potential'
+    - summary: brief 1-sentence summary of the news impact and future growth potential (MUST BE IN KOREAN)
     - riskHeadlines: array of headlines that suggest potential risks (MUST BE IN KOREAN)
+    - focusKeywords: array of key growth factors found in news (e.g., technology, market expansion, monopoly) (KOREAN)
     
     Headlines:
     ${headlines.map((h: { title: string }) => h.title).join('\n- ')}
@@ -308,18 +309,23 @@ export async function generateExpertVerdict(
   apiKey?: string
 ): Promise<any> {
   try {
-    const prompt = `You are the specific investment expert who wrote the following source materials. 
-    Expert Verdict for stock "${ticker}".
-    Knowledge Base: ${knowledge.keyConditionsSummary || 'N/A'}
-    Stock Data: PER ${metrics.trailingPE}, Sentiment ${sentiment.score}, Macro ${macro.marketMode}
+    const prompt = `You are the investment expert who curated the provided knowledge base. 
+    Analyze stock "${ticker}" by synthesizing market news and your articles.
+    
+    Context:
+    - Expert Articles/Knowledge: ${knowledge.keyConditionsSummary || 'N/A'}
+    - Current News Sentiment: ${sentiment.score}/10 (${sentiment.label})
+    - Stock Data (Secondary): PER ${metrics.trailingPE}, Macro ${macro.marketMode}
+    
+    Priority: If the news/articles suggest a breakthrough technology or market disruption, prioritize this over weak financial data.
     
     Return ONLY a JSON object with:
     - recommendation: 'BUY', 'HOLD', or 'SELL'
     - riskLevel: 'low', 'medium', or 'high'
-    - convictionScore: 0-100
+    - convictionScore: 0-100 (high conviction if news/articles are strongly positive)
     - title: brief catchy title
-    - summary: summary of verdict (KOREAN)
-    - keyPoints: array of strings (KOREAN)
+    - summary: summary of verdict focusing on qualitative growth (KOREAN)
+    - keyPoints: array of 3-4 specific growth catalysts from news/articles (KOREAN)
     - risks: array of strings (KOREAN)
     - authorCitations: array of objects { fileName: string, pageOrTimestamp: string }
     

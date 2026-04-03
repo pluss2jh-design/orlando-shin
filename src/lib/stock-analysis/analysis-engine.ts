@@ -254,13 +254,10 @@ export async function runAnalysisEngine(
         }
 
         const finalScore = totalWeightSum > 0 ? (weightedScoreSum / totalWeightSum) : 0;
-        const isDataSparse = ruleScores.some(rs => rs.reason.includes('데이터 부재') && rs.weight >= 4);
         
-        // Track B 편입 조건: 
-        // 1. 데이터가 부족(isDataSparse)하더라도 
-        // 2. 다른 룰에서 일정 점수 이상(finalScore >= 4)이거나 
-        // 3. 최근 주가 상승률(periodReturn)이 시장 평균 이상(positive)인 경우
-        const hasPotential = finalScore >= 4 || periodReturn > 0;
+        // [New 철학] Track B 후보 선정을 위한 데이터 수집
+        // 재무 데이터 부족 여부(N/A)보다는, 뉴스/아티클 기반의 잠재력을 나중에 합산하기 위해 
+        // 기본 점수와 주가 흐름만 저장해둠.
 
         stocksWithScores.push({
           ticker: stock.ticker,
@@ -270,8 +267,7 @@ export async function runAnalysisEngine(
           ruleScores,
           totalScore: Number(finalScore.toFixed(2)),
           failedCritical: false,
-          failureReason: isDataSparse ? '데이터 부재 및 잠재력 분석 대상' : '',
-          isSpeculative: isDataSparse && hasPotential, 
+          failureReason: '',
         });
       } catch (err) {
         console.error(`[Engine] Analysis failed for ${stock.ticker}:`, err);
@@ -282,21 +278,22 @@ export async function runAnalysisEngine(
   }
 
   // ── Phase 3: 트랙별 후보군 분리 및 AI 정밀 분석 ──
-  if (onProgress) onProgress(85, '트랙별(A/B) 후보군 분리 및 AI 정밀 분석 시작...');
+  if (onProgress) onProgress(85, '트랙별(A/B) 후보군 분리 시작...');
 
-  // Track A: 정량 룰 통과 + 데이터 충분 (상위 20개 후보 중 최종 10개 선정)
+  // [신규 로직]
+  // Track A: 정량 지표 상위권 (데이터가 튼실한 우량주 중심)
   const trackACandidates = stocksWithScores
-    .filter(s => !s.failedCritical && !s.isSpeculative)
     .sort((a, b) => b.totalScore - a.totalScore || b.periodReturn - a.periodReturn)
-    .slice(0, 20);
+    .slice(0, 15);
 
-  // Track B: 데이터 부족 혹은 우량주 기준 미달 중 잠재력 있는 후보 (상위 20개 후보 중 최종 10개 선정)
+  // Track B: 뉴스/기사 기반 잠재력 후보군 선정
+  // 1단계로 정력 점수 중위권 + 주가 기세가 살아있는 종목들 중 20개를 먼저 뽑아 AI에게 보냄
   const trackBCandidates = stocksWithScores
-    .filter(s => s.isSpeculative)
-    .sort((a, b) => b.totalScore - a.totalScore || b.periodReturn - a.periodReturn)
+    .filter(s => !trackACandidates.find(a => a.ticker === s.ticker))
+    .sort((a, b) => b.periodReturn - a.periodReturn || b.totalScore - a.totalScore)
     .slice(0, 20);
   
-  console.log(`[Engine] Candidates: Track A(${trackACandidates.length}), Track B(${trackBCandidates.length})`);
+  console.log(`[Engine] Candidates Sorted: Track A(${trackACandidates.length}), Track B(${trackBCandidates.length})`);
 
   const trackAResults: AnalysisResult[] = [];
   const trackBResults: AnalysisResult[] = [];
