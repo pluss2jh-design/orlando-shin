@@ -247,19 +247,12 @@ export async function runAnalysisEngine(
         for (const rule of activeRules) {
           const scoreResult = evaluateQuantifiedRule(rule, fullData, sectorStats, macroContext);
           ruleScores.push(scoreResult);
-
-          if (rule.isCritical && scoreResult.score < 5) {
-            failedCritical = true;
-            failureReason = `필수 조건 미달(${rule.name}): ${scoreResult.reason}`;
-            break;
-          }
-
           weightedScoreSum += scoreResult.score * rule.weight;
           totalWeightSum += rule.weight;
         }
 
         const finalScore = totalWeightSum > 0 ? (weightedScoreSum / totalWeightSum) : 0;
-        const isDataSparse = ruleScores.some(rs => rs.reason.includes('데이터 부재') && rs.isCritical);
+        const isDataSparse = ruleScores.some(rs => rs.reason.includes('데이터 부재') && rs.weight >= 4);
 
         stocksWithScores.push({
           ticker: stock.ticker,
@@ -267,10 +260,10 @@ export async function runAnalysisEngine(
           periodReturn,
           company: { metrics: { roe: fullData.returnOnEquity } },
           ruleScores,
-          totalScore: failedCritical ? 0 : Number(finalScore.toFixed(2)),
-          failedCritical,
-          failureReason,
-          isSpeculative: isDataSparse || failedCritical, 
+          totalScore: Number(finalScore.toFixed(2)),
+          failedCritical: false,
+          failureReason: isDataSparse ? '고가중치(필수) 지표 데이터 부재' : '',
+          isSpeculative: isDataSparse, 
         });
       } catch (err) {
         console.error(`[Engine] Analysis failed for ${stock.ticker}:`, err);

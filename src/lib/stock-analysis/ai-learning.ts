@@ -204,6 +204,7 @@ async function analyzeIndividualFile(genAI: any, modelName: string, file: DriveF
     주의사항:
     1. 특정 기업의 고유한 기술(예: 구글 TPU)은 '상기 기업의 핵심 Moat: 수직 계열화 및 공정 효율'과 같은 일반화된 규칙으로 변환하세요.
     2. 정량적 지표가 있다면 반드시 추출하세요 (예: ROE > 15%, 부채비율 < 100%).
+    3. 필수 여부(isCritical)를 참/거짓으로 설정하지 말고, 반드시 필요한 기준일수록 높은 가중치(weight)를 주세요. (1~5 사이)
     
     JSON 형식으로만 대답하세요:
     {
@@ -214,8 +215,8 @@ async function analyzeIndividualFile(genAI: any, modelName: string, file: DriveF
           "name": "규칙 이름",
           "category": "Quality/Value/Growth/Technical 등",
           "description": "규칙의 상세 설명 및 원천 사례",
-          "weight": 1~3 사이 가중치,
-          "isCritical": 필수조건 여부(boolean)
+          "weight": 1~5 사이 가중치,
+          "isCritical": false
         }
       ]
     }
@@ -283,7 +284,7 @@ async function synthesizeKnowledge(genAI: any, modelName: string, analyses: File
           {
             "name": "규칙 이름",
             "category": "수익성/성장성/안정성/매크로 등",
-            "weight": 가중치(1~3),
+            "weight": 가중치(1~5, 필수 조건일수록 높게 배정),
             "description": "일반화된 투자 논리 (예: 'TPU와 같은 독자 하드웨어 역량은 수직 계열화의 핵심임')",
             "quantification": {
               "target_metric": "위에 제공된 정량 지표 리스트 중 하나",
@@ -292,7 +293,7 @@ async function synthesizeKnowledge(genAI: any, modelName: string, analyses: File
               "benchmark_type": "absolute / sector_relative",
               "scoring_type": "linear / binary"
             },
-            "isCritical": boolean,
+            "isCritical": false,
             "isGeneral": boolean (특정 업종에만 해당하면 false),
             "targetSectors": ["Technology", "Financial Services" 등. 전체면 빈 배열],
             "applicableContexts": ["bull_market", "recession", "volatility_high" 등. 빈 배열 가능]

@@ -350,10 +350,16 @@ export function AnalysisOutput({ results, conditions, isLoading, onSendEmail }: 
                           {result.sector}
                         </span>
                       )}
-                      {(result.rules?.filter((r: any) => r.score >= 5)?.length || 0) > 0 && (
-                        <span className="text-[9px] text-blue-500 bg-blue-50 px-2 py-1 rounded-lg">
-                          {result.rules.filter((r: any) => r.score >= 5).length} Rules Matched
-                        </span>
+                      {([...(result.rules || [])].sort((a, b) => b.weight - a.weight || b.score - a.score)).slice(0, 4).map((r: any, idx: number) => (
+                        <div key={idx} className="flex items-center gap-1.5 bg-gray-50 border border-gray-100 px-2 py-1 rounded-lg text-[9px]">
+                          <span className="text-gray-600 truncate max-w-[90px] font-bold" title={r.name}>{r.name}</span>
+                          <span className={cn("font-black", r.score >= 8 ? "text-emerald-500" : r.score >= 5 ? "text-amber-500" : "text-rose-500")}>
+                            {r.score.toFixed(1)}점 (w{r.weight})
+                          </span>
+                        </div>
+                      ))}
+                      {(result.rules?.length || 0) > 4 && (
+                         <span className="text-[9px] font-black text-gray-400 self-center">+{result.rules!.length - 4}</span>
                       )}
                     </div>
                     <div className="flex items-center justify-between pt-4 border-t border-gray-50">
