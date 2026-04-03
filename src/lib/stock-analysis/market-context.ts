@@ -120,7 +120,7 @@ export async function fetchMarketMacroContext(asOfDate?: Date): Promise<MacroCon
  */
 export async function analyzeStockSentiment(
   ticker: string, 
-  aiModel: string = 'gemini-1.5-flash',
+  aiModel?: string,
   apiKey?: string
 ): Promise<SentimentAnalysis | null> {
   try {
@@ -151,6 +151,7 @@ export async function analyzeStockSentiment(
     Return ONLY JSON. All text descriptions must be in Korean.`;
 
     const text = await withRetry(async () => {
+      if (!aiModel) throw new Error('AI 모델이 선택되지 않았습니다.');
       const modelLower = aiModel.toLowerCase();
       if (modelLower.includes('gpt-') || modelLower.includes('o1-')) {
         const gptApiKey = apiKey || process.env.OPENAI_API_KEY;
@@ -227,7 +228,7 @@ export async function predictStockGrowth(
   metrics: YahooFinanceData,
   macro: MacroContext,
   sentiment: SentimentAnalysis,
-  aiModel: string = 'gemini-1.5-flash',
+  aiModel?: string,
   apiKey?: string
 ): Promise<PredictiveAnalysis | null> {
   try {
@@ -245,6 +246,7 @@ export async function predictStockGrowth(
     Return ONLY JSON. All explanations must be in Korean.`;
 
     const text = await withRetry(async () => {
+      if (!aiModel) throw new Error('AI 모델이 선택되지 않았습니다.');
       const modelLower = aiModel.toLowerCase();
       if (modelLower.includes('gpt-') || modelLower.includes('o1-')) {
         const openai = new OpenAI({ apiKey: apiKey || process.env.OPENAI_API_KEY });
@@ -302,7 +304,7 @@ export async function generateExpertVerdict(
   sentiment: SentimentAnalysis,
   prediction: PredictiveAnalysis,
   knowledge: any,
-  aiModel: string = 'gemini-1.5-flash',
+  aiModel?: string,
   apiKey?: string
 ): Promise<any> {
   try {
@@ -324,6 +326,7 @@ export async function generateExpertVerdict(
     All text descriptions must be in Korean.`;
 
     const text = await withRetry(async () => {
+      if (!aiModel) throw new Error('AI 모델이 선택되지 않았습니다.');
       const modelLower = aiModel.toLowerCase();
       if (modelLower.includes('gpt-') || modelLower.includes('o1-')) {
         const openai = new OpenAI({ apiKey: apiKey || process.env.OPENAI_API_KEY });

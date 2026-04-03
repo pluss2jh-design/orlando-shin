@@ -61,8 +61,6 @@ export function InvestmentInput({ onAnalyze, disabled, activeKnowledge }: Invest
           setAvailableModels(loadedModels);
           if (loadedModels.length > 0) {
             setSelectedModel(prev => prev || loadedModels[0].value);
-          } else {
-            setSelectedModel(prev => prev || 'gemini-1.5-flash');
           }
         }
       } catch (error) {
@@ -165,8 +163,8 @@ export function InvestmentInput({ onAnalyze, disabled, activeKnowledge }: Invest
         <div className="flex items-center gap-1.5 bg-white border border-gray-200 rounded-xl px-2 py-1 shadow-sm h-11">
           <Brain className="h-3 w-3 text-gray-400 ml-0.5" />
           <Select value={selectedModel || undefined} onValueChange={setSelectedModel}>
-            <SelectTrigger className="w-[124px] border-none shadow-none h-7 text-[9px] font-black uppercase tracking-widest leading-none outline-none focus:ring-0">
-              <SelectValue placeholder="AI Model" />
+            <SelectTrigger className={cn("w-[124px] border-none shadow-none h-7 text-[9px] font-black uppercase tracking-widest leading-none outline-none focus:ring-0", !selectedModel && "text-red-500")}>
+              <SelectValue placeholder="⚠️ 선택 안됨" />
             </SelectTrigger>
             <SelectContent>
               {availableModels.map(model => (
@@ -182,7 +180,7 @@ export function InvestmentInput({ onAnalyze, disabled, activeKnowledge }: Invest
                 </SelectItem>
               ))}
               {availableModels.length === 0 && (
-                <SelectItem value="gemini-1.5-flash" className="text-[10px] font-bold">GEMINI 1.5 FLASH</SelectItem>
+                <SelectItem value="_empty" disabled className="text-[10px] font-bold text-gray-400">모델 정보 없음</SelectItem>
               )}
             </SelectContent>
           </Select>
