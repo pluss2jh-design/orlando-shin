@@ -57,7 +57,13 @@ export function InvestmentInput({ onAnalyze, disabled, activeKnowledge }: Invest
         
         if (modelsRes.ok) {
           const data = await modelsRes.json();
-          setAvailableModels(data.models || []);
+          const loadedModels = data.models || [];
+          setAvailableModels(loadedModels);
+          if (loadedModels.length > 0) {
+            setSelectedModel(prev => prev || loadedModels[0].value);
+          } else {
+            setSelectedModel(prev => prev || 'gemini-1.5-flash');
+          }
         }
       } catch (error) {
         console.error('Failed to fetch data:', error);
@@ -158,7 +164,7 @@ export function InvestmentInput({ onAnalyze, disabled, activeKnowledge }: Invest
         <span className="text-[10px] font-black text-gray-500 pl-1 uppercase tracking-tight">인공지능 분석 모델</span>
         <div className="flex items-center gap-1.5 bg-white border border-gray-200 rounded-xl px-2 py-1 shadow-sm h-11">
           <Brain className="h-3 w-3 text-gray-400 ml-0.5" />
-          <Select value={selectedModel} onValueChange={setSelectedModel}>
+          <Select value={selectedModel || undefined} onValueChange={setSelectedModel}>
             <SelectTrigger className="w-[124px] border-none shadow-none h-7 text-[9px] font-black uppercase tracking-widest leading-none outline-none focus:ring-0">
               <SelectValue placeholder="AI Model" />
             </SelectTrigger>
