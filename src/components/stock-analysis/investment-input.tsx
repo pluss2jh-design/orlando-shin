@@ -29,7 +29,6 @@ const TIME_OFFSETS = [
 ];
 
 export function InvestmentInput({ onAnalyze, disabled, activeKnowledge }: InvestmentInputProps) {
-  const [companyCount, setCompanyCount] = useState(5);
   const [selectedTimeId, setSelectedTimeId] = useState('now');
   const [universeType, setUniverseType] = useState<'sp500' | 'russell1000' | 'russell1000_exclude_sp500'>('russell1000_exclude_sp500');
   const [selectedModel, setSelectedModel] = useState<string>('');
@@ -87,7 +86,7 @@ export function InvestmentInput({ onAnalyze, disabled, activeKnowledge }: Invest
 
     onAnalyze?.({
       amount: 0,
-      companyCount,
+      companyCount: 10,
       asOfDate,
       universeType,
       excludeSP500: universeType === 'russell1000_exclude_sp500',
@@ -188,29 +187,7 @@ export function InvestmentInput({ onAnalyze, disabled, activeKnowledge }: Invest
       </div>
 
       <div className="flex flex-wrap items-end gap-x-3 gap-y-5">
-        {/* 분석 기업 수 선택 */}
-        <div className="flex flex-col gap-1.5 min-w-0">
-          <span className="text-[10px] font-black text-gray-500 pl-1 uppercase tracking-tight">최종 선정 기업 수</span>
-          <div className="flex items-center gap-1 bg-white border border-gray-200 rounded-xl px-2 py-1 shadow-sm h-11">
-            <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest pl-1">TOP</span>
-            <div className="flex gap-0.5">
-              {COUNTS.map((n) => (
-                <button
-                  key={n}
-                  onClick={() => setCompanyCount(n)}
-                  className={cn(
-                    "w-7 h-7 rounded-lg text-[10px] font-black transition-all",
-                    companyCount === n
-                      ? "bg-blue-600 text-white shadow-sm"
-                      : "text-gray-500 hover:bg-gray-100"
-                  )}
-                >
-                  {n}
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
+        {/* 메인 스캔 버튼 */}
 
         {/* 메인 스캔 버튼 */}
         <div className="h-11 flex items-end">
