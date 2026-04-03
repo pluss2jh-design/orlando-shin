@@ -9,7 +9,7 @@ import { Progress } from '@/components/ui/progress';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { AnalysisResult, InvestmentConditions, StrategyMatchScore, MatchRuleResult, MatchRuleSource } from '@/types/stock-analysis';
+import { AnalysisResult, InvestmentConditions, StrategyMatchScore, MatchRuleResult, MatchRuleSource, RecommendationResult } from '@/types/stock-analysis';
 import { cn } from '@/lib/utils';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, Legend } from 'recharts';
 import { BacktestDialog } from './backtest-dialog';
@@ -149,8 +149,7 @@ function StrategyMatchDashboard({ score }: { score: StrategyMatchScore }) {
 
 
 interface AnalysisOutputProps {
-
-  results: AnalysisResult[];
+  results: RecommendationResult | null;
   conditions: InvestmentConditions | null;
   isLoading?: boolean;
   onSendEmail?: (email: string) => Promise<void>;
@@ -209,36 +208,20 @@ export function AnalysisOutput({ results, conditions, isLoading, onSendEmail }: 
 
   if (isLoading) {
     return (
-      <div className="space-y-6">
-        {[1, 2].map((i) => (
-          <Card key={i} className="w-full bg-white border-gray-200 overflow-hidden relative">
-            <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-blue-500/50 to-transparent animate-pulse" />
-            <CardContent className="p-8">
-              <div className="flex items-center gap-4 mb-6">
-                <div className="w-12 h-12 rounded bg-gray-100 border border-gray-200 animate-pulse" />
-                <div className="space-y-2 flex-1">
-                  <div className="h-6 bg-gray-100 rounded animate-pulse w-1/4" />
-                  <div className="h-4 bg-gray-100 rounded animate-pulse w-1/6" />
-                </div>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                <div className="space-y-4">
-                  <div className="h-32 bg-gray-100 rounded animate-pulse" />
-                </div>
-                <div className="space-y-4">
-                  <div className="h-32 bg-gray-100 rounded animate-pulse" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
+      <div className="space-y-8">
+        <div className="h-24 bg-gray-100 rounded-3xl animate-pulse" />
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="h-64 bg-gray-50 rounded-2xl animate-pulse border border-gray-100" />
+          ))}
+        </div>
       </div>
     );
   }
 
-  if (!conditions && results.length === 0) {
+  if (!conditions || !results) {
     return (
-      <Card className="w-full bg-white border-gray-200 border-dashed py-16">
+      <Card className="w-full bg-white border-blue-500/5 border-dashed py-16">
         <CardContent className="flex flex-col items-center text-center justify-center space-y-4">
           <div className="p-4 rounded-full bg-blue-500/5 border border-blue-500/20 mb-2">
             <TrendingUp className="h-10 w-10 text-blue-500/40" />
@@ -255,16 +238,16 @@ export function AnalysisOutput({ results, conditions, isLoading, onSendEmail }: 
     );
   }
 
-  if (results.length === 0) {
+  if ((results?.trackA?.length || 0) === 0 && (results?.trackB?.length || 0) === 0) {
     return (
       <Card className="w-full bg-white border-rose-500/20 border-dashed py-16">
         <CardContent className="flex flex-col items-center text-center justify-center space-y-4">
           <AlertCircle className="h-12 w-12 text-rose-500/40 mb-2" />
           <div className="space-y-2">
-            <h3 className="text-xl font-bold text-rose-200 uppercase tracking-widest">Data Not Found</h3>
+            <h3 className="text-xl font-bold text-gray-900 uppercase tracking-widest">No Results Found</h3>
             <p className="text-gray-500 max-w-sm mx-auto">
               현재 조건에 부합하는 기업 리스트를 확보하지 못했습니다.<br />
-              투자 기간이나 분석 모델을 변경해 보세요.
+              투자 기간이나 분석 유니버스를 변경해 보세요.
             </p>
           </div>
         </CardContent>
@@ -272,13 +255,22 @@ export function AnalysisOutput({ results, conditions, isLoading, onSendEmail }: 
     );
   }
 
-  const getRiskBadge = (risk: AnalysisResult['riskLevel']) => {
+  const getRiskBadge = (risk: string | undefined) => {
+    // 위험 등급이 정의되지 않았거나 유효하지 않은 경우 (임의 할당 금지)
+    if (!risk || !['low', 'medium', 'high'].includes(risk.toLowerCase())) {
+       return <Badge variant="outline" className="px-3 py-1 font-mono tracking-tighter text-[10px] text-gray-400 border-gray-200 bg-gray-50">RISK N/A</Badge>;
+    }
+
+    const riskKey = risk.toLowerCase() as 'low' | 'medium' | 'high';
+    
     const config = {
       low: { label: 'LOW RISK', color: 'text-emerald-400 border-emerald-500/30 bg-emerald-500/10' },
       medium: { label: 'MID RISK', color: 'text-amber-400 border-amber-500/30 bg-amber-500/10' },
       high: { label: 'HIGH RISK', color: 'text-rose-400 border-rose-500/30 bg-rose-500/10' },
     };
-    const { label, color } = config[risk];
+
+    const { label, color } = config[riskKey];
+    
     return <Badge variant="outline" className={cn("px-3 py-1 font-mono tracking-tighter text-[10px]", color)}>{label}</Badge>;
   };
 
@@ -291,119 +283,91 @@ export function AnalysisOutput({ results, conditions, isLoading, onSendEmail }: 
   };
 
   if (selectedCompanyIndex === null) {
-    const sortedResults = [...results].sort((a, b) => {
-      const bScore = b.strategyMatch?.matchPercentage ?? 0;
-      const aScore = a.strategyMatch?.matchPercentage ?? 0;
-      return bScore - aScore;
-    });
-
-    const stepColors = [
-      'bg-blue-500', 'bg-violet-500', 'bg-emerald-500', 'bg-amber-500',
-      'bg-orange-500', 'bg-rose-500', 'bg-cyan-500',
-    ];
-    const stepLabels = ['S1', 'S2', 'S3', 'S4', 'S5', 'S6', 'S7'];
-
-    return (
-      <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-          <h3 className="text-xl font-black text-gray-900 px-4 py-2 bg-gradient-to-r from-blue-600/20 to-transparent border-l-4 border-blue-500 tracking-wide">
-            ENTERPRISE SCAN RESULTS
-          </h3>
-          <Badge variant="outline" className="text-[10px] font-mono border-gray-200 text-gray-500 bg-gray-100/50">
-            {new Date().toLocaleString()} SCANNED
-          </Badge>
+    const renderTrack = (title: string, description: string | undefined, data: AnalysisResult[], accentColor: string, isTrackB = false) => (
+      <div className="space-y-6">
+        <div className={cn("p-6 rounded-3xl border bg-white shadow-sm relative overflow-hidden", accentColor)}>
+          <div className="absolute top-0 right-0 p-12 bg-gray-50 opacity-50 -mr-6 -mt-6 rounded-full blur-3xl" />
+          <CardHeader className="p-0 mb-2">
+            <div className="flex items-center gap-3">
+              <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center text-white", isTrackB ? "bg-purple-600" : "bg-blue-600")}>
+                {isTrackB ? <Sparkles className="h-5 w-5" /> : <CheckCircle2 className="h-5 w-5" />}
+              </div>
+              <CardTitle className="text-2xl font-black text-gray-900">{title}</CardTitle>
+            </div>
+          </CardHeader>
+          <p className="text-sm text-gray-600 font-medium leading-relaxed relative z-10">
+            {description}
+          </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {sortedResults.map((result, idx) => {
-            const originalIdx = results.indexOf(result);
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {data.map((result, idx) => {
+            const displayIdx = idx + 1;
             return (
               <Card key={result.ticker || idx}
-                className="cursor-pointer group bg-white border-gray-200 hover:bg-gray-50 hover:border-blue-500/40 hover:shadow-lg transition-all duration-300 relative overflow-hidden"
-                onClick={() => setSelectedCompanyIndex(originalIdx)}
+                className={cn(
+                  "cursor-pointer group bg-white border-gray-200 hover:shadow-2xl transition-all duration-500 relative overflow-hidden rounded-3xl",
+                  isTrackB ? "hover:border-purple-500/40" : "hover:border-blue-500/40"
+                )}
+                onClick={() => setSelectedCompanyIndex(isTrackB ? (results?.trackA?.length || 0) + idx : idx)}
               >
-                <div className="absolute left-0 top-0 h-full w-[3px] bg-blue-500 opacity-0 group-hover:opacity-100 transition-opacity" />
-                <CardContent className="p-5 flex flex-col gap-4">
-                  {/* 헤더: 기업명 + 순번 */}
+                <div className={cn(
+                  "absolute left-0 top-0 h-full w-1.5 opacity-0 group-hover:opacity-100 transition-opacity",
+                  isTrackB ? "bg-purple-500" : "bg-blue-500"
+                )} />
+                <CardContent className="p-6 flex flex-col gap-5">
                   <div className="flex items-start justify-between">
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1">
-                        <h3 className="text-lg font-black text-gray-900 group-hover:text-blue-600 transition-colors truncate">
-                          {result.companyName}
-                        </h3>
-                        {(result as any).failedCritical && (
-                          <Badge className="bg-rose-500 text-white border-none text-[9px] font-black animate-pulse">CRITICAL FAIL</Badge>
-                        )}
-                      </div>
-                      <div className="flex flex-wrap items-center gap-1.5">
-                        <Badge variant="secondary" className="bg-blue-50 text-blue-600 border-none px-2 text-[10px]">{result.ticker}</Badge>
-                        <span className="text-gray-400 text-[10px] uppercase font-bold">{result.market}</span>
-                        {getRiskBadge(result.riskLevel)}
+                      <h3 className="text-lg font-black text-gray-900 group-hover:text-blue-600 transition-colors truncate mb-1">
+                        {result.companyName}
+                      </h3>
+                      <div className="flex items-center gap-2">
+                        <Badge variant="secondary" className="bg-gray-100 text-gray-600 border-none font-bold">{result.ticker}</Badge>
+                        <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{result.market || 'NYSE'}</span>
                       </div>
                     </div>
-                    <span className="text-3xl font-black text-gray-100 group-hover:text-blue-50 transition-colors shrink-0 ml-2">
-                      {String(idx + 1).padStart(2, '0')}
+                    <span className="text-3xl font-black text-gray-50 group-hover:text-gray-100 transition-colors">
+                      {String(displayIdx).padStart(2, '0')}
                     </span>
                   </div>
 
-                  {/* 섹터 */}
-                  {result.sector && (
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Sector</span>
-                      <span className="text-[11px] font-bold text-gray-600 bg-gray-100 px-2 py-0.5 rounded-full">{result.sector}</span>
-                    </div>
-                  )}
-
-                  {/* 규칙 매칭 현황 (미니 뷰) */}
-                  {result.strategyMatch && (
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between">
-                        <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Logic Matching</p>
-                        <span className="text-[10px] font-bold text-gray-600">{result.strategyMatch.passedCount}/{result.strategyMatch.totalCount} passed</span>
-                      </div>
-                      <div className="flex gap-1">
-                        {result.strategyMatch.rules.map((rule, si) => (
-                          <div key={si} className={cn(
-                            'h-1.5 flex-1 rounded-full transition-all',
-                            rule.passed ? 'bg-emerald-500' : 'bg-gray-200'
-                          )} title={rule.name} />
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* 하단: 점수 + 화살표 */}
-                  <div className="flex items-end justify-between pt-3 border-t border-gray-100">
-                    <div>
-                      <p className="text-[10px] text-gray-400 uppercase font-black tracking-widest mb-1">STRATEGY ALIGNMENT</p>
-                      {result.strategyMatch ? (
-                        <div className="flex items-baseline gap-1">
-                          <p className={cn('text-2xl font-black font-mono leading-none',
-                            result.strategyMatch.matchPercentage >= 80 ? 'text-blue-600' :
-                              result.strategyMatch.matchPercentage >= 50 ? 'text-amber-500' : 'text-rose-400'
-                          )}>{(result.strategyMatch.matchPercentage ?? 0).toFixed(0)}%</p>
-                          <span className="text-xs text-gray-400">match</span>
-                        </div>
-                      ) : (
-                        <p className="text-2xl font-black text-gray-900 font-mono leading-none">N/A</p>
+                  <div className="space-y-3">
+                    <p className="text-xs text-gray-500 line-clamp-2 font-medium leading-relaxed">
+                      {result.description}
+                    </p>
+                    <div className="flex gap-2 flex-wrap mb-4">
+                      <span className={cn('text-[9px] font-black px-2 py-1 rounded-lg border',
+                        result.expertVerdict?.recommendation === 'BUY' || result.recommendation === 'BUY' || result.recommendation === 'STRONG_BUY'
+                          ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' 
+                          : result.expertVerdict?.recommendation === 'SELL' || result.recommendation === 'SELL'
+                            ? 'bg-rose-500/10 text-rose-500 border-rose-500/20' 
+                            : 'bg-amber-500/10 text-amber-500 border-amber-500/20'
+                      )}>
+                        {(result.expertVerdict?.recommendation || result.recommendation || 'HOLD').replace('_', ' ')}
+                      </span>
+                      {result.sector && (
+                        <span className="text-[9px] text-gray-500 bg-gray-100 px-2 py-1 rounded-lg">
+                          {result.sector}
+                        </span>
                       )}
-                      <p className="text-[10px] font-bold text-blue-500 mt-0.5">{result.strategyMatch?.allocationLabel || '분석 완료'}</p>
+                      {(result.rules?.filter((r: any) => r.score >= 5)?.length || 0) > 0 && (
+                        <span className="text-[9px] text-blue-500 bg-blue-50 px-2 py-1 rounded-lg">
+                          {result.rules.filter((r: any) => r.score >= 5).length} Rules Matched
+                        </span>
+                      )}
                     </div>
-                    <div className="flex items-center gap-2 pt-3 border-t border-gray-100">
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        className="flex-1 h-8 text-[10px] font-black uppercase tracking-widest border-blue-100 hover:bg-blue-50 text-blue-600 rounded-lg group/btn"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setBacktestTicker(result.ticker || null);
-                        }}
-                      >
-                        <History className="h-3.5 w-3.5 mr-1.5 transition-transform group-hover/btn:rotate-[-45deg]" />
-                        Backtest
-                      </Button>
-                      <div className="w-8 h-8 rounded-full bg-gray-50 group-hover:bg-blue-50 flex items-center justify-center transition-colors shadow-sm border border-gray-100 group-hover:border-blue-100 shrink-0">
-                        <ArrowRight className="h-4 w-4 text-gray-400 group-hover:text-blue-500 transition-colors" />
+                    <div className="flex items-center justify-between pt-4 border-t border-gray-50">
+                      <div>
+                        <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">SCORE</p>
+                        <div className="flex items-baseline gap-1">
+                          <span className={cn("text-2xl font-black font-mono", isTrackB ? "text-purple-600" : "text-blue-600")}>
+                            {result.score.toFixed(0)}
+                          </span>
+                          <span className="text-[10px] text-gray-400 font-bold">/100</span>
+                        </div>
+                      </div>
+                      <div className={cn("w-10 h-10 rounded-full flex items-center justify-center transition-all", isTrackB ? "bg-purple-50 text-purple-600 group-hover:bg-purple-600 group-hover:text-white" : "bg-blue-50 text-blue-600 group-hover:bg-blue-600 group-hover:text-white")}>
+                        <ArrowRight className="h-5 w-5" />
                       </div>
                     </div>
                   </div>
@@ -412,58 +376,24 @@ export function AnalysisOutput({ results, conditions, isLoading, onSendEmail }: 
             );
           })}
         </div>
+      </div>
+    );
 
-        <Card className={cn(
-          "w-full bg-gradient-to-br from-gray-50 to-transparent border-gray-200 shadow-2xl overflow-hidden relative group mt-12",
-          canSendEmail ? "border-blue-500/10 mt-12" : "border-gray-200 mt-12"
-        )}>
-          {!canSendEmail && (
-            <div className="absolute inset-0 bg-gray-50/60 backdrop-blur-[2px] z-10 flex items-center justify-center">
-              <div className="text-center p-8">
-                <div className="w-12 h-12 rounded-full bg-gray-100 border border-gray-200 flex items-center justify-center mx-auto mb-4">
-                  <Lock className="h-5 w-5 text-gray-500" />
-                </div>
-                <h4 className="text-sm font-black text-gray-900 uppercase tracking-widest mb-1">Encrypted Feature</h4>
-                <p className="text-xs text-gray-500 mb-6">분석 결과 이메일 자동 발송은 PREMIUM 전용입니다</p>
-                <Button size="sm" variant="outline" className="h-8 text-[11px] font-bold border-gray-700 hover:border-blue-500 transition-colors">
-                  UPGRADE SYSTEM
-                </Button>
-              </div>
-            </div>
-          )}
-          <CardContent className="p-10">
-            <div className="flex flex-col md:flex-row items-center gap-8">
-              <div className="flex-1 space-y-2">
-                <h4 className="text-xl font-black text-gray-900 flex items-center gap-3">
-                  <Mail className="h-6 w-6 text-blue-500" />
-                  Data Export Protocol
-                </h4>
-                <p className="text-sm text-gray-500 max-w-md">
-                  심층 분석 보고서를 지정된 이메일 주소로 즉시 전송합니다.<br />
-                  모든 분석 근거와 재무 데이터가 매핑된 완성된 리포트입니다.
-                </p>
-              </div>
-              <div className="w-full md:w-auto flex flex-col gap-4">
-                <div className="flex gap-2">
-                  <Input
-                    type="email"
-                    placeholder="AUTHORITY_EMAIL@SECURE.COM"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="bg-gray-50 border-gray-200 text-gray-900 font-mono text-xs h-12 w-full md:w-72 focus:border-blue-500 transition-all"
-                  />
-                  <Button
-                    onClick={handleSendEmail}
-                    disabled={!email || isSendingEmail || !onSendEmail}
-                    className="h-12 px-8 bg-blue-600 hover:bg-blue-500 text-gray-900 font-black uppercase text-xs tracking-widest transition-all"
-                  >
-                    {isSendingEmail ? 'SYNC...' : emailSent ? 'READY' : 'EXECUTE'}
-                  </Button>
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+    return (
+      <div className="space-y-16 animate-in fade-in slide-in-from-bottom-4 duration-700">
+        <div className="text-center space-y-3 py-10">
+          <Badge className="bg-blue-600 text-white border-none py-1.5 px-6 font-black tracking-[0.3em] uppercase mb-4">
+            Analysis Protocol complete
+          </Badge>
+          <h2 className="text-4xl font-black text-gray-900 tracking-tight">AI Dual-Track Investment Report</h2>
+          <p className="text-gray-500 max-w-2xl mx-auto font-medium">
+            전통적 계량 지표(A)와 지능형 유닛 경제성(B)을 결합한 하이브리드 포트폴리오 스캔 결과입니다.
+          </p>
+        </div>
+
+        {renderTrack("Master Track A: Blue Chips", results.trackADescription, results.trackA, "border-blue-500/10")}
+        {renderTrack("Alpha Track B: Growth Prospects", results.trackBDescription, results.trackB, "border-purple-500/10", true)}
+
         <BacktestDialog 
           ticker={backtestTicker || ''} 
           isOpen={!!backtestTicker} 
@@ -473,7 +403,10 @@ export function AnalysisOutput({ results, conditions, isLoading, onSendEmail }: 
     );
   }
 
-  const result = results[selectedCompanyIndex];
+  const allResults = [...(results?.trackA || []), ...(results?.trackB || [])];
+  const result = allResults[selectedCompanyIndex];
+
+  if (!result) return null;
 
   return (
     <div className="space-y-6 pb-12 animate-in fade-in slide-in-from-right-4 duration-500">
@@ -594,17 +527,23 @@ export function AnalysisOutput({ results, conditions, isLoading, onSendEmail }: 
                     </div>
 
                     {/* Citations from Source Material */}
-                    {result.expertVerdict.authorCitations && result.expertVerdict.authorCitations.length > 0 && (
+                    {Array.isArray(result.expertVerdict.authorCitations) && result.expertVerdict.authorCitations.length > 0 && (
                       <div className="pt-6 border-t border-gray-50">
                         <h5 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-4 flex items-center gap-2">
                           <FileText className="h-3 w-3" /> 증명된 원천 데이터 인용 (Author Citations)
                         </h5>
                         <div className="flex flex-wrap gap-2">
-                          {result.expertVerdict.authorCitations.map((cite: any, idx: number) => (
-                            <Badge key={idx} variant="outline" className="text-[10px] font-bold bg-gray-50 text-gray-500 border-gray-200 px-3 py-1">
-                              {cite.fileName} {cite.pageOrTimestamp && `(${cite.pageOrTimestamp})`}
-                            </Badge>
-                          ))}
+                          {result.expertVerdict.authorCitations.map((cite: any, idx: number) => {
+                            // 객체가 아닐 경우 (AI가 단순 문자열 배열을 준 경우) 방어 코드
+                            const fileName = typeof cite === 'string' ? cite : cite?.fileName || 'Unknown Source';
+                            const info = typeof cite === 'object' ? cite?.pageOrTimestamp : '';
+                            
+                            return (
+                              <Badge key={idx} variant="outline" className="text-[10px] font-bold bg-gray-50 text-gray-500 border-gray-200 px-3 py-1">
+                                {fileName} {info && `(${info})`}
+                              </Badge>
+                            );
+                          })}
                         </div>
                       </div>
                     )}
@@ -650,7 +589,7 @@ export function AnalysisOutput({ results, conditions, isLoading, onSendEmail }: 
                     <Sparkles className="h-4 w-4" /> Strategic Assessment & Narratives
                   </h4>
                   <p className="text-[15px] text-gray-700 leading-loose font-medium whitespace-pre-line">
-                    {result.reasoning}
+                    {result.reasoning || result.investmentThesis || '조회된 AI 전략 상세 분석 내역이 없습니다.'}
                   </p>
                 </div>
                 <div className="space-y-4">
@@ -673,7 +612,7 @@ export function AnalysisOutput({ results, conditions, isLoading, onSendEmail }: 
                     {result.sentiment?.recentHeadlines && result.sentiment.recentHeadlines.length > 0 && (
                       <div className="space-y-1.5 pt-3 border-t border-gray-100">
                         <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1.5 font-mono">분석 대상 뉴스 헤드라인 (Yahoo Finance)</p>
-                        {result.sentiment.recentHeadlines.slice(0, 3).map((h, idx) => (
+                        {result.sentiment.recentHeadlines.slice(0, 3).map((h: any, idx: number) => (
                            <a 
                              key={idx} 
                              href={h.url} 
@@ -720,7 +659,7 @@ export function AnalysisOutput({ results, conditions, isLoading, onSendEmail }: 
                     Reference Sources
                   </h4>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    {result.sources.slice(0, 4).map((source, sIdx) => {
+                    {result.sources.slice(0, 4).map((source: any, sIdx: number) => {
                       const hasAccess = (session?.user as any)?.features?.evidence_links || source.type === 'pdf';
                       return (
                         <div key={sIdx} className={cn(

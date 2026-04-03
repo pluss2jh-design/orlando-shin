@@ -41,7 +41,10 @@ export async function DELETE(request: NextRequest) {
     if (!session?.user?.id) {
       return NextResponse.json({ error: '로그인이 필요합니다.' }, { status: 401 });
     }
-    userAnalysisJobs.delete(session.user.id);
+    const job = userAnalysisJobs.get(session.user.id);
+    if (job) {
+      userAnalysisJobs.set(session.user.id, { ...job, isCancelled: true });
+    }
     return NextResponse.json({ success: true, status: 'idle' });
   } catch (error) {
     return NextResponse.json({ error: '상태 초기화 실패' }, { status: 500 });

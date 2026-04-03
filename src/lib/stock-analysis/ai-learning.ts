@@ -1,596 +1,368 @@
-import { withRetry } from '@/lib/utils/retry';
-import { GoogleGenAI } from '@google/genai';
-import OpenAI from 'openai';
-import Anthropic from '@anthropic-ai/sdk';
 import { prisma } from '@/lib/db';
-import type {
-  FileAnalysis,
-  LearnedInvestmentCriteria,
-  InvestmentStrategy,
-  SourceReference,
-  LearnedKnowledge,
-} from '@/types/stock-analysis';
-import {
-  listDriveFiles,
+import { GoogleGenAI } from '@google/genai';
+import { 
+  listDriveFiles, 
+  downloadDriveFile, 
   downloadTextContent,
-  downloadDriveFile,
-  getSyncInfo,
-  getFilesByIds,
-  type DriveFileInfo,
+  DriveFileInfo
 } from '@/lib/google-drive';
-import { videoProcessingService } from '../video-processing/processor';
-import { VideoProcessingResult } from '@/types/video-processing';
+import { videoProcessingService } from '@/lib/video-processing/processor';
+import { 
+  LearnedKnowledge, 
+  LearnedInvestmentCriteria, 
+  FileAnalysis,
+  InvestmentStrategy
+} from '@/types/stock-analysis';
 
-// 학습 상태의 글로벌 영속성 보장 (Next.js 서버 인스턴스 간 공유)
+// ─── Global Learning Status (Persistence) ───────────────────────────
+interface GlobalLearningStatus {
+  isLearning: boolean;
+  totalFiles: number;
+  completedFiles: number;
+  failedFiles: number;
+  startTime: string | null;
+  error: string | null;
+  message: string | null;
+  isCancelled: boolean;
+}
+
 declare global {
   // eslint-disable-next-line no-var
-  var learningStatus: {
-    isLearning: boolean;
-    isCancelled: boolean;
-    totalFiles: number;
-    completedFiles: number;
-    failedFiles: number;
-    error: string | null;
-    message: string | null;
-    startTime: Date | null;
-  } | undefined;
+  var learningStatus: GlobalLearningStatus | undefined;
 }
 
 export const learningStatus = globalThis.learningStatus || {
   isLearning: false,
-  isCancelled: false,
   totalFiles: 0,
   completedFiles: 0,
   failedFiles: 0,
+  startTime: null,
   error: null,
   message: null,
-  startTime: null,
+  isCancelled: false
 };
 globalThis.learningStatus = learningStatus;
 
-export function resetLearningStatus(totalCount: number = 0, force: boolean = false) {
-  const STALE_THRESHOLD_MS = 1000 * 60 * 60; // 1시간
-  const isStale = learningStatus.isLearning && 
-                  learningStatus.startTime && 
-                  (Date.now() - new Date(learningStatus.startTime).getTime()) > STALE_THRESHOLD_MS;
-
-  // 이미 취소된 상태(isCancelled)이거나 너무 오래된 상태(isStale)인 경우 혹은 강제(force)인 경우 진행 허용
-  if (learningStatus.isLearning && !force && !isStale && !learningStatus.isCancelled) {
-    throw new Error('현재 다른 학습이 진행 중입니다. 잠시 후 다시 시도해주세요.');
-  }
-
+export function resetLearningStatus(total: number) {
   learningStatus.isLearning = true;
-  learningStatus.isCancelled = false; // 새 학습 시작 시 취소 플래그 초기화
-  learningStatus.startTime = new Date();
-  learningStatus.error = null;
-  learningStatus.message = '학습 초기화 중...';
+  learningStatus.totalFiles = total;
   learningStatus.completedFiles = 0;
   learningStatus.failedFiles = 0;
-  learningStatus.totalFiles = totalCount;
+  learningStatus.startTime = new Date().toISOString();
+  learningStatus.error = null;
+  learningStatus.message = '학습을 시작합니다...';
+  learningStatus.isCancelled = false;
 }
 
-export function cancelLearningPipeline() {
-  if (learningStatus.isLearning || learningStatus.message?.includes('분석 중')) {
-    learningStatus.isCancelled = true;
-    learningStatus.isLearning = false; // 즉시 false로 설정하여 UI 및 재신청 허용
-    learningStatus.message = '학습이 사용자에 의해 중지되었습니다.';
-    console.log('[Learning] Cancellation requested and status reset.');
-  }
+export function stopLearning() {
+  learningStatus.isLearning = false;
+  learningStatus.isCancelled = true;
+  learningStatus.error = '학습이 사용자에 의해 중단되었습니다.';
+  learningStatus.message = '중단됨';
 }
 
-function getGeminiClient(customApiKey?: string) {
-  const apiKey = customApiKey || process.env.GEMINI_API_KEY;
-  if (!apiKey) {
-    throw new Error('GEMINI_API_KEY가 설정되지 않았습니다.');
-  }
-  return new GoogleGenAI({ apiKey });
-}
+export const cancelLearningPipeline = stopLearning;
 
-function getOpenAIClient() {
-  const apiKey = process.env.OPENAI_API_KEY;
-  if (!apiKey) throw new Error('OPENAI_API_KEY가 설정되지 않았습니다.');
-  return new OpenAI({ apiKey });
-}
+// ─── Learning Pipeline Logic ──────────────────────────────────────────
 
-function getAnthropicClient() {
-  const apiKey = process.env.CLAUDE_API_KEY;
-  if (!apiKey) throw new Error('CLAUDE_API_KEY가 설정되지 않았습니다.');
-  return new Anthropic({ apiKey });
-}
-
-function getFileExt(name: string, mime: string) {
-  if (mime.includes('video') || name.toLowerCase().endsWith('.mp4')) return 'mp4';
-  if (name.toLowerCase().endsWith('.pdf') || mime.includes('pdf')) return 'pdf';
-  if (name.toLowerCase().endsWith('.docx') || name.toLowerCase().endsWith('.doc')) return 'docx';
-  if (name.toLowerCase().endsWith('.xlsx') || name.toLowerCase().endsWith('.xls') || name.toLowerCase().endsWith('.csv')) return 'xlsx';
-  return 'other';
-}
-
-function isPDFFile(file: DriveFileInfo): boolean {
-  return file.mimeType?.includes('pdf') ||
-    file.name?.toLowerCase().endsWith('.pdf') || false;
-}
-
-function isVideoFile(file: DriveFileInfo): boolean {
-  return file.mimeType?.includes('video') ||
-    file.name?.toLowerCase().endsWith('.mp4') || false;
-}
-
-function isTextOrDocumentFile(file: DriveFileInfo): boolean {
-  return file.mimeType?.includes('document') ||
-    file.mimeType?.includes('text') ||
-    file.mimeType?.includes('spreadsheet') || false;
-}
-
-async function waitForVideoProcessing(fileId: string): Promise<VideoProcessingResult | undefined> {
-  let attempts = 0;
-  const maxAttempts = 60; // 5분 (5초 간격)
-  
-  while (attempts < maxAttempts) {
-    if (learningStatus.isCancelled) return undefined;
-    
-    const result = videoProcessingService.getProcessingResult(fileId);
-    if (result && (result.status === 'completed' || result.status === 'error')) {
-      return result;
-    }
-    
-    await new Promise(resolve => setTimeout(resolve, 5000));
-    attempts++;
-  }
-  
-  return undefined;
-}
-
+/**
+ * AI 학습 파이프라인 메인 오케스트레이터
+ * 여러 파일을 분석하여 하나의 통합된 지식(Investment Rules)을 생성합니다.
+ */
 export async function runLearningPipeline(
-  targetFileIds?: string[],
+  fileIds?: string[],
   aiModels?: Record<string, string>
 ): Promise<LearnedKnowledge> {
-  // 내부 추적용 시작 시간 (세션 구분용)
-  if (!learningStatus.startTime) {
-    resetLearningStatus(targetFileIds?.length || 0);
+  const apiKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY || process.env.GEMINI_API_KEY;
+  if (!apiKey) throw new Error('API Key가 설정되지 않았습니다 (GOOGLE_GENERATIVE_AI_API_KEY 또는 GEMINI_API_KEY).');
+  
+  const genAI = new GoogleGenAI({ apiKey });
+  const modelName = aiModels?.전체 || 'gemini-1.5-pro';
+
+  // 1. 대상 파일 식별
+  let driveFiles: DriveFileInfo[] = [];
+  if (fileIds && fileIds.length > 0) {
+    const { getFilesByIds } = await import('@/lib/google-drive');
+    driveFiles = await getFilesByIds(fileIds);
+  } else {
+    // ID가 없으면 연구 폴더 전체 스캔
+    const syncResult = await listDriveFiles(undefined, 0, () => learningStatus.isCancelled);
+    driveFiles = syncResult.files.filter(f => f.mimeType !== 'application/vnd.google-apps.folder');
   }
-  const myStartTime = learningStatus.startTime!;
 
-  learningStatus.message = '학습 대상 파일 분석 중...';
+  if (learningStatus.isCancelled) throw new Error('STOPPED_BY_USER');
+  resetLearningStatus(driveFiles.length);
 
-  try {
-    let allFiles: DriveFileInfo[] = [];
+  const fileAnalyses: FileAnalysis[] = [];
+  const knowledgeFragments: any[] = [];
 
-    // 최적화: targetFileIds가 있을 경우 전체 스캔 대신 캐시 혹은 개별 파일 조회 사용
-    if (targetFileIds && targetFileIds.length > 0) {
-      const syncInfo = await getSyncInfo();
-      const cachedFiles = syncInfo?.files.filter(f => targetFileIds.includes(f.id)) || [];
-
-      if (cachedFiles.length === targetFileIds.length) {
-        console.log(`[Learning] Using ${cachedFiles.length} files from cache.`);
-        allFiles = cachedFiles;
-      } else {
-        console.log(`[Learning] Fetching ${targetFileIds.length} files individually...`);
-        allFiles = await getFilesByIds(targetFileIds);
-      }
-    } else {
-      console.log(`[Learning] Scanning entire drive...`);
-      const syncResult = await listDriveFiles();
-      allFiles = syncResult.files;
-    }
-
-    const files = allFiles;
-
-    if (files.length === 0) {
-      throw new Error('Google Drive 폴더에 파일이 없습니다.');
-    }
-
-    const targetFiles = files.filter(f => isPDFFile(f) || isVideoFile(f) || isTextOrDocumentFile(f));
-    console.log(`[Learning] Final target files after filtering: ${targetFiles.length}`);
+  // 2. 동시성 제어 (Batch Processing)
+  const CHUNK_SIZE = 3;
+  for (let i = 0; i < driveFiles.length; i += CHUNK_SIZE) {
+    if (learningStatus.isCancelled) break;
     
-    if (targetFiles.length === 0) {
-      throw new Error('지원되는 파일 형식이 없습니다.');
-    }
-
-    const fileAnalyses: FileAnalysis[] = [];
-    learningStatus.totalFiles = targetFiles.length;
-    learningStatus.completedFiles = 0;
-    learningStatus.failedFiles = 0;
-    learningStatus.message = `학습 대상 ${targetFiles.length}개 파일 처리 준비 중...`;
-    
-    console.log(`[Learning] Pipeline started for ${targetFiles.length} files.`);
-
-    const syncInfo = await getSyncInfo();
-    const allCachedFiles = syncInfo?.files || [];
-    
-    // 경로 생성용 헬퍼 함수
-    const resolveFolderPath = (file: DriveFileInfo): string => {
-      const pathParts: string[] = [];
-      let current = file;
-      const maxLevels = 10;
-      let level = 0;
-      
-      while (current && current.parentId && level < maxLevels) {
-        const parent = allCachedFiles.find(f => f.id === current.parentId);
-        if (parent) {
-          if (parent.name !== 'root') pathParts.unshift(parent.name);
-          current = parent;
-        } else {
-          break;
-        }
-        level++;
-      }
-      return pathParts.join('/') || '/';
-    };
-
-    const fileNameToFolderPath: Record<string, string> = {};
-    for (const f of targetFiles) {
-        fileNameToFolderPath[f.name] = resolveFolderPath(f);
-    }
-
-    const client = getGeminiClient();
-
-    for (let i = 0; i < targetFiles.length; i++) {
-      const file = targetFiles[i];
-      learningStatus.message = `[${i + 1}/${targetFiles.length}] ${file.name} 분석 중...`;
-      console.log(`[Learning] Step ${i + 1}/${targetFiles.length}: Analyzing ${file.name} (${file.id})`);
-      
-      if (learningStatus.isCancelled) {
-        console.log(`[Learning] Pipeline cancelled by user at file: ${file.name}`);
-        throw new Error('학습이 강제 중지되었습니다.');
-      }
-
+    const chunk = driveFiles.slice(i, i + CHUNK_SIZE);
+    await Promise.all(chunk.map(async (file) => {
       try {
-        let content = '';
-        let inlineDataPart: any = null;
-        let visualHighlights: { timestamp: string; description: string; imageUrl?: string }[] = [];
-
-        if (isVideoFile(file)) {
-          console.log(`Analyzing video: ${file.name}`);
-          const fileBuffer = await downloadDriveFile(file.id, file.name);
-          
-          // 1. 영상 전처리 (STT + 프레임 추출)
-          const fileId = await videoProcessingService.processVideo(fileBuffer, file.name, {
-            extractAudio: true,
-            performStt: true,
-            captureFrames: true,
-            frameInterval: 10,
-            keyMomentDetection: true
-          });
-
-          // 상태 폴링 (최대 5분)
-          let result = await waitForVideoProcessing(fileId);
-          
-          if (result && result.status === 'completed') {
-            const sttText = result.transcript?.segments.map((s: any) => `[${s.startTime}s] ${s.text}`).join('\n') || '';
-            const visualText = result.keyMoments?.filter((m: any) => m.type === 'visual').map((m: any) => `[${m.timestamp}s] ${m.description}`).join('\n') || '';
-            
-            content = `[VIDEO_ANALYSIS]\n${file.name}\n\nSTT Transcript:\n${sttText}\n\nVisual Analysis:\n${visualText}`;
-            visualHighlights = (result.keyMoments || []).map((m: any) => ({
-              timestamp: `${m.timestamp}s`,
-              description: m.description
-            }));
-
-            // Gemini 멀티모달용 데이터
-            inlineDataPart = {
-              inlineData: {
-                data: fileBuffer.toString('base64'),
-                mimeType: 'video/mp4'
-              }
-            };
-          } else {
-            content = `[비디오 분석 실패: ${file.name}] STT/프레임 추출 오류`;
-          }
-        } else if (isPDFFile(file)) {
-          const fileBuffer = await downloadDriveFile(file.id, file.name);
-          inlineDataPart = {
-            inlineData: {
-              data: fileBuffer.toString('base64'),
-              mimeType: 'application/pdf'
-            }
-          };
-          content = `[PDF_CONTENT]`;
-        } else {
-          content = await extractFileContent(file);
+        const content = await extractFileContent(file);
+        if (!content || content.trim().length === 0) {
+          console.warn(`[AI Learning] Skipping file (No content): ${file.name}`);
+          learningStatus.failedFiles++;
+          return;
         }
 
-        if (!content || content.trim().length === 0) continue;
-
-        const ext = getFileExt(file.name, file.mimeType);
-        const chosenModelGrp = aiModels?.[ext] || aiModels?.['전체'] || 'gemini-1.5-flash';
-        
-        const promptText = `주식 투자 분석가로서 다음 파일의 투자 조건을 추출하세요: ${file.name}.
-        각 조건에 대해 다음 정보를 JSON 형식으로 응답하세요:
-        {"keyConditions": [
-          {
-            "name": "조건 이름",
-            "description": "상세 설명",
-            "content_snippet": "본문에서 이 조건을 설명하는 가장 핵심적인 문장을 있는 그대로 복사(발췌)하세요.",
-            "location": "페이지 번호 또는 대략적인 타임스탬프"
-          }
-        ]}`;
-        let responseText = '';
-
-        if (chosenModelGrp.startsWith('gpt')) {
-          responseText = await withRetry(async () => {
-            const openai = getOpenAIClient();
-            const res = await openai.chat.completions.create({
-              model: chosenModelGrp,
-              messages: [{ role: 'user', content: promptText }]
-            });
-            return res.choices[0].message.content || '';
-          });
-        } else if (chosenModelGrp.startsWith('claude')) {
-          responseText = await withRetry(async () => {
-            const anthropic = getAnthropicClient();
-            const res = await anthropic.messages.create({
-              model: chosenModelGrp as any,
-              max_tokens: 4096,
-              messages: [{ role: 'user', content: promptText }]
-            });
-            return (res.content[0] as any).text || '';
-          });
-        } else {
-          responseText = await withRetry(async () => {
-            const client = getGeminiClient();
-            const contents = inlineDataPart ? [promptText, inlineDataPart] : [promptText];
-            const fullModelName = chosenModelGrp.startsWith('models/') ? chosenModelGrp : `models/${chosenModelGrp}`;
-            const result = await client.models.generateContent({
-              model: fullModelName,
-              contents: contents as any
-            });
-            return (result as any).text || '';
-          });
-        }
-
-        const jsonMatch = responseText.match(/\{[\s\S]*\}/);
-        const analysisResult = jsonMatch ? JSON.parse(jsonMatch[0]) : { keyConditions: [] };
-
-        fileAnalyses.push({
-          fileName: file.name,
-          fileId: file.id,
-          keyConditions: analysisResult.keyConditions || [],
-          visualHighlights,
-          extractedAt: new Date(),
+        // 개별 파일 분석 및 핵심 인사이트 추출
+        console.log(`[AI Learning] Analyzing file: ${file.name} (${i + chunk.indexOf(file) + 1}/${learningStatus.totalFiles})`);
+        const analysis = await analyzeIndividualFile(genAI, modelName, file, content);
+        fileAnalyses.push(analysis.fileAnalysis);
+        knowledgeFragments.push({ 
+          fileName: file.name, 
+          summary: analysis.summary,
+          extractedRules: analysis.rawCriteria 
         });
-
-        learningStatus.completedFiles += 1;
-        console.log(`[Learning] Successfully analyzed ${file.name}. Progress: ${learningStatus.completedFiles}/${targetFiles.length}`);
+        
+        learningStatus.completedFiles++;
+        console.log(`[AI Learning] Success: ${file.name}`);
       } catch (error: any) {
-        console.error(`[Learning] Failed to analyze ${file.name}:`, error.message);
-        learningStatus.failedFiles += 1;
+        console.error(`Error analyzing file ${file.name}:`, error?.message || error);
+        learningStatus.failedFiles++;
       }
-    }
-
-    console.log(`[Learning] File analyses complete. Starting strategy synthesis...`);
-    learningStatus.message = '개별 분석 결과 기반 종합 투자 전략 도출 중...';
-
-    // 개별 파일 분석 결과들을 파일명 정보와 함께 문자열화하여 통합
-    const docConditions = fileAnalyses.map(fa => {
-      return fa.keyConditions.map((kc: any) => 
-        JSON.stringify({
-          ...kc,
-          sourceFileName: fa.fileName,
-          sourceType: fa.fileName.toLowerCase().endsWith('.mp4') ? 'mp4' : 'pdf'
-        })
-      ).join('\n');
-    }).join('\n');
-    // 전략 도출용 모델 선택 (PDF/문서 모델 우선, 없으면 '전체' 또는 선택된 모델 중 아무거나)
-    const strategyModelName = 
-      aiModels?.pdf || 
-      aiModels?.['전체'] || 
-      aiModels?.docx || 
-      aiModels?.xlsx || 
-      aiModels?.other || 
-      aiModels?.mp4 || 
-      Object.values(aiModels || {})[0];
-
-    if (!strategyModelName) {
-      throw new Error('종합 전략 도출을 위한 AI 모델이 선택되지 않았습니다. 모델 탭에서 사용할 AI 모델을 선택해주세요.');
-    }
-    const strategyPrompt = `당신은 제공된 여러 개별 자료(문서, 영상)의 분석 결과를 완벽하게 통합하여, 하나의 일관된 '최종 투자 알고리즘'을 설계하는 **수석 전략 합성가(Head of Strategy Synthesis)**입니다.
- 
- ### [1. 전문가 합의 및 논리 통합 지침]
- - **목표**: 자료에서 공통적으로 언급하거나 강조하는 "주가가 오르기 위한 핵심 조건"을 추출하세요.
- - **논리 통합**: 여러 자료에서 동일한 지표를 강조하면 가중치를 높이고, 상충되는 의견이 있으면 더 보수적이거나 논리적인 근거가 강한 쪽을 채택하세요.
- - **부재 데이터 보충**: 자료에서 구체적인 수치가 없더라도, 전문가로서 해당 지표의 보편적인 성공 기준을 제안하십시오. (예: "자료에선 수익성을 강조함" -> ROE 15% 이상 제안)
- 
- ### [2. 정량 지표 매핑 가이드 (필수)]
- **target_metric** 필드에는 반드시 아래 목록 중 가장 적절한 이름을 사용하세요:
- - **revenue_growth**: 매출 성장률 (%)
- - **net_income_growth**: 순이익 성장률 (%)
- - **roe**: 자기자본이익률 (%)
- - **per**: 주가수익비율
- - **pbr**: 주가순자산비율
- - **debt_ratio**: 부채비율 (%)
- - **operating_margin**: 영업이익률 (%)
- - **dividend_yield**: 배당수익률 (%)
- - **eps_growth**: 주당순이익 성장률 (%)
- - **current_ratio**: 유동비율 (%)
- 
- ### [3. 동적 계량화 지침]
- - **benchmark_type**:
-   - 'absolute': 고정된 수치
-   - 'sector_relative': 해당 업종 평균 대비
-   - 'sector_percentile': 업종 내 상위 %
- 
- ### [4. 필드별 의무 준수 사항]
- 1. **description**: 반드시 3문장 이내. "왜 이 조건이 주가 상승에 필수적인지"를 자료 근거와 함께 설명.
- 2. **weight**: 0.1~1.0. 핵심 조건일수록 높게 책정.
- 3. **isCritical**: 필수 조건인 경우 True.
- 4. **source**: 근거 파일명과 위치 명시.
- 
- 추출된 개별 파일 분석 결과들 (파일별 출처 정보 포함):
- ${docConditions}
- 
- ### [5. 최종 출력 요구사항 - 중요]
- - **fileName**: 반드시 위 목록에 나열된 **실제 파일명** (예: something.mp4, report.pdf) 중 하나를 사용하십시오. 절대 'analysis_doc_1'과 같이 임의로 지어내지 마십시오.
- - **location**: 원문에 표기된 페이지 번호나 타임스탬프(HH:MM:SS)를 그대로 사용하십시오.
- - **JSON 규격 (아래 구조로만 응답하세요)**:
- {
-   "keyConditionsSummary": "통합 투자 철학 핵심 요약 (5문장 내외)",
-   "consensusScore": 0~100,
-   "strategyType": "aggressive|moderate|stable",
-   "strategy": {
-     "shortTermConditions": ["단기 조건..."],
-     "longTermConditions": ["장기 조건..."],
-     "winningPatterns": ["필승 패턴..."],
-     "riskManagementRules": ["리스크 관리..."]
-   },
-   "criterias": [
-     {
-       "name": "규칙 이름",
-       "category": "성장성|수익성|안정성|가치평가|수급",
-       "weight": 0.1~1.0, 
-       "description": "상세 로직",
-       "quantification": {
-         "target_metric": "상기 가이드의 필드명",
-         "condition": ">|<|>=|<=|==",
-         "benchmark": "수치(15) 또는 'sector_avg' 등",
-         "benchmark_type": "absolute|sector_relative|sector_percentile",
-         "scoring_type": "binary|linear"
-       },
-       "isCritical": true|false, 
-       "visualEvidence": "시각적 근거 요약",
-       "source": { "fileName": "실제제공된파일명.확장자", "location": "원문위치", "content_snippet": "본문 발췌" }
-     }
-   ],
-   "principles": [
-     { "principle": "원칙 내용", "category": "entry|exit|risk|general", "source": { "fileName": "실제제공된파일명.확장자", "location": "원문위치", "content_snippet": "본문 발췌" } }
-   ]
- }`;
-
-    const strategyText = await withRetry(async () => {
-      const fullModelName = strategyModelName.startsWith('models/') ? strategyModelName : `models/${strategyModelName}`;
-      const strategyResult = await client.models.generateContent({
-        model: fullModelName,
-        contents: [strategyPrompt]
-      });
-      return (strategyResult as any).text || '';
-    });
-
-    const strategyJsonMatch = strategyText.match(/\{[\s\S]*\}/);
-    const strategyData = strategyJsonMatch ? JSON.parse(strategyJsonMatch[0]) : {};
-
-    const defaultSource: SourceReference = { fileName: '합성된 투자 원칙', type: 'pdf', pageOrTimestamp: 'System', content: '종합 분석 결과' };
-    const strategy: InvestmentStrategy = {
-      shortTermConditions: strategyData.strategy?.shortTermConditions || [],
-      longTermConditions: strategyData.strategy?.longTermConditions || [],
-      winningPatterns: strategyData.strategy?.winningPatterns || [],
-      riskManagementRules: strategyData.strategy?.riskManagementRules || [],
-      consensusScore: strategyData.consensusScore || 80,
-    };
-
-    const criteria: LearnedInvestmentCriteria = {
-      consensusScore: strategyData.consensusScore || 85,
-      criterias: (strategyData.criterias || []).map((c: any) => ({
-        name: c.name,
-        category: c.category,
-        weight: c.weight || 0.5,
-        description: c.description || '',
-        quantification: {
-          target_metric: c.quantification?.target_metric || 'unknown',
-          condition: c.quantification?.condition || '>=',
-          benchmark: c.quantification?.benchmark || 0,
-          benchmark_type: c.quantification?.benchmark_type || 'absolute',
-          scoring_type: c.quantification?.scoring_type || 'linear',
-        },
-        isCritical: c.isCritical || false,
-        visualEvidence: c.visualEvidence || '',
-        source: c.source ? {
-          fileName: c.source.fileName || 'unknown',
-          folderPath: fileNameToFolderPath[c.source.fileName] || '/',
-          type: (c.source.fileName || '').toLowerCase().endsWith('.mp4') ? 'mp4' : 'pdf',
-          pageOrTimestamp: c.source.location || '-',
-          content: c.source.content_snippet || c.description // 발췌문 우선, 없으면 설명으로 대체
-        } : { ...defaultSource, folderPath: '/' },
-      })),
-      principles: (strategyData.principles || []).map((p: any) => ({
-        principle: p.principle,
-        category: p.category || 'general',
-        source: p.source ? {
-          fileName: p.source.fileName || 'unknown',
-          folderPath: fileNameToFolderPath[p.source.fileName] || '/',
-          type: 'pdf',
-          pageOrTimestamp: p.source.location || '-',
-          content: p.principle
-        } : { ...defaultSource, folderPath: '/' }
-      })),
-    };
-
-    const knowledge: LearnedKnowledge = {
-      fileAnalyses,
-      criteria,
-      strategy,
-      strategyType: strategyData.strategyType || 'moderate',
-      keyConditionsSummary: strategyData.keyConditionsSummary || '분석 요약본입니다.',
-      rawSummaries: targetFiles.map(f => ({ fileName: f.name, summary: '학습 완료' })),
-      learnedAt: new Date(),
-      sourceFiles: targetFiles.map(f => f.name),
-    };
-
-    return knowledge;
-
-  } catch (err: any) {
-    learningStatus.error = err.message;
-    console.error('[Learning] Pipeline fatal error:', err);
-    throw err;
-  } finally {
-    // 본인의 세션인 경우에만(startTime 일치) 상태를 최종 종료 처리함
-    // 만약 중지 후 새 학습이 시작되었다면 startTime이 달라졌을 것이므로 무시함
-    if (learningStatus.startTime?.getTime() === myStartTime.getTime()) {
-      learningStatus.isLearning = false;
-      learningStatus.isCancelled = false;
-    }
+    }));
   }
+
+  if (learningStatus.isCancelled) {
+    learningStatus.isLearning = false;
+    throw new Error('STOPPED_BY_USER');
+  }
+
+  // 3. 종합 학습 전략 수립 (지식 파편들을 하나의 일관된 규칙으로 합성)
+  console.log('[AI Learning] Synthesizing investment strategy from analyzed fragments...');
+  const finalKnowledge = await synthesizeKnowledge(genAI, modelName, fileAnalyses, knowledgeFragments);
+  
+  // 소스 파일 기록
+  finalKnowledge.sourceFiles = driveFiles.map(f => f.id);
+  finalKnowledge.learnedAt = new Date();
+
+  learningStatus.isLearning = false;
+  return finalKnowledge;
 }
 
+/**
+ * 파일 타입에 맞게 텍스트 내용을 추출합니다.
+ */
 async function extractFileContent(file: DriveFileInfo): Promise<string> {
-  const mimeType = file.mimeType;
-  if (mimeType === 'application/vnd.google-apps.document' || mimeType === 'application/vnd.google-apps.spreadsheet' || mimeType?.startsWith('text/') || mimeType?.includes('pdf')) {
-    return downloadTextContent(file.id);
+  console.log(`[AI Learning] Extracting content from: ${file.name} (${file.mimeType})`);
+  
+  try {
+    if (file.mimeType === 'application/pdf' || file.mimeType.startsWith('text/')) {
+      return await downloadTextContent(file.id);
+    } 
+    
+    if (file.mimeType.startsWith('video/') || file.name.endsWith('.mp4')) {
+      const fileBuffer = await downloadDriveFile(file.id, file.name);
+      
+      // 비디오 처리 서비스 호출
+      const videoId = await videoProcessingService.processVideo(fileBuffer, file.name, {
+        performStt: true,
+        extractAudio: true,
+        captureFrames: false // 학습 단계에서는 텍스트 위주로 분석
+      });
+
+      // 완료 대기 (최대 5분)
+      let attempts = 0;
+      while (attempts < 60) {
+        const result = videoProcessingService.getProcessingResult(videoId);
+        if (result?.status === 'completed' && result.transcript) {
+          // segments를 합쳐서 전체 텍스트 생성
+          return result.transcript.segments.map(s => s.text).join('\n');
+        }
+        if (result?.status === 'error') throw new Error(`Video processing failed: ${result.error}`);
+        
+        await new Promise(r => setTimeout(r, 5000));
+        attempts++;
+      }
+      throw new Error('Video processing timed out');
+    }
+  } catch (error) {
+    console.error(`Extraction failed: ${file.name}`, error);
   }
-  if (mimeType?.startsWith('video/')) return `[비디오 파일: ${file.name}]`;
+  
   return '';
 }
 
+/**
+ * 개별 파일 내용을 분석하여 핵심 지식 파편을 추출합니다.
+ */
+async function analyzeIndividualFile(genAI: any, modelName: string, file: DriveFileInfo, content: string) {
+  const prompt = `
+    당신은 전설적인 주식 투자자들의 논리를 학습하는 AI입니다. 
+    다음 제공된 자료(파일내용)에서 '훌륭한 기업을 찾는 기준'과 '매수 타이밍/패턴'을 추출하세요.
+
+    파일명: ${file.name}
+    내용 요약: ${content.substring(0, 15000)}...
+
+    주의사항:
+    1. 특정 기업의 고유한 기술(예: 구글 TPU)은 '상기 기업의 핵심 Moat: 수직 계열화 및 공정 효율'과 같은 일반화된 규칙으로 변환하세요.
+    2. 정량적 지표가 있다면 반드시 추출하세요 (예: ROE > 15%, 부채비율 < 100%).
+    
+    JSON 형식으로만 대답하세요:
+    {
+      "summary": "자료의 핵심 요약",
+      "keyConditions": ["추출된 핵심 조건 1", "핵심 조건 2"],
+      "criteria": [
+        {
+          "name": "규칙 이름",
+          "category": "Quality/Value/Growth/Technical 등",
+          "description": "규칙의 상세 설명 및 원천 사례",
+          "weight": 1~3 사이 가중치,
+          "isCritical": 필수조건 여부(boolean)
+        }
+      ]
+    }
+  `;
+
+  const result = await genAI.models.generateContent({
+    model: modelName,
+    contents: [{ role: 'user', parts: [{ text: prompt }] }] as any
+  });
+  
+  const text = (result as any).text || '';
+  
+  // JSON 추출 (마크다운 가드 제거)
+  const jsonMatch = text.match(/\{[\s\S]*\}/);
+  if (!jsonMatch) throw new Error('Failed to parse AI response as JSON');
+  const parsed = JSON.parse(jsonMatch[0]);
+
+  const fileAnalysis: FileAnalysis = {
+    fileName: file.name,
+    fileId: file.id,
+    keyConditions: parsed.keyConditions || [],
+    extractedAt: new Date()
+  };
+
+  return {
+    fileAnalysis,
+    summary: parsed.summary,
+    rawCriteria: parsed.criteria
+  };
+}
+
+/**
+ * 파편화된 지식들을 하나의 통합된 투자 전략 시스템(LearnedKnowledge)으로 합성합니다.
+ */
+async function synthesizeKnowledge(genAI: any, modelName: string, analyses: FileAnalysis[], fragments: any[]): Promise<LearnedKnowledge> {
+  const synthesisPrompt = `
+    당신은 여러 자료에서 추출된 투자 인사이트를 종합하여 하나의 'Alpha Intelligence RuleSet'을 완성하는 수석 분석가입니다.
+
+    [제공된 분석 파편들 (인사이트 및 규칙)]
+    ${JSON.stringify(fragments)}
+
+    [작업 목표]
+    1. 각 파일에서 추출된 규칙(extractedRules)들을 상호 보완적으로 결합하세요.
+    2. 중복된 규칙을 하나로 합칩니다.
+    3. 일반화된 규칙 세트를 만듭니다. (특정 기업의 지식인 경우, 보편적인 원칙으로 승화시키되 설명에 예시를 남기세요)
+    4. 엔진이 구동할 수 있도록 '정량 지표 매핑'을 수행하세요.
+    
+    [중요: 지원 가능한 정량 지표 리스트] 
+    (이 리스트에 있는 이름만 metric에 사용하세요. 다른 이름을 사용하면 분석 엔진이 인식하지 못합니다)
+    - revenue_growth : 매출 성장률 (%)
+    - net_income_growth : 순이익 성장률 (%)
+    - roe : 자기자본이익률 (%)
+    - per : 주가수익비율 (곱)
+    - pbr : 주가순자산비율 (곱)
+    - debt_ratio : 부채비율 (%)
+    - operating_margin : 영업이익률 (%)
+    - dividend_yield : 배당수익률 (%)
+    - market_cap : 시가총액 (10억 달러 단위, 예: benchmark 10 -> 100억 달러 초과)
+    - vix / yields / dxy : 매크로 지표
+
+    JSON 출력 형식 (엄격 준수):
+    {
+      "criteria": {
+        "criterias": [
+          {
+            "name": "규칙 이름",
+            "category": "수익성/성장성/안정성/매크로 등",
+            "weight": 가중치(1~3),
+            "description": "일반화된 투자 논리 (예: 'TPU와 같은 독자 하드웨어 역량은 수직 계열화의 핵심임')",
+            "quantification": {
+              "target_metric": "위에 제공된 정량 지표 리스트 중 하나",
+              "condition": "> / < / >= / <=",
+              "benchmark": 수치값,
+              "benchmark_type": "absolute / sector_relative",
+              "scoring_type": "linear / binary"
+            },
+            "isCritical": boolean,
+            "isGeneral": boolean (특정 업종에만 해당하면 false),
+            "targetSectors": ["Technology", "Financial Services" 등. 전체면 빈 배열],
+            "applicableContexts": ["bull_market", "recession", "volatility_high" 등. 빈 배열 가능]
+          }
+        ]
+      },
+      "strategy": {
+        "shortTermConditions": ["매수 시 고려할 단기 조건"],
+        "longTermConditions": ["장기 투자 보유 원칙"],
+        "winningPatterns": ["자료에서 공통적으로 나타나는 승리 패턴"],
+        "riskManagementRules": ["손절/위험 관리 원칙"]
+      },
+      "keyConditionsSummary": "전체 전략에 대한 한 문장 요약",
+      "strategyType": "aggressive / moderate / stable"
+    }
+  `;
+
+  const result = await genAI.models.generateContent({
+    model: modelName,
+    contents: [{ role: 'user', parts: [{ text: synthesisPrompt }] }] as any
+  });
+  
+  const text = (result as any).text || '';
+  const jsonMatch = text.match(/\{[\s\S]*\}/);
+  if (!jsonMatch) throw new Error('Failed to parse AI synthesis response as JSON');
+  const parsed = JSON.parse(jsonMatch[0]);
+
+  return {
+    fileAnalyses: analyses,
+    criteria: parsed.criteria,
+    strategy: parsed.strategy,
+    strategyType: parsed.strategyType,
+    keyConditionsSummary: parsed.keyConditionsSummary,
+    rawSummaries: fragments.map(f => ({ fileName: f.fileName, summary: f.summary })),
+    learnedAt: new Date(),
+    sourceFiles: [] // 위에서 채움
+  };
+}
+
+/**
+ * 학습된 지식을 데이터베이스에 저장하고 이전 지식을 비활성화합니다.
+ */
 export async function saveKnowledgeToDB(knowledge: LearnedKnowledge, title?: string): Promise<string> {
-  // 1. 기존 활성화된 지식들을 모두 비활성으로 변경
+  // 1. 기존 활성 지식 비활성화
   await prisma.learnedKnowledge.updateMany({
     where: { isActive: true },
     data: { isActive: false }
   });
 
-  // 2. 새 지식을 활성 상태(isActive: true)로 생성
-  const result = await prisma.learnedKnowledge.create({
+  // 2. 새 지식 저장
+  const record = await prisma.learnedKnowledge.create({
     data: {
-      title: title || `Learning Session ${new Date().toLocaleString()}`,
+      title: title || `AI Strategy - ${new Date().toLocaleDateString()}`,
       content: knowledge as any,
-      keyConditionsSummary: knowledge.keyConditionsSummary,
-      strategyType: knowledge.strategyType,
-      files: knowledge.sourceFiles as any,
-      isActive: true // 신규 학습 즉시 활성화
+      isActive: true
     }
   });
-  return result.id;
+
+  return record.id;
 }
 
-
-export async function getActiveKnowledgeFromDB(): Promise<LearnedKnowledge | null> {
+/**
+ * 현재 활성화된 지식을 가져옵니다.
+ */
+export async function getLearnedKnowledge(): Promise<LearnedKnowledge | null> {
   const active = await prisma.learnedKnowledge.findFirst({
     where: { isActive: true },
-    orderBy: { updatedAt: 'desc' }
+    orderBy: { createdAt: 'desc' }
   });
-  if (active) return active.content as unknown as LearnedKnowledge;
-  return null;
-}
 
-export async function getLearnedKnowledge(): Promise<LearnedKnowledge | null> {
-  try {
-    const activeKnowledge = await getActiveKnowledgeFromDB();
-    if (activeKnowledge) return activeKnowledge;
-  } catch (error) {
-    console.error('Failed to fetch active knowledge from DB:', error);
-  }
-  return null;
-}
-
-export async function hasLearnedKnowledge(): Promise<boolean> {
-  const count = await prisma.learnedKnowledge.count({ where: { isActive: true } });
-  return count > 0;
+  if (!active) return null;
+  return active.content as unknown as LearnedKnowledge;
 }

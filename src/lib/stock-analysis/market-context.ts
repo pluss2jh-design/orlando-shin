@@ -311,7 +311,16 @@ export async function generateExpertVerdict(
     Knowledge Base: ${knowledge.keyConditionsSummary || 'N/A'}
     Stock Data: PER ${metrics.trailingPE}, Sentiment ${sentiment.score}, Macro ${macro.marketMode}
     
-    Return ONLY a JSON object with recommendation, convictionScore, title, summary, keyPoints, risks, authorCitations.
+    Return ONLY a JSON object with:
+    - recommendation: 'BUY', 'HOLD', or 'SELL'
+    - riskLevel: 'low', 'medium', or 'high'
+    - convictionScore: 0-100
+    - title: brief catchy title
+    - summary: summary of verdict (KOREAN)
+    - keyPoints: array of strings (KOREAN)
+    - risks: array of strings (KOREAN)
+    - authorCitations: array of objects { fileName: string, pageOrTimestamp: string }
+    
     All text descriptions must be in Korean.`;
 
     const text = await withRetry(async () => {

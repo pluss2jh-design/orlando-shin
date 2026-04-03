@@ -109,6 +109,20 @@ class VideoProcessingService {
       result.error = error instanceof Error ? error.message : 'Unknown error';
       result.progress = 0;
       this.processingJobs.set(fileId, result);
+    } finally {
+      // 대용량 미디어 파일 정리를 통한 용량 확보 (사용자 요청 반영)
+      try {
+        await fs.unlink(videoPath);
+        console.log(`[Processor] Cleanup: Deleted source video ${videoPath}`);
+        
+        const audioPath = path.join(UPLOAD_DIR, 'audio', `${fileId}.mp3`);
+        if (await fs.stat(audioPath).catch(() => null)) {
+          await fs.unlink(audioPath);
+          console.log(`[Processor] Cleanup: Deleted source audio ${audioPath}`);
+        }
+      } catch (cleanupErr) {
+        console.warn(`[Processor] Cleanup failed for ${fileId}:`, cleanupErr);
+      }
     }
   }
 

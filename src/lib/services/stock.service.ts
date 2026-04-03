@@ -8,10 +8,10 @@ import {
 import type {
   InvestmentStyle,
   LearnedKnowledge,
-  RecommendationResult,
   LearnedInvestmentCriteria,
   ExcludedStockDetail
 } from '@/types/stock-analysis';
+import { AnalysisResult, InvestmentConditions, StrategyMatchScore, MatchRuleResult, MatchRuleSource, RecommendationResult } from '@/types/stock-analysis';
 
 
 interface AnalysisJobStatus {
@@ -29,6 +29,7 @@ interface AnalysisJobStatus {
     sp500Count: number;
     overlapCount: number;
   };
+  macroContext?: any;
   isCancelled?: boolean;
 }
 
@@ -164,21 +165,26 @@ export class StockService {
           },
           knowledge,
           options.style || 'moderate',
-          conditions?.companyCount || 5,
           conditions?.newsAiModel,
           conditions?.newsApiKey,
           (progress: number, message: string, meta?: any) => {
             const currentJob = userAnalysisJobs.get(userId);
-            if (currentJob && currentJob.status === 'processing') {
-              if (currentJob.isCancelled) {
-                throw new Error('STOPPED_BY_USER');
-              }
+            
+            // 작업이 없거나 취소된 경우 즉시 종료 에러를 던짐
+            if (!currentJob || currentJob.isCancelled) {
+              console.log(`[StockService] Stop signal detected for user ${userId}. Terminating engine.`);
+              throw new Error('STOPPED_BY_USER');
+            }
+
+            if (currentJob.status === 'processing') {
               userAnalysisJobs.set(userId, {
                 ...currentJob,
                 progress,
                 progressMessage: message,
                 excludedStockCount: meta?.excludedStockCount || currentJob.excludedStockCount,
                 excludedDetails: meta?.excludedDetails || currentJob.excludedDetails,
+                universeCounts: meta?.universeCounts || currentJob.universeCounts,
+                macroContext: meta?.macroContext || currentJob.macroContext,
               });
             }
           }
@@ -189,7 +195,7 @@ export class StockService {
         // 성공 시 사용량 카운트 업 및 개별 리포트 저장
         await Promise.all([
           StockService.incrementAnalysisUsage(userId),
-          StockService.saveAnalysisReports(userId, result.topPicks, result.investmentConditions)
+          StockService.saveAnalysisReports(userId, result.topPicks || [], result.investmentConditions)
         ]);
 
         userAnalysisJobs.set(userId, {
@@ -272,8 +278,9 @@ export class StockService {
         const knowledge = await runLearningPipeline(options.fileIds, options.aiModels);
         const knowledgeId = await saveKnowledgeToDB(knowledge, options.title);
         console.log(`Learning completed: ${knowledgeId}`);
-      } catch (error) {
-        console.error('Background learning error:', error);
+      } catch (error: any) {
+        console.error('Background learning error:', error?.message || error);
+        if (error?.stack) console.error(error.stack);
       }
     })();
 
@@ -309,6 +316,7 @@ export class StockService {
    * 분석된 각 기업별 심층 리포트를 DB에 저장합니다.
    */
   static async saveAnalysisReports(userId: string, topPicks: any[], conditions: any) {
+    if (!Array.isArray(topPicks) || topPicks.length === 0) return;
     try {
       const reports = topPicks.map(pick => ({
         userId,

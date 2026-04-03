@@ -39,7 +39,6 @@ export async function runAnalysisEngine(
   conditions: InvestmentConditions,
   knowledge: LearnedKnowledge,
   style: InvestmentStyle = 'moderate',
-  companyCount: number = 5,
 
   newsAiModel?: string,
   newsApiKey?: string,
@@ -47,7 +46,8 @@ export async function runAnalysisEngine(
     excludedStockCount?: number; 
     excludedDetails?: ExcludedStockDetail[];
     processedCount?: number;
-    universeCounts?: { russellCount: number; sp500Count: number; overlapCount: number; }
+    universeCounts?: { russellCount: number; sp500Count: number; overlapCount: number; };
+    macroContext?: MacroContext;
   }) => void
 ): Promise<RecommendationResult> {
 
@@ -65,8 +65,21 @@ export async function runAnalysisEngine(
     strategyType: conditions.strategyType,
     asOfDate: conditions.asOfDate 
   });
-  const universeType = conditions.universeType || (conditions.excludeSP500 === false ? 'russell1000' : 'russell1000_exclude_sp500');
-  console.log(`[Engine] Determined Universe Type: ${universeType}`);
+  // 3가지 명시적 경로 처리 (사용자 제안 로직 반영)
+  let universeType: 'sp500' | 'russell1000' | 'russell1000_exclude_sp500';
+  
+  if (conditions.universeType === 'sp500') {
+    universeType = 'sp500';
+  } else if (conditions.universeType === 'russell1000') {
+    universeType = 'russell1000';
+  } else if (conditions.universeType === 'russell1000_exclude_sp500') {
+    universeType = 'russell1000_exclude_sp500';
+  } else {
+    // 폴백: 이전 호환성용 (플래그 확인)
+    universeType = conditions.excludeSP500 ? 'russell1000_exclude_sp500' : 'sp500';
+  }
+  
+  console.log(`[Engine] High-Explicit Universe Selection: ${universeType}`);
 
   if (onProgress) onProgress(3, '환율 정보 동기화 중...');
   const exchangeRate = await fetchExchangeRate();
@@ -75,6 +88,8 @@ export async function runAnalysisEngine(
   if (onProgress) onProgress(5, '시장 매크로 환경(VIX/금리) 분석 중...');
   const macroContext = await fetchMarketMacroContext(asOfDate);
   console.log('Engine: Macro context fetched');
+  
+  if (onProgress) onProgress(7, '매크로 시장 분위기 파악 완료', { macroContext });
 
   if (onProgress) onProgress(8, `${universeType === 'sp500' ? 'S&P 500' : 'Russell 1000'} 유니버스 데이터 수집 중...`);
   // Russell 1000 실시간 조회 (S&P 500 제외 여부 선택) — async
@@ -143,13 +158,12 @@ export async function runAnalysisEngine(
     ticker: string;
     yahooData: YahooFinanceData;
     periodReturn: number;
-    company: ExtractedCompanyAnalysis;
+    company: any;
     ruleScores: RuleScore[];
     totalScore: number;
     failedCritical?: boolean;
     failureReason?: string;
-    sentiment?: any;
-    prediction?: any;
+    isSpeculative?: boolean;
   }> = [];
 
   const sectorStats = calculateSectorStats(validStocks);
@@ -164,7 +178,7 @@ export async function runAnalysisEngine(
         const fullData = await fetchYahooFinanceData(stock.ticker, asOfDate);
         if (!fullData) {
           excludedDetails.push({ ticker: stock.ticker, reason: '상세 재무 데이터 조회 실패', category: '재무 데이터 이슈' });
-          excludedStockCount++; // 실패 카운트 증가
+          excludedStockCount++;
           return;
         }
 
@@ -174,67 +188,69 @@ export async function runAnalysisEngine(
           const targetSector = conditions.sector.toLowerCase().trim();
           if (!stockSector.includes(targetSector) && !targetSector.includes(stockSector)) {
             excludedDetails.push({ ticker: stock.ticker, reason: `업종 불일치 (${conditions.sector})`, category: '업종 필터링' });
-            excludedStockCount++; // 실패 카운트 증가
+            excludedStockCount++;
             return;
           }
         }
 
-        analyzedCount++; // 성공 시에만 증가
-        
-        // 정확한 진행률 계산을 위해 (성공 + 실패) / 전체 모수 사용
+        analyzedCount++;
         const totalAttempted = analyzedCount + excludedStockCount;
         const progressPct = 20 + Math.floor((totalAttempted / universe.length) * 65);
 
-        if (onProgress) onProgress(progressPct, `[2/2] ${isHistorical ? '과거' : '상세'} 지표 분석 중... ${totalAttempted} / ${universe.length}개 완료`, {
-          processedCount: analyzedCount, // 성공한 수
-          excludedStockCount: excludedStockCount, // 누적 실패 수
+        if (onProgress) onProgress(progressPct, `[2/2] 상세 지표 분석 중... ${totalAttempted} / ${universe.length}개 완료`, {
+          processedCount: analyzedCount,
+          excludedStockCount: excludedStockCount,
           excludedDetails: excludedDetails,
-          universeCounts: universeCounts || { russellCount: universe.length, sp500Count: 0, overlapCount: 0, finalCount: universe.length }
+          universeCounts: universeCounts
         });
 
         let periodReturn = 0;
         if (fullData.priceHistory && fullData.priceHistory.length >= 2) {
-          const startIdx = Math.max(0, fullData.priceHistory.length - 250);
-          const startPrice = fullData.priceHistory[startIdx].close;
+          const startPrice = fullData.priceHistory[0].close;
           const endPrice = fullData.currentPrice;
           if (startPrice > 0) periodReturn = ((endPrice - startPrice) / startPrice) * 100;
         }
-
-        const company: ExtractedCompanyAnalysis = {
-          companyName: stock.ticker,
-          ticker: stock.ticker,
-          market: stock.ticker.endsWith('.KS') || stock.ticker.endsWith('.KQ') ? 'KRX' : 'NYSE',
-          currency: stock.currency,
-          metrics: {
-            per: fullData.trailingPE,
-            pbr: fullData.priceToBook,
-            roe: fullData.returnOnEquity ? fullData.returnOnEquity * 100 : undefined,
-          },
-          sentimentSummary: '',
-          macroStatus: macroContext.marketMode,
-          investmentThesis: '',
-          riskFactors: [],
-          investmentStyle: style,
-          sources: [],
-          extractedAt: new Date(),
-          confidence: 0.8,
-        };
 
         const ruleScores: RuleScore[] = [];
         let weightedScoreSum = 0;
         let totalWeightSum = 0;
         let failedCritical = false;
         let failureReason = '';
-        let failedRuleName = '';
 
-        for (const rule of allRules) {
+        // [중요] 상황 및 섹터 기반 동적 규칙 필터링 (사용자 요청 반영)
+        const activeRules = allRules.filter(rule => {
+          // 1. 범용 규칙은 항상 활성화
+          if (rule.isGeneral) return true;
+
+          // 2. 섹터 적합성 체크
+          if (rule.targetSectors && rule.targetSectors.length > 0) {
+            const stockSector = (fullData.sector || '').toLowerCase();
+            const sectorMatch = rule.targetSectors.some(s => stockSector.includes(s.toLowerCase()));
+            if (!sectorMatch) return false;
+          }
+
+          // 3. 매크로 상황 적합성 체크
+          if (rule.applicableContexts && rule.applicableContexts.length > 0) {
+            const currentContexts: string[] = [];
+            if (macroContext.marketMode === 'Fear') currentContexts.push('recession');
+            if (macroContext.marketMode === 'Greed') currentContexts.push('bull_market');
+            if (macroContext.vixStatus === 'High' || macroContext.vixStatus === 'Extreme') currentContexts.push('volatility_high');
+            if (macroContext.yieldStatus === 'Bearish') currentContexts.push('high_interest');
+
+            const contextMatch = rule.applicableContexts.some(c => currentContexts.includes(c.toLowerCase()));
+            if (!contextMatch) return false;
+          }
+
+          return true;
+        });
+
+        for (const rule of activeRules) {
           const scoreResult = evaluateQuantifiedRule(rule, fullData, sectorStats, macroContext);
           ruleScores.push(scoreResult);
 
           if (rule.isCritical && scoreResult.score < 5) {
             failedCritical = true;
             failureReason = `필수 조건 미달(${rule.name}): ${scoreResult.reason}`;
-            failedRuleName = rule.name;
             break;
           }
 
@@ -243,20 +259,18 @@ export async function runAnalysisEngine(
         }
 
         const finalScore = totalWeightSum > 0 ? (weightedScoreSum / totalWeightSum) : 0;
-
-        if (failedCritical) {
-          excludedDetails.push({ ticker: stock.ticker, reason: failureReason, category: `필수 조건 미달 (${failedRuleName})` });
-        }
+        const isDataSparse = ruleScores.some(rs => rs.reason.includes('데이터 부재') && rs.isCritical);
 
         stocksWithScores.push({
           ticker: stock.ticker,
           yahooData: fullData,
           periodReturn,
-          company,
+          company: { metrics: { roe: fullData.returnOnEquity } },
           ruleScores,
           totalScore: failedCritical ? 0 : Number(finalScore.toFixed(2)),
           failedCritical,
           failureReason,
+          isSpeculative: isDataSparse || failedCritical, 
         });
       } catch (err) {
         console.error(`[Engine] Analysis failed for ${stock.ticker}:`, err);
@@ -266,147 +280,141 @@ export async function runAnalysisEngine(
     await new Promise(resolve => setTimeout(resolve, 300));
   }
 
-  // ── Phase 3: 상위권 선별 및 AI 정밀 분석 (비용 절감 핵심) ──
-  if (onProgress) onProgress(85, '상위권 기업 선별 완료. AI 정밀 분석(뉴스/예측) 시작 중...');
+  // ── Phase 3: 트랙별 후보군 분리 및 AI 정밀 분석 ──
+  if (onProgress) onProgress(85, '트랙별(A/B) 후보군 분리 및 AI 정밀 분석 시작...');
 
-  const preSorted = stocksWithScores
-    .filter(s => !s.failedCritical) // 필수 조건 미달 종목은 분석 대상에서 완전히 제외
+  // Track A: 정량 룰 통과 + 데이터 충분 (상위 20개 후보 중 최종 10개 선정)
+  const trackACandidates = stocksWithScores
+    .filter(s => !s.failedCritical && !s.isSpeculative)
     .sort((a, b) => b.totalScore - a.totalScore || b.periodReturn - a.periodReturn)
-    .slice(0, Math.min(companyCount + 10, 20)); // 상위 20개 선정
+    .slice(0, 20);
+
+  // Track B: 데이터 부족 혹은 우량주 기준 미달 중 잠재력 있는 후보 (상위 20개 후보 중 최종 10개 선정)
+  const trackBCandidates = stocksWithScores
+    .filter(s => s.isSpeculative)
+    .sort((a, b) => b.totalScore - a.totalScore || b.periodReturn - a.periodReturn)
+    .slice(0, 20);
   
-  console.log(`[Engine] Phase 2 complete. Top ${preSorted.length} candidates selected for AI analysis.`);
+  console.log(`[Engine] Candidates: Track A(${trackACandidates.length}), Track B(${trackBCandidates.length})`);
 
-  const topPicks: any[] = [];
+  const trackAResults: AnalysisResult[] = [];
+  const trackBResults: AnalysisResult[] = [];
 
-  for (let i = 0; i < preSorted.length; i++) {
-    const stock = preSorted[i];
-    const itemPct = 85 + Math.floor((i / preSorted.length) * 10);
-    if (onProgress) onProgress(itemPct, `AI 정밀 분석 진행 중 (${newsAiModel || 'default'}): ${stock.ticker} (${i + 1}/${preSorted.length})`);
+  // Track A 분석 루프
+  for (let i = 0; i < trackACandidates.length && trackAResults.length < 10; i++) {
+    const stock = trackACandidates[i];
+    const itemPct = 85 + Math.floor((i / trackACandidates.length) * 5);
+    if (onProgress) onProgress(itemPct, `[Track A] AI 정밀 분석 중: ${stock.ticker} (${i + 1}/${trackACandidates.length})`);
 
-    try {
-      console.log(`[Engine] Phase 3 - Starting AI detail analysis for ${stock.ticker}`);
-      
-      // 1. 감성 분석 수행 (실패 시 제외)
-      const sentiment = await analyzeStockSentiment(stock.ticker, newsAiModel, newsApiKey);
-      if (!sentiment) {
-        excludedDetails.push({ ticker: stock.ticker, reason: 'AI 감성 분석 실패 (데이터 부족 또는 API 오류)', category: 'AI 연산 이슈' });
-        continue;
-      }
-
-      // 2. 주가 예측 수행 (실패 시 제외)
-      const prediction = await predictStockGrowth(stock.ticker, stock.yahooData, macroContext, sentiment, newsAiModel, newsApiKey);
-      if (!prediction) {
-        excludedDetails.push({ ticker: stock.ticker, reason: 'AI 주가 예측 실패 (데이터 부족 또는 API 오류)', category: 'AI 연산 이슈' });
-        continue;
-      }
-
-      // 3. 전문가 최종 판정 생성 (실패 시 제외)
-      const expertVerdict = await generateExpertVerdict(
-        stock.ticker,
-        stock.yahooData,
-        macroContext,
-        sentiment,
-        prediction,
-        knowledge,
-        newsAiModel,
-        newsApiKey
-      );
-      
-      if (!expertVerdict) {
-        excludedDetails.push({ ticker: stock.ticker, reason: 'AI 전문가 판정 생성 실패', category: 'AI 연산 이슈' });
-        continue;
-      }
-
-      // 감성 점수로 최종 메인 스코어 보정 (가중치 강화)
-      let adjustedScore = stock.totalScore;
-      const sentimentImpact = (sentiment.score / 10) * 1.0;
-      adjustedScore += sentimentImpact;
-      adjustedScore = Math.max(0, Math.min(10, adjustedScore));
-
-      const riskLevel = stock.periodReturn > 50 ? 'high' : stock.periodReturn > 20 ? 'medium' : 'low';
-      const backtestResult = calculateBacktestResult(stock.yahooData);
-      
-      // 동적 전략 매칭 스코어 계산
-      const strategyMatch = calculateStrategyMatch(stock.ruleScores, knowledge.strategyType || 'moderate');
-
-      let thesis = '';
-      if (stock.failedCritical) {
-        thesis = `[투자 주의] ${stock.failureReason}. 필수 조건을 충족하지 못했습니다.`;
-      } else {
-        const topRules = [...stock.ruleScores].sort((a, b) => b.score - a.score).slice(0, 3);
-        const sentimentInfo = `\n[시장 분위기] ${sentiment.label} (${sentiment.score}/10) - ${sentiment.summary}`;
-        const macroInfo = `\n[매크로 환경] 시장 ${macroContext.marketMode} 모드, VIX ${macroContext.vixStatus} 상태.`;
-
-        thesis = `${stock.ticker}는 통합 투자 로직 점수 ${adjustedScore.toFixed(1)}점입니다. ` +
-          `${topRules.map(r => r.name).join(', ')} 분야에서 강력하며, AI 예측 결과 ${prediction.growthPotential} 전망입니다. ` +
-          sentimentInfo + macroInfo;
-      }
-
-      topPicks.push({
-        ...stock,
-        companyName: stock.ticker, // 루트 속성 복구
-        ticker: stock.ticker,
-        market: stock.ticker.endsWith('.KS') || stock.ticker.endsWith('.KQ') ? 'KRX' : 'NYSE',
-        sector: stock.yahooData.sector,
-        reasoning: thesis,
-        sources: stock.ruleScores.map(r => r.source).filter(Boolean),
-        returnRates: stock.yahooData.returnRates,
-        totalScore: adjustedScore,
-        sentiment,
-        prediction,
-        expertVerdict,
-        strategyMatch,
-        riskLevel,
-        backtestResult,
-        macroContext,
-        company: {
-          ...stock.company,
-          investmentThesis: thesis
-        },
-        normalizedPrices: {
-          currentPriceKRW: stock.yahooData.currentPrice * (stock.yahooData.currency === 'USD' ? exchangeRate.rate : 1),
-          targetPriceKRW: prediction.sixMonthTargetPrice * (stock.yahooData.currency === 'USD' ? exchangeRate.rate : 1),
-          recommendedBuyPriceKRW: stock.yahooData.currentPrice * (stock.yahooData.currency === 'USD' ? exchangeRate.rate : 1),
-          exchangeRateUsed: exchangeRate.rate,
-        },
-        filterResults: [
-          { stage: 1, stageName: '필수 조건 검증', passed: !stock.failedCritical, reason: stock.failedCritical ? '필수 조건 미달' : '통과' },
-          { stage: 2, stageName: 'AI 정밀 검증', passed: sentiment.score >= 0, reason: `AI가 분석한 감성 점수: ${sentiment.score}` }
-        ],
-        passedAllFilters: !stock.failedCritical && adjustedScore >= 7,
-        score: adjustedScore * 10,
-        expectedReturnRate: prediction.expectedReturn || stock.periodReturn,
-        confidenceScore: Math.min(98, adjustedScore * 10),
-        totalRuleScore: adjustedScore,
-        maxPossibleScore: 10,
-      } as any);
-    } catch (error) {
-      console.error(`[Engine] Failed detailed analysis for ${stock.ticker}:`, error);
-      excludedDetails.push({ ticker: stock.ticker, reason: `AI 치명적 오류: ${error instanceof Error ? error.message : '알 수 없음'}`, category: 'AI 연산 이슈' });
-    }
+    const result = await performDeepAnalysis(stock, knowledge, newsAiModel, newsApiKey, 'A');
+    if (result) trackAResults.push(result);
   }
 
-  if (onProgress) onProgress(98, '분석 완료! 결과 정렬 중...');
+  // Track B 분석 루프 (유닛 경제성/성장성 중심)
+  for (let i = 0; i < trackBCandidates.length && trackBResults.length < 10; i++) {
+    const stock = trackBCandidates[i];
+    const itemPct = 90 + Math.floor((i / trackBCandidates.length) * 5);
+    if (onProgress) onProgress(itemPct, `[Track B] AI 유닛 경제성 분석 중: ${stock.ticker} (${i + 1}/${trackBCandidates.length})`);
 
-  const finalTopPicks = topPicks
-    .sort((a, b) => (b.totalRuleScore || 0) - (a.totalRuleScore || 0))
-    .slice(0, companyCount);
+    const result = await performDeepAnalysis(stock, knowledge, newsAiModel, newsApiKey, 'B');
+    if (result) trackBResults.push(result);
+  }
+
+  if (onProgress) onProgress(98, '분석 완료! 결과 정리 중...');
+
+  // 최종 점수 기준 내림차순 정렬 (Deep Analysis 결과 반영)
+  const finalTrackA = [...trackAResults].sort((a, b) => (b.score || 0) - (a.score || 0));
+  const finalTrackB = [...trackBResults].sort((a, b) => (b.score || 0) - (a.score || 0));
 
   return {
-    candidates: finalTopPicks,
-    topPicks: finalTopPicks,
+    trackA: finalTrackA,
+    trackB: finalTrackB,
+    trackADescription: "학습된 룰을 모두 통과한 전통적 우량주 및 검증된 기업 기반의 정교한 포트폴리오입니다.",
+    trackBDescription: "정량 데이터는 부족하지만 AI가 원천 데이터(뉴스/리포트)에서 강력한 성장 잠재력(Unit Economics)을 발견한 잠재적 유망주입니다.",
+    analysisDate: new Date(),
+    summary: `시장 유니버스(${universeType}) 전수 조사를 통해 우량주 ${finalTrackA.length}개와 잠재유망주 ${finalTrackB.length}개를 선별했습니다.`,
     investmentConditions: conditions,
-    investmentStyle: style,
-    exchangeRate,
-    processedAt: new Date(),
-    summary: `시장 유니버스에서 필수 조건을 검증하고 동적 로직으로 상위 기업을 선별했습니다.`,
-    allSourcesUsed: deduplicateSources(allRules.map(r => r.source).filter(Boolean)),
-    macroContext,
-    queriedTickers: universe,
+    universeCounts,
     excludedStockCount,
     excludedDetails,
-    universeCounts
+    macroContext,
   };
+}
+
+/**
+ * 기업에 대한 심층 AI 분석을 수행합니다. (A/B 트랙 공용)
+ */
+async function performDeepAnalysis(
+  stock: any, 
+  knowledge: LearnedKnowledge, 
+  aiModel?: string, 
+  apiKey?: string,
+  track: 'A' | 'B' = 'A'
+): Promise<AnalysisResult | null> {
+  try {
+    const exchangeRate = await fetchExchangeRate();
+    const macroContext = await fetchMarketMacroContext(new Date());
+
+    // 1. 감성 분석
+    const sentiment = await analyzeStockSentiment(stock.ticker, aiModel, apiKey);
+    if (!sentiment) return null;
+
+    // 2. 주가 예측
+    const prediction = await predictStockGrowth(stock.ticker, stock.yahooData, macroContext, sentiment, aiModel, apiKey);
+    if (!prediction) return null;
+
+    // 3. 전문가 판정 (트랙에 따른 가중치 조절)
+    const expertVerdict = await generateExpertVerdict(
+      stock.ticker,
+      stock.yahooData,
+      macroContext,
+      sentiment,
+      prediction,
+      knowledge,
+      aiModel,
+      apiKey
+    );
+    if (!expertVerdict) return null;
+
+    let adjustedScore = stock.totalScore;
+    const sentimentImpact = (sentiment.score / 10);
+    adjustedScore += sentimentImpact;
+    adjustedScore = Math.max(0, Math.min(10, adjustedScore));
+
+    const thesis = `${stock.ticker}는 ${track === 'A' ? '전통적 우량주' : '잠재적 유망주'} 트랙으로 분류되었습니다. ` +
+      `AI 분석 결과 ${prediction.growthPotential} 전망이며, ${sentiment.summary}`;
+
+    return {
+      ticker: stock.ticker,
+      companyName: stock.ticker,
+      price: stock.yahooData.currentPrice,
+      change: stock.yahooData.previousClose ? ((stock.yahooData.currentPrice - stock.yahooData.previousClose) / stock.yahooData.previousClose) * 100 : 0,
+      marketCap: stock.yahooData.marketCap || 0,
+      pe: stock.yahooData.trailingPE,
+      sector: stock.yahooData.sector,
+      description: sentiment.summary.slice(0, 100),
+      score: adjustedScore * 10,
+      recommendation: adjustedScore >= 8 ? 'STRONG_BUY' : adjustedScore >= 6 ? 'BUY' : 'HOLD',
+      metrics: stock.company.metrics,
+      rules: stock.ruleScores,
+      investmentThesis: thesis,
+      returnRates: stock.yahooData.returnRates,
+      market: stock.yahooData.market || 'NYSE',
+      riskLevel: expertVerdict?.riskLevel,
+      riskFactors: expertVerdict.risks,
+      expertVerdict,
+      sources: stock.ruleScores.map((r: any) => r.source).filter(Boolean),
+      track,
+      isSpeculative: track === 'B',
+      sentiment,
+      prediction,
+      macroContext,
+      extractedAt: new Date(),
+    } as AnalysisResult;
+  } catch (error) {
+    console.error(`[DeepAnalysis] Error for ${stock.ticker}:`, error);
+    return null;
+  }
 }
 
 /**

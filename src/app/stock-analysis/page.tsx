@@ -149,6 +149,9 @@ export default function StockAnalysisPage() {
                 progress: 100,
                 progressMessage: '분석 완료'
               }));
+              if (data.result.trackA && data.result.trackA.length > 0) {
+                // onProgress(100, `분석 완료: ${data.result.trackA.length}개 추천 종목 추출됨`);
+              }
               if (!analysisAlerted.current) {
                 analysisAlerted.current = true;
                 alert('기업 분석이 완료되었습니다!');
@@ -210,8 +213,9 @@ export default function StockAnalysisPage() {
 
 
   const processAnalysisData = (data: any) => {
-    if (data.topPicks && Array.isArray(data.topPicks) && data.topPicks.length > 0) {
-      const results: AnalysisResult[] = data.topPicks.map((pick: any) => ({
+    const picks = data.trackA || data.topPicks || [];
+    if (picks && Array.isArray(picks) && picks.length > 0) {
+      const results: AnalysisResult[] = picks.map((pick: any) => ({
         companyName: pick.company.companyName,
         ticker: pick.yahooData?.ticker,
         market: pick.company.market,
@@ -630,7 +634,6 @@ export default function StockAnalysisPage() {
         <AnalysisOutput
           results={analysisState.results}
           conditions={analysisState.conditions}
-
           isLoading={analysisState.isAnalyzing}
           onSendEmail={handleSendEmail}
         />

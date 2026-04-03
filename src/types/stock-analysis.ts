@@ -96,34 +96,89 @@ export type RiskLevel = 'low' | 'medium' | 'high';
 export type InvestmentStyle = 'conservative' | 'aggressive' | 'moderate';
 
 // ===========================
-// A. AI가 자료에서 추출한 기업 분석 데이터
+// F. 분석 제외 항목 및 상세
 // ===========================
 
-/** AI가 PDF/MP4에서 추출한 개별 기업 분석 정보 */
-export interface ExtractedCompanyAnalysis {
-  companyName: string;
-  ticker?: string;
-  market: StockMarket;
-  currency: CurrencyCode;
+export interface ExcludedStockDetail {
+  ticker: string;
+  reason: string;
+  category?: string; // Grouping category
+}
 
-  recommendedBuyPrice?: number;
-  targetPrice?: number;
-  stopLossPrice?: number;
+// ===========================
+// A. 통합 분석 결과 타입
+// ===========================
 
-  metrics: ExtractedMetrics;
+export interface RecommendationResult {
+  trackA: AnalysisResult[]; // 전통적 우량주 (정량 기반 + AI 정성)
+  trackB: AnalysisResult[]; // 잠재적 유망주 (N/A 데이터 + AI 유닛 도출)
+  trackADescription?: string;
+  trackBDescription?: string;
   
-  sentimentSummary?: string;
-  macroStatus?: string;
+  analysisDate: Date;
+  summary: string;
+  
+  // 하위 호환성용 필드
+  candidates?: AnalysisResult[];
+  topPicks?: AnalysisResult[];
+  processedAt?: Date;
 
+  investmentConditions?: InvestmentConditions;
+  universeCounts?: {
+    russellCount: number;
+    sp500Count: number;
+    overlapCount: number;
+  };
+  excludedStockCount?: number;
+  excludedDetails?: ExcludedStockDetail[];
+  macroContext?: MacroContext;
+}
+
+export interface AnalysisResult extends Partial<FilteredCandidate> {
+  ticker: string;
+  companyName: string;
+  price: number;
+  change: number;
+  marketCap: number;
+  pe?: number;
+  sector?: string;
+  market?: StockMarket;
+  
+  description: string; // 간략 요약
+  score: number;       // 종합 점수 (0~100)
+  recommendation: 'STRONG_BUY' | 'BUY' | 'HOLD' | 'SELL';
+  
+  // 분석 상세 (정량)
+  metrics: ExtractedMetrics;
+  rules: MatchRuleResult[];
+  
+  // AI 심층 분석 (정성)
   investmentThesis: string;
   riskFactors: string[];
-  sector?: string;
-
-  investmentStyle: InvestmentStyle;
+  expertVerdict: ExpertVerdict;
   sources: SourceReference[];
+  
+  track: 'A' | 'B'; 
+  isSpeculative?: boolean;
+  confidenceScore?: number;
+  
+  // 하위 호환성 및 추가 정보
+  riskLevel?: RiskLevel;
+  strategyMatch?: StrategyMatchScore;
+  reasoning?: string;
+  returnRates?: {
+    oneYear?: number;
+    sixMonths?: number;
+    threeMonths?: number;
+    oneMonth?: number;
+  };
 
+  // 고도화 항목
+  macroContext?: MacroContext;
+  sentiment?: SentimentAnalysis;
+  prediction?: PredictiveAnalysis;
+  
   extractedAt: Date;
-  confidence: number;
 }
 
 export interface ExtractedMetrics {
@@ -154,6 +209,11 @@ export interface LearnedInvestmentCriteria {
     isCritical: boolean;
     source: SourceReference;
     visualEvidence?: string; // OCR data or Frame visual description
+    
+    // 상황 및 기업 특성 기반 필터링을 위한 메타데이터
+    applicableContexts?: string[]; // ['recession', 'bull_market', 'high_inflation', 'pivot_expected'] 등
+    targetSectors?: string[];     // ['Technology', 'Financial Services', 'Healthcare'] 등
+    isGeneral?: boolean;           // 범용 규칙 여부 (모든 상황 적용)
   }[];
 
   principles: {
@@ -263,6 +323,7 @@ export interface ExchangeRate {
 // D. 필터링 파이프라인
 // ===========================
 
+/** 필터 단계 결과 */
 export interface FilterStageResult {
   stage: number;
   stageName: string;
@@ -270,7 +331,7 @@ export interface FilterStageResult {
   reason: string;
 }
 
-/** 가격을 KRW로 통일한 정규화 가격 */
+/** 정규화 가격 */
 export interface NormalizedPrices {
   currentPriceKRW: number;
   targetPriceKRW: number;
@@ -280,51 +341,29 @@ export interface NormalizedPrices {
 
 export interface RuleScore extends MatchRuleResult {}
 
-/** 필터링을 거친 후보 기업 */
+/** 필터링을 거친 후보 기업 기반 정보 */
 export interface FilteredCandidate {
-  company: ExtractedCompanyAnalysis;
   yahooData: YahooFinanceData;
-
   normalizedPrices: NormalizedPrices;
   filterResults: FilterStageResult[];
   passedAllFilters: boolean;
 }
 
-export interface AnalysisResult extends FilteredCandidate {
+export interface ExtractedCompanyAnalysis {
+  ticker: string;
   companyName: string;
-  ticker?: string;
-  market?: StockMarket;
+  market?: string;
+  currency?: string;
   sector?: string;
-  reasoning: string;
+  metrics: Record<string, any>;
+  sentimentSummary: string;
+  macroStatus: string;
+  investmentThesis: string;
+  riskFactors: string[];
+  investmentStyle: string;
   sources: SourceReference[];
-
-  score: number;
-  expectedReturnRate: number;
-  confidenceScore: number;
-  confidenceDetails?: string[];
-  riskLevel: RiskLevel;
-  ruleScores?: RuleScore[];
-  totalRuleScore?: number;
-  maxPossibleScore?: number;
-  strategyMatch?: StrategyMatchScore;
-  
-  // 고도화 항목: 매크로, 감성, 예측
-  macroContext?: MacroContext;
-  sentiment?: SentimentAnalysis;
-  prediction?: PredictiveAnalysis;
-  expertVerdict?: ExpertVerdict;
-  
-  returnRates?: {
-    oneYear?: number;
-    sixMonths?: number;
-    threeMonths?: number;
-    oneMonth?: number;
-  };
-
-  backtestResult?: {
-    pastOneYearReturn: number;
-    winRateVsS_P500: number;
-  };
+  extractedAt: Date;
+  confidence: number;
 }
 
 export interface MacroContext {
@@ -383,38 +422,7 @@ export interface EvidenceChain {
 // F. 최종 추천 결과
 // ===========================
 
-export interface ExcludedStockDetail {
-  ticker: string;
-  reason: string;
-  category?: string; // Grouping category
-}
-
-export interface RecommendationResult {
-  candidates: AnalysisResult[];
-  topPicks: AnalysisResult[];
-  investmentConditions: InvestmentConditions;
-  investmentStyle: InvestmentStyle;
-  exchangeRate: ExchangeRate;
-  processedAt: Date;
-  summary: string;
-  allSourcesUsed: SourceReference[];
-  macroContext?: MacroContext;
-  queriedTickers: string[];
-  excludedStockCount?: number;
-  excludedDetails?: ExcludedStockDetail[];
-  universeCounts?: {
-    russellCount: number;
-    sp500Count: number;
-    overlapCount: number;
-  };
-}
-
-
-
-// ===========================
-// G. 뉴스 및 공시 정보
-// ===========================
-
+// 뉴스 정보
 export interface NewsItem {
   id: string;
   ticker: string;
@@ -445,7 +453,7 @@ export interface AnalysisState {
   results: RecommendationResult | null;
   error: string | null;
   excludedStockCount: number;
-  excludedDetails: ExcludedStockDetail[];
+  excludedDetails?: ExcludedStockDetail[];
   conditions: InvestmentConditions | null;
   universeCounts?: {
     russellCount: number;
