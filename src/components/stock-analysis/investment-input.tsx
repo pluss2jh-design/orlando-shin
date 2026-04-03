@@ -168,14 +168,7 @@ export function InvestmentInput({ onAnalyze, disabled, activeKnowledge }: Invest
             <SelectContent>
               {availableModels.map(model => (
                 <SelectItem key={model.value} value={model.value} className="text-[10px] font-bold">
-                  <div className="flex items-center gap-2">
-                    <span>{model.label}</span>
-                    {model.isRecommendedForNews && (
-                      <Badge variant="secondary" className="bg-blue-500/10 text-blue-500 border-blue-500/20 text-[8px] h-3.5 px-1 font-black">
-                        추천
-                      </Badge>
-                    )}
-                  </div>
+                  {model.label} {model.isRecommendedForNews ? '(추천)' : ''}
                 </SelectItem>
               ))}
               {availableModels.length === 0 && (
