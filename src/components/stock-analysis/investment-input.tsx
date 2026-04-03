@@ -161,21 +161,24 @@ export function InvestmentInput({ onAnalyze, disabled, activeKnowledge }: Invest
         <span className="text-[10px] font-black text-gray-500 pl-1 uppercase tracking-tight">인공지능 분석 모델</span>
         <div className="flex items-center gap-1.5 bg-white border border-gray-200 rounded-xl px-2 py-1 shadow-sm h-11">
           <Brain className="h-3 w-3 text-gray-400 ml-0.5" />
-          <Select value={selectedModel} onValueChange={setSelectedModel}>
-            <SelectTrigger className={cn("w-[160px] border-none shadow-none h-7 text-[9px] font-black uppercase tracking-widest leading-none outline-none focus:ring-0", !selectedModel && "text-red-500")}>
-              <SelectValue placeholder="⚠️ 모델 선택 필요" />
-            </SelectTrigger>
-            <SelectContent>
-              {availableModels.map(model => (
-                <SelectItem key={model.value} value={model.value} className="text-[10px] font-bold">
-                  {model.label} {model.isRecommendedForNews ? '(추천)' : ''}
-                </SelectItem>
-              ))}
-              {availableModels.length === 0 && (
-                <SelectItem value="_empty" disabled className="text-[10px] font-bold text-gray-400">모델 정보 없음</SelectItem>
-              )}
-            </SelectContent>
-          </Select>
+          <select 
+            value={selectedModel} 
+            onChange={(e) => setSelectedModel(e.target.value)}
+            className={cn(
+              "bg-transparent border-none outline-none focus:ring-0 text-[10px] font-black uppercase tracking-widest w-[160px] cursor-pointer appearance-none",
+              !selectedModel ? "text-red-500" : "text-gray-900"
+            )}
+          >
+            <option value="" disabled>⚠️ 모델 선택 필요</option>
+            {availableModels.map(model => (
+              <option key={model.value} value={model.value}>
+                {model.label} {model.isRecommendedForNews ? ' (추천)' : ''}
+              </option>
+            ))}
+            {availableModels.length === 0 && (
+              <option value="" disabled>모델 정보 없음</option>
+            )}
+          </select>
         </div>
       </div>
 
