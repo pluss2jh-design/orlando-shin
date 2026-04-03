@@ -161,9 +161,9 @@ export function InvestmentInput({ onAnalyze, disabled, activeKnowledge }: Invest
         <span className="text-[10px] font-black text-gray-500 pl-1 uppercase tracking-tight">인공지능 분석 모델</span>
         <div className="flex items-center gap-1.5 bg-white border border-gray-200 rounded-xl px-2 py-1 shadow-sm h-11">
           <Brain className="h-3 w-3 text-gray-400 ml-0.5" />
-          <Select value={selectedModel || undefined} onValueChange={setSelectedModel}>
-            <SelectTrigger className={cn("w-[124px] border-none shadow-none h-7 text-[9px] font-black uppercase tracking-widest leading-none outline-none focus:ring-0", !selectedModel && "text-red-500")}>
-              <SelectValue placeholder="⚠️ 선택 안됨" />
+          <Select value={selectedModel} onValueChange={setSelectedModel}>
+            <SelectTrigger className={cn("w-[160px] border-none shadow-none h-7 text-[9px] font-black uppercase tracking-widest leading-none outline-none focus:ring-0", !selectedModel && "text-red-500")}>
+              <SelectValue placeholder="⚠️ 모델 선택 필요" />
             </SelectTrigger>
             <SelectContent>
               {availableModels.map(model => (
@@ -187,8 +187,6 @@ export function InvestmentInput({ onAnalyze, disabled, activeKnowledge }: Invest
       </div>
 
       <div className="flex flex-wrap items-end gap-x-3 gap-y-5">
-        {/* 메인 스캔 버튼 */}
-
         {/* 메인 스캔 버튼 */}
         <div className="h-11 flex items-end">
           <Button
