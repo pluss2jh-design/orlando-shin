@@ -182,11 +182,13 @@ export async function runAnalysisEngine(
           return;
         }
 
-        // 섹터 필터
+        // 섹터 필터 (단, 데이터가 부족한 Track B 후보군은 우선 통과시킨 후 AI가 판단)
         if (conditions.sector && conditions.sector !== 'ALL') {
-          const stockSector = (fullData.sector || '').toLowerCase().trim();
+          const stockSector = (fullData.sector || 'Unknown').toLowerCase().trim();
           const targetSector = conditions.sector.toLowerCase().trim();
-          if (!stockSector.includes(targetSector) && !targetSector.includes(stockSector)) {
+          const isSectorMatch = stockSector.includes(targetSector) || targetSector.includes(stockSector);
+          
+          if (!isSectorMatch && stockSector !== 'unknown') {
             excludedDetails.push({ ticker: stock.ticker, reason: `업종 불일치 (${conditions.sector})`, category: '업종 필터링' });
             excludedStockCount++;
             return;
@@ -253,6 +255,12 @@ export async function runAnalysisEngine(
 
         const finalScore = totalWeightSum > 0 ? (weightedScoreSum / totalWeightSum) : 0;
         const isDataSparse = ruleScores.some(rs => rs.reason.includes('데이터 부재') && rs.weight >= 4);
+        
+        // Track B 편입 조건: 
+        // 1. 데이터가 부족(isDataSparse)하더라도 
+        // 2. 다른 룰에서 일정 점수 이상(finalScore >= 4)이거나 
+        // 3. 최근 주가 상승률(periodReturn)이 시장 평균 이상(positive)인 경우
+        const hasPotential = finalScore >= 4 || periodReturn > 0;
 
         stocksWithScores.push({
           ticker: stock.ticker,
@@ -262,8 +270,8 @@ export async function runAnalysisEngine(
           ruleScores,
           totalScore: Number(finalScore.toFixed(2)),
           failedCritical: false,
-          failureReason: isDataSparse ? '고가중치(필수) 지표 데이터 부재' : '',
-          isSpeculative: isDataSparse, 
+          failureReason: isDataSparse ? '데이터 부재 및 잠재력 분석 대상' : '',
+          isSpeculative: isDataSparse && hasPotential, 
         });
       } catch (err) {
         console.error(`[Engine] Analysis failed for ${stock.ticker}:`, err);
@@ -374,8 +382,11 @@ async function performDeepAnalysis(
     adjustedScore += sentimentImpact;
     adjustedScore = Math.max(0, Math.min(10, adjustedScore));
 
-    const thesis = `${stock.ticker}는 ${track === 'A' ? '전통적 우량주' : '잠재적 유망주'} 트랙으로 분류되었습니다. ` +
-      `AI 분석 결과 ${prediction.growthPotential} 전망이며, ${sentiment.summary}`;
+    const thesisExcerpt = track === 'B' 
+      ? `[잠재력 분석] ${stock.ticker}는 재무 데이터가 불충분하나 AI가 뉴스/리포트에서 ${prediction.growthPotential} 성장 동력을 발견했습니다. `
+      : `${stock.ticker}는 전통적 우량주 트랙으로 분류되었습니다. AI 분석 결과 ${prediction.growthPotential} 전망이며, `;
+
+    const thesis = thesisExcerpt + sentiment.summary;
 
     return {
       ticker: stock.ticker,

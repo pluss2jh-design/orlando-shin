@@ -242,11 +242,29 @@ export async function fetchYahooFinanceData(
     });
   }
 
-  const financialHistory = ftsData.map((entry: any, idx: number) => {
+  // 야후 파이낸스 FTS(Fundamentals Time Series) 데이터 통합 파싱
+  const financialMap = new Map<string, any>();
+  ftsData.forEach((entry: any) => {
+    if (!entry.date) return;
+    const dateKey = new Date(entry.date).toISOString().split('T')[0];
+    const existing = financialMap.get(dateKey) || { date: entry.date };
+    
+    // 주요 지표 누적 (야후 API는 한 날짜에 여러 지표가 분산되어 올 수 있음)
+    if (entry.totalRevenue !== undefined) existing.totalRevenue = entry.totalRevenue;
+    if (entry.operatingIncome !== undefined) existing.operatingIncome = entry.operatingIncome;
+    if (entry.basicEPS !== undefined) existing.basicEPS = entry.basicEPS;
+    if (entry.dilutedEPS !== undefined) existing.dilutedEPS = entry.dilutedEPS;
+    
+    financialMap.set(dateKey, existing);
+  });
+
+  const sortedFinancials = Array.from(financialMap.values()).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+  const financialHistory = sortedFinancials.map((entry: any, idx: number) => {
     const rev = entry.totalRevenue ?? 0;
     const opInc = entry.operatingIncome ?? 0;
     const margin = rev > 0 ? opInc / rev : 0;
-    const prev = ftsData[idx + 1];
+    const prev = sortedFinancials[idx + 1];
     const prevRev = prev?.totalRevenue ?? 0;
     const prevOp = prev?.operatingIncome ?? 0;
     return {
@@ -256,6 +274,7 @@ export async function fetchYahooFinanceData(
       operatingMargin: margin,
       revenueGrowth: prevRev > 0 ? ((rev - prevRev) / prevRev) * 100 : 0,
       operatingIncomeGrowth: prevOp > 0 ? ((opInc - prevOp) / prevOp) * 100 : 0,
+      eps: entry.basicEPS ?? entry.dilutedEPS
     };
   }).reverse();
 
