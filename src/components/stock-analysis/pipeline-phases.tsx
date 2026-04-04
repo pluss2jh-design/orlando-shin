@@ -213,9 +213,36 @@ export function Phase2Panel({ knowledge }: { knowledge: any }) {
 }
 
 /** ─── Phase 3: Real-time Sensing ────────────────────────────────── */
-export function Phase3Panel({ macroContext }: { macroContext: any }) {
+export function Phase3Panel({
+  macroContext,
+  isAnalyzing,
+  progress,
+  progressMessage,
+  results,
+  processedCount,
+  excludedStockCount,
+  activeRuleCount,
+  totalRuleCount,
+  children,
+  inputControls,
+}: {
+  macroContext: any;
+  isAnalyzing?: boolean;
+  progress?: number;
+  progressMessage?: string;
+  results?: any;
+  processedCount?: number;
+  excludedStockCount?: number;
+  activeRuleCount?: number;
+  totalRuleCount?: number;
+  children?: React.ReactNode;
+  inputControls?: React.ReactNode;
+}) {
   const [open, setOpen] = useState(true);
-  const isCompleted = !!macroContext;
+  const trackA = results?.trackA || [];
+  const trackB = results?.trackB || [];
+  const allCandidates = [...trackA, ...trackB];
+  const isCompleted = !!macroContext && allCandidates.length > 0 && !isAnalyzing;
 
   const vixColor = !macroContext ? 'white' :
     macroContext.vixStatus === 'Low' ? 'teal' :
@@ -246,19 +273,28 @@ export function Phase3Panel({ macroContext }: { macroContext: any }) {
   return (
     <PanelWrapper
       phase={3}
-      title="Real-time Sensing"
-      subtitle="현시점 시장 상황 진단"
+      title="Sensing & Dynamic Analysis"
+      subtitle="현시점 시장 상황 진단 및 맞춤형 기업 스캔"
       color="teal"
       isCompleted={isCompleted}
-      isActive={false}
+      isActive={isAnalyzing || false}
       open={open}
       onToggle={() => setOpen(v => !v)}
-      stats={macroContext ? `시장 모드: ${macroContext.marketMode}` : undefined}
+      stats={isCompleted ? `${allCandidates.length}개 최종 선정` :
+        isAnalyzing ? `처리 중 ${processedCount || 0}개` : undefined}
     >
-      {isCompleted ? (
-        <div className="space-y-4">
-          {/* Macro Metrics Grid */}
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+      <div className="space-y-6">
+        {/* Input Controls */}
+        {inputControls && (
+          <div className="bg-[#0f111a] p-4 rounded-xl border border-white/5">
+            {inputControls}
+          </div>
+        )}
+
+        {macroContext && (
+          <div className="space-y-4">
+            {/* Macro Metrics Grid */}
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
             <MacroCard label="VIX" value={macroContext.vix?.toFixed(1)} status={macroContext.vixStatus} color={vixColor} />
             <MacroCard label="10Y Yield" value={`${macroContext.treasuryYield10Y?.toFixed(2)}%`} status={macroContext.yieldStatus} color={yieldColor} />
             <MacroCard label="S&P 500 Trend" value={macroContext.sp500Trend} status={macroContext.sp500Trend} color={sp500Color} />
@@ -306,97 +342,51 @@ export function Phase3Panel({ macroContext }: { macroContext: any }) {
             </div>
           )}
         </div>
-      ) : (
-        <EmptyState message="분석을 시작하면 실시간 시장 지표가 표시됩니다." />
-      )}
-    </PanelWrapper>
-  );
-}
-
-/** ─── Phase 4: Dynamic Analysis ────────────────────────────────── */
-export function Phase4Panel({
-  isAnalyzing,
-  progress,
-  progressMessage,
-  results,
-  processedCount,
-  excludedStockCount,
-  activeRuleCount,
-  totalRuleCount,
-  children
-}: {
-  isAnalyzing: boolean;
-  progress: number;
-  progressMessage: string;
-  results: any;
-  processedCount?: number;
-  excludedStockCount?: number;
-  activeRuleCount?: number;
-  totalRuleCount?: number;
-  children?: React.ReactNode;
-}) {
-  const [open, setOpen] = useState(true);
-  const trackA = results?.trackA || [];
-  const trackB = results?.trackB || [];
-  const allCandidates = [...trackA, ...trackB];
-  const isCompleted = allCandidates.length > 0 && !isAnalyzing;
-
-  return (
-    <PanelWrapper
-      phase={4}
-      title="Dynamic Analysis"
-      subtitle="상황 맞춤형 기업 분석 실행"
-      color="blue"
-      isCompleted={isCompleted}
-      isActive={isAnalyzing}
-      open={open}
-      onToggle={() => setOpen(v => !v)}
-      stats={isCompleted ? `${allCandidates.length}개 최종 선정` :
-        isAnalyzing ? `처리 중 ${processedCount || 0}개 / 제외 ${excludedStockCount || 0}개` : undefined}
-    >
-      {/* Analysis Progress */}
-      {isAnalyzing && (
-        <div className="mb-4 space-y-3">
-          <div className="flex justify-between items-center">
-            <div className="flex items-center gap-2">
-              <Loader2 className="h-3.5 w-3.5 text-blue-400 animate-spin" />
-              <span className="text-xs font-black text-blue-300 uppercase tracking-widest">분석 진행 중</span>
+        )}
+        {/* Analysis Progress */}
+        {isAnalyzing && (
+          <div className="space-y-3 pt-6 border-t border-white/10 mt-6">
+            <div className="flex justify-between items-center">
+              <div className="flex items-center gap-2">
+                <Loader2 className="h-3.5 w-3.5 text-teal-400 animate-spin" />
+                <span className="text-xs font-black text-teal-300 uppercase tracking-widest">기업 스캔 진행 중</span>
+              </div>
+              <span className="text-xs font-black text-teal-400 font-mono">{progress}%</span>
             </div>
-            <span className="text-xs font-black text-blue-400 font-mono">{progress}%</span>
-          </div>
-          <Progress value={progress} className="h-1.5 bg-blue-950" />
-          <p className="text-[10px] text-blue-400/70 font-medium">{progressMessage}</p>
+            <Progress value={progress} className="h-1.5 bg-teal-950" />
+            <p className="text-[10px] text-teal-400/70 font-medium">{progressMessage}</p>
 
-          {/* Active rule count indicator */}
-          {totalRuleCount && (
-            <div className="flex items-center gap-2 text-[10px] font-black text-white/40">
-              <Filter className="h-3 w-3" />
-              <span>학습 규칙 {totalRuleCount}개 중</span>
-              <span className="text-blue-400">{activeRuleCount || totalRuleCount}개 활성화</span>
-              <span>(상황+섹터 필터링 적용)</span>
-            </div>
-          )}
+            {/* Active rule count indicator */}
+            {totalRuleCount && (
+              <div className="flex items-center gap-2 text-[10px] font-black text-white/40">
+                <Filter className="h-3 w-3" />
+                <span>학습 규칙 {totalRuleCount}개 중</span>
+                <span className="text-teal-400">{activeRuleCount || totalRuleCount}개 활성화</span>
+                <span>(상황+섹터 필터링 적용)</span>
+              </div>
+            )}
 
-          {/* Real-time counters */}
-          <div className="grid grid-cols-2 gap-2">
-            <div className="p-2.5 rounded-lg bg-blue-500/10 border border-blue-500/20">
-              <p className="text-[9px] text-blue-400 font-black uppercase">PROCESSED</p>
-              <p className="text-lg font-black text-blue-200 font-mono">{processedCount || 0}</p>
-            </div>
-            <div className="p-2.5 rounded-lg bg-rose-500/10 border border-rose-500/20">
-              <p className="text-[9px] text-rose-400 font-black uppercase">EXCLUDED</p>
-              <p className="text-lg font-black text-rose-200 font-mono">-{excludedStockCount || 0}</p>
+            {/* Real-time counters */}
+            <div className="grid grid-cols-2 gap-2">
+              <div className="p-2.5 rounded-lg bg-teal-500/10 border border-teal-500/20">
+                <p className="text-[9px] text-teal-400 font-black uppercase">PROCESSED</p>
+                <p className="text-lg font-black text-teal-200 font-mono">{processedCount || 0}</p>
+              </div>
+              <div className="p-2.5 rounded-lg bg-rose-500/10 border border-rose-500/20">
+                <p className="text-[9px] text-rose-400 font-black uppercase">EXCLUDED</p>
+                <p className="text-lg font-black text-rose-200 font-mono">-{excludedStockCount || 0}</p>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {/* Results from Children */}
-      {!isAnalyzing && children}
+        {/* Results from Children */}
+        {!isAnalyzing && children}
 
-      {!isAnalyzing && allCandidates.length === 0 && (
-        <EmptyState message="분석을 시작하면 기업별 점수와 판정 결과가 실시간으로 표시됩니다." />
-      )}
+        {!isAnalyzing && allCandidates.length === 0 && (
+          <EmptyState message="상단 컨트롤에서 스캔을 시작하면 실시간 데이터 조회 및 기업 심층 분석이 함께 진행됩니다." />
+        )}
+      </div>
     </PanelWrapper>
   );
 }

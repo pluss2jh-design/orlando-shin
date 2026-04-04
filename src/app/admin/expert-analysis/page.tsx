@@ -7,7 +7,7 @@ import { InvestmentInput } from '@/components/stock-analysis/investment-input';
 import { AnalysisOutput } from '@/components/stock-analysis/analysis-output';
 import { AnalysisReport } from '@/components/stock-analysis/analysis-report';
 import {
-  Phase1Panel, Phase2Panel, Phase3Panel, Phase4Panel
+  Phase1Panel, Phase2Panel, Phase3Panel
 } from '@/components/stock-analysis/pipeline-phases';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -304,27 +304,8 @@ export default function ExpertAnalysisPage() {
             <div className="flex items-center gap-2 flex-wrap">
               <PipelineStep num={1} label="Extraction" color="amber" isActive={false} isCompleted={phase1Done} />
               <PipelineStep num={2} label="Synthesis" color="indigo" isActive={false} isCompleted={phase2Done} />
-              <PipelineStep num={3} label="Sensing" color="teal" isActive={phase3Done && !phase4Done} isCompleted={phase3Done && phase4Done} />
-              <PipelineStep num={4} label="Analysis" color="blue" isActive={analysisState.isAnalyzing} isCompleted={phase4Done} isLast />
+              <PipelineStep num={3} label="Sensing & Analysis" color="teal" isActive={analysisState.isAnalyzing || (phase3Done && !phase4Done)} isCompleted={phase4Done} isLast />
             </div>
-          </div>
-
-          {/* Scan controls */}
-          <div className="px-6 pb-3 border-t border-white/5 pt-3 flex items-end gap-3 flex-wrap bg-[#0f111a]">
-            <InvestmentInput
-              onAnalyze={handleAnalyze}
-              disabled={analysisState.isAnalyzing}
-              activeKnowledge={activeKnowledge}
-            />
-            {analysisState.isAnalyzing && (
-              <button
-                onClick={handleStopAnalysis}
-                className="h-11 px-5 bg-rose-600 hover:bg-rose-500 text-white rounded-xl font-black text-xs flex items-center gap-2 transition-all shadow-lg shadow-rose-900/30"
-              >
-                <AlertCircle className="h-3.5 w-3.5" />
-                STOP
-              </button>
-            )}
           </div>
         </div>
 
@@ -349,8 +330,8 @@ export default function ExpertAnalysisPage() {
             {/* Phase Panels */}
             <Phase1Panel knowledge={knowledge} isLearning={false} learningStatus={null} />
             <Phase2Panel knowledge={knowledge} />
-            <Phase3Panel macroContext={macroContext} />
-            <Phase4Panel
+            <Phase3Panel 
+              macroContext={macroContext}
               isAnalyzing={analysisState.isAnalyzing}
               progress={analysisState.progress}
               progressMessage={analysisState.progressMessage}
@@ -358,6 +339,24 @@ export default function ExpertAnalysisPage() {
               processedCount={analysisState.processedCount}
               excludedStockCount={analysisState.excludedStockCount}
               totalRuleCount={criterias.length}
+              inputControls={
+                <div className="flex items-end gap-3 flex-wrap">
+                  <InvestmentInput
+                    onAnalyze={handleAnalyze}
+                    disabled={analysisState.isAnalyzing}
+                    activeKnowledge={activeKnowledge}
+                  />
+                  {analysisState.isAnalyzing && (
+                    <button
+                      onClick={handleStopAnalysis}
+                      className="h-11 px-5 bg-rose-600 hover:bg-rose-500 text-white rounded-xl font-black text-xs flex items-center gap-2 transition-all shadow-lg shadow-rose-900/30"
+                    >
+                      <AlertCircle className="h-3.5 w-3.5" />
+                      STOP
+                    </button>
+                  )}
+                </div>
+              }
             >
               {/* Final Results */}
               {analysisState.results && !analysisState.isAnalyzing && (
@@ -430,7 +429,7 @@ export default function ExpertAnalysisPage() {
                   </div>
                 </div>
               )}
-            </Phase4Panel>
+            </Phase3Panel>
           </div>
         </div>
     </div>
