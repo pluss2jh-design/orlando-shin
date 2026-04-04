@@ -174,6 +174,7 @@ export interface AnalysisResult extends Partial<FilteredCandidate> {
     oneMonth?: number;
     prices?: {
       current: number;
+      realCurrent?: number;
       oneYearAgo?: number;
       sixMonthsAgo?: number;
       threeMonthsAgo?: number;
@@ -300,6 +301,7 @@ export interface YahooFinanceData {
     oneMonth?: number;
     prices?: {
       current: number;
+      realCurrent?: number;
       oneYearAgo?: number;
       sixMonthsAgo?: number;
       threeMonthsAgo?: number;

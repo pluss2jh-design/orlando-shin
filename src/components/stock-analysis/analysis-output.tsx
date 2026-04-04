@@ -595,16 +595,27 @@ export function AnalysisOutput({ results, conditions, isLoading, onSendEmail }: 
                       </p>
                     </div>
                     {item.price != null && result.returnRates?.prices?.current != null && (
-                      <div className="border-t border-gray-100 pt-2.5 mt-1 flex justify-between items-center text-[9px] font-mono font-medium text-gray-500">
-                        <div className="flex flex-col text-left">
-                          <span className="text-gray-400 mb-0.5 tracking-tighter">당시</span>
-                          <span>${item.price.toFixed(2)}</span>
+                      <div className="border-t border-gray-100 pt-2.5 mt-1 flex flex-col gap-1.5 text-[9px] font-mono font-medium text-gray-500">
+                        <div className="flex justify-between items-center">
+                          <div className="flex flex-col text-left">
+                            <span className="text-gray-400 mb-0.5 tracking-tighter">당시</span>
+                            <span>${item.price.toFixed(2)}</span>
+                          </div>
+                          <ArrowRight className="h-2.5 w-2.5 text-gray-300 mx-1" />
+                          <div className="flex flex-col text-right">
+                            <span className="text-gray-400 mb-0.5 tracking-tighter">
+                              {result.returnRates.prices.current !== result.returnRates.prices.realCurrent ? "시뮬레이션 기준일" : "현재"}
+                            </span>
+                            <span className="text-gray-900 font-bold">${result.returnRates.prices.current.toFixed(2)}</span>
+                          </div>
                         </div>
-                        <ArrowRight className="h-2.5 w-2.5 text-gray-300 mx-1" />
-                        <div className="flex flex-col text-right">
-                          <span className="text-gray-400 mb-0.5 tracking-tighter">현재</span>
-                          <span className="text-gray-900 font-bold">${result.returnRates.prices.current.toFixed(2)}</span>
-                        </div>
+                        {result.returnRates.prices.realCurrent != null && result.returnRates.prices.realCurrent !== result.returnRates.prices.current && (
+                          <div className="flex justify-end pt-1 border-t border-dashed border-gray-100">
+                            <span className="text-[8px] text-blue-500 bg-blue-50 px-1.5 py-0.5 rounded font-black tracking-widest">
+                              실시간 현재가: ${result.returnRates.prices.realCurrent.toFixed(2)}
+                            </span>
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>

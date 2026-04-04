@@ -212,7 +212,8 @@ export async function fetchYahooFinanceData(
     }));
 
   // asOfDate 시점의 실시간 가격 시뮬레이션
-  let currentPrice = price?.regularMarketPrice ?? financial?.currentPrice ?? 0;
+  const realCurrentPrice = price?.regularMarketPrice ?? financial?.currentPrice ?? 0;
+  let currentPrice = realCurrentPrice;
   if (asOfDate && priceHistory.length > 0) {
     // asOfDate와 가장 가까운(이전) 종가를 현재가로 간주
     const pastEntries = priceHistory.filter(h => h.date <= asOfDate).sort((a, b) => b.date.getTime() - a.date.getTime());
@@ -221,7 +222,7 @@ export async function fetchYahooFinanceData(
     }
   }
 
-  const returnRates: any = { prices: { current: currentPrice } };
+  const returnRates: any = { prices: { current: currentPrice, realCurrent: realCurrentPrice } };
   const intervals = [
     { label: 'oneYear', months: 12, priceLabel: 'oneYearAgo' },
     { label: 'sixMonths', months: 6, priceLabel: 'sixMonthsAgo' },
