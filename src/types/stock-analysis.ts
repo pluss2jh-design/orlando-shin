@@ -172,6 +172,13 @@ export interface AnalysisResult extends Partial<FilteredCandidate> {
     sixMonths?: number;
     threeMonths?: number;
     oneMonth?: number;
+    prices?: {
+      current: number;
+      oneYearAgo?: number;
+      sixMonthsAgo?: number;
+      threeMonthsAgo?: number;
+      oneMonthAgo?: number;
+    };
   };
 
   // 고도화 항목
@@ -291,6 +298,13 @@ export interface YahooFinanceData {
     sixMonths?: number;
     threeMonths?: number;
     oneMonth?: number;
+    prices?: {
+      current: number;
+      oneYearAgo?: number;
+      sixMonthsAgo?: number;
+      threeMonthsAgo?: number;
+      oneMonthAgo?: number;
+    };
   };
 
   fetchedAt: Date;

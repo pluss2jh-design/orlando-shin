@@ -221,16 +221,16 @@ export async function fetchYahooFinanceData(
     }
   }
 
-  const returnRates: any = {};
+  const returnRates: any = { prices: { current: currentPrice } };
   const intervals = [
-    { label: 'oneYear', months: 12 },
-    { label: 'sixMonths', months: 6 },
-    { label: 'threeMonths', months: 3 },
-    { label: 'oneMonth', months: 1 },
+    { label: 'oneYear', months: 12, priceLabel: 'oneYearAgo' },
+    { label: 'sixMonths', months: 6, priceLabel: 'sixMonthsAgo' },
+    { label: 'threeMonths', months: 3, priceLabel: 'threeMonthsAgo' },
+    { label: 'oneMonth', months: 1, priceLabel: 'oneMonthAgo' },
   ];
 
   if (priceHistory.length > 0 && currentPrice > 0) {
-    intervals.forEach(({ label, months }) => {
+    intervals.forEach(({ label, months, priceLabel }) => {
       const targetDate = new Date(effectiveEnd);
       targetDate.setMonth(targetDate.getMonth() - months);
       const pastEntry = priceHistory
@@ -238,6 +238,7 @@ export async function fetchYahooFinanceData(
         .sort((a, b) => b.date.getTime() - a.date.getTime())[0];
       if (pastEntry && pastEntry.close > 0) {
         returnRates[label] = ((currentPrice - pastEntry.close) / pastEntry.close) * 100;
+        returnRates.prices[priceLabel] = pastEntry.close;
       }
     });
   }

@@ -579,19 +579,34 @@ export function AnalysisOutput({ results, conditions, isLoading, onSendEmail }: 
               {/* 수익률 분석 섹션 */}
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 {[
-                  { label: '1년 전', value: result.returnRates?.oneYear },
-                  { label: '6개월 전', value: result.returnRates?.sixMonths },
-                  { label: '3개월 전', value: result.returnRates?.threeMonths },
-                  { label: '1개월 전', value: result.returnRates?.oneMonth },
+                  { label: '1년 전', value: result.returnRates?.oneYear, price: result.returnRates?.prices?.oneYearAgo },
+                  { label: '6개월 전', value: result.returnRates?.sixMonths, price: result.returnRates?.prices?.sixMonthsAgo },
+                  { label: '3개월 전', value: result.returnRates?.threeMonths, price: result.returnRates?.prices?.threeMonthsAgo },
+                  { label: '1개월 전', value: result.returnRates?.oneMonth, price: result.returnRates?.prices?.oneMonthAgo },
                 ].map((item, i) => (
-                  <div key={i} className="bg-white p-4 rounded-xl border border-gray-200 text-center">
-                    <p className="text-[10px] text-gray-400 font-black uppercase tracking-widest mb-1">{item.label} 매수 시</p>
-                    <p className={cn(
-                      "text-xl font-black font-mono",
-                      (item.value || 0) > 0 ? "text-emerald-500" : (item.value || 0) < 0 ? "text-rose-500" : "text-gray-400"
-                    )}>
-                      {item.value != null ? `${item.value > 0 ? '+' : ''}${item.value.toFixed(1)}%` : 'N/A'}
-                    </p>
+                  <div key={i} className="bg-white p-4 rounded-xl border border-gray-200 flex flex-col justify-between h-full relative overflow-hidden">
+                    <div className="text-center">
+                      <p className="text-[10px] text-gray-400 font-black uppercase tracking-widest mb-1">{item.label} 매수 시</p>
+                      <p className={cn(
+                        "text-xl font-black font-mono mb-2",
+                        (item.value || 0) > 0 ? "text-emerald-500" : (item.value || 0) < 0 ? "text-rose-500" : "text-gray-400"
+                      )}>
+                        {item.value != null ? `${item.value > 0 ? '+' : ''}${item.value.toFixed(1)}%` : 'N/A'}
+                      </p>
+                    </div>
+                    {item.price != null && result.returnRates?.prices?.current != null && (
+                      <div className="border-t border-gray-100 pt-2.5 mt-1 flex justify-between items-center text-[9px] font-mono font-medium text-gray-500">
+                        <div className="flex flex-col text-left">
+                          <span className="text-gray-400 mb-0.5 tracking-tighter">당시</span>
+                          <span>${item.price.toFixed(2)}</span>
+                        </div>
+                        <ArrowRight className="h-2.5 w-2.5 text-gray-300 mx-1" />
+                        <div className="flex flex-col text-right">
+                          <span className="text-gray-400 mb-0.5 tracking-tighter">현재</span>
+                          <span className="text-gray-900 font-bold">${result.returnRates.prices.current.toFixed(2)}</span>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
