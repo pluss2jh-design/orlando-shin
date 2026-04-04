@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { TrendingUp, AlertCircle, FileText, Video, CheckCircle, ChevronDown, ChevronUp, Mail, Lock, Sparkles, ArrowLeft, ArrowRight, Activity, TrendingDown, Target, Zap, ExternalLink, Newspaper, Brain, CheckCircle2 } from 'lucide-react';
+import { TrendingUp, AlertCircle, FileText, Video, CheckCircle, ChevronDown, ChevronUp, Mail, Lock, Sparkles, ArrowLeft, ArrowRight, Activity, TrendingDown, Target, Zap, ExternalLink, Newspaper, Brain, CheckCircle2, BarChart3 } from 'lucide-react';
 import { useSession } from 'next-auth/react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -576,29 +576,71 @@ export function AnalysisOutput({ results, conditions, isLoading, onSendEmail }: 
                 </div>
               )}
 
-              {/* 수익률 분석 섹션 */}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                {[
-                  { label: '1년 전', value: result.returnRates?.oneYear, price: result.returnRates?.prices?.oneYearAgo },
-                  { label: '6개월 전', value: result.returnRates?.sixMonths, price: result.returnRates?.prices?.sixMonthsAgo },
-                  { label: '3개월 전', value: result.returnRates?.threeMonths, price: result.returnRates?.prices?.threeMonthsAgo },
-                  { label: '1개월 전', value: result.returnRates?.oneMonth, price: result.returnRates?.prices?.oneMonthAgo },
-                ].map((item, i) => (
-                  <div key={i} className="bg-white p-4 rounded-xl border border-gray-200 flex flex-col justify-between h-full relative overflow-hidden">
-                    <div className="text-center">
-                      <p className="text-[10px] text-gray-400 font-black uppercase tracking-widest mb-1">{item.label} 매수 시</p>
+              {/* 백테스트 보유 수익률 (시뮬레이션 전용 UI) */}
+              {result.returnRates?.prices?.realCurrent != null && result.returnRates?.prices?.current != null && result.returnRates.prices.current !== result.returnRates.prices.realCurrent && (
+                <div className="mb-4 bg-[#080b10] border border-blue-500/30 rounded-2xl p-6 relative overflow-hidden group shadow-lg shadow-blue-900/10">
+                  <div className="absolute top-0 right-0 p-32 bg-blue-500/10 blur-[80px] pointer-events-none rounded-full" />
+                  <div className="flex items-center justify-between mb-4">
+                    <h5 className="text-[10px] font-black text-blue-400 uppercase tracking-widest flex items-center gap-2">
+                      <Sparkles className="h-4 w-4" /> 시뮬레이션 보유 성과 (백테스트 누적 수익률)
+                    </h5>
+                    <Badge variant="outline" className="bg-blue-500/10 text-blue-300 border-blue-500/30 text-[10px] uppercase font-black">
+                      AI 추출일 ➔ 현실의 오늘
+                    </Badge>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-center">
+                    <div className="md:col-span-2 flex items-center gap-6">
+                      <div className="flex-1">
+                        <p className="text-[10px] text-gray-400 font-bold mb-1 tracking-tight">AI가 종목을 추출한 시뮬레이션 기준일</p>
+                        <p className="text-2xl font-mono font-black text-white">${result.returnRates.prices.current.toFixed(2)}</p>
+                      </div>
+                      <ArrowRight className="h-6 w-6 text-blue-500/50 shrink-0" />
+                      <div className="flex-1">
+                        <p className="text-[10px] text-blue-400 font-bold mb-1 tracking-tight">실시간 현실 세계의 오늘 주가</p>
+                        <p className="text-2xl font-mono font-black text-blue-400">${result.returnRates.prices.realCurrent.toFixed(2)}</p>
+                      </div>
+                    </div>
+                    <div className="text-right border-t md:border-t-0 md:border-l border-white/10 pt-4 md:pt-0 md:pl-6">
+                      <p className="text-[10px] text-gray-400 font-black uppercase tracking-widest mb-1">최종 보유 수익률</p>
                       <p className={cn(
-                        "text-xl font-black font-mono mb-2",
-                        (item.value || 0) > 0 ? "text-emerald-500" : (item.value || 0) < 0 ? "text-rose-500" : "text-gray-400"
+                        "text-4xl font-black font-mono tracking-tighter",
+                        result.returnRates.prices.realCurrent > result.returnRates.prices.current ? "text-emerald-400" :
+                        result.returnRates.prices.realCurrent < result.returnRates.prices.current ? "text-rose-400" : "text-gray-400"
                       )}>
-                        {item.value != null ? `${item.value > 0 ? '+' : ''}${item.value.toFixed(1)}%` : 'N/A'}
+                        {result.returnRates.prices.realCurrent > result.returnRates.prices.current ? '+' : ''}
+                        {(((result.returnRates.prices.realCurrent - result.returnRates.prices.current) / result.returnRates.prices.current) * 100).toFixed(1)}%
                       </p>
                     </div>
-                    {item.price != null && result.returnRates?.prices?.current != null && (
-                      <div className="border-t border-gray-100 pt-2.5 mt-1 flex flex-col gap-1.5 text-[9px] font-mono font-medium text-gray-500">
-                        <div className="flex justify-between items-center">
+                  </div>
+                </div>
+              )}
+
+              {/* 수익률 분석 섹션 (과거 AI 참고 지표) */}
+              <div>
+                <p className="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2 flex items-center gap-2">
+                  <BarChart3 className="h-3 w-3" /> AI가 분석에 활용한 과거 차트 흐름 (결과 도출의 근거)
+                </p>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  {[
+                    { label: '1년 전', value: result.returnRates?.oneYear, price: result.returnRates?.prices?.oneYearAgo },
+                    { label: '6개월 전', value: result.returnRates?.sixMonths, price: result.returnRates?.prices?.sixMonthsAgo },
+                    { label: '3개월 전', value: result.returnRates?.threeMonths, price: result.returnRates?.prices?.threeMonthsAgo },
+                    { label: '1개월 전', value: result.returnRates?.oneMonth, price: result.returnRates?.prices?.oneMonthAgo },
+                  ].map((item, i) => (
+                    <div key={i} className="bg-white p-4 rounded-xl border border-gray-200 flex flex-col justify-between h-full relative overflow-hidden">
+                      <div className="text-center">
+                        <p className="text-[10px] text-gray-400 font-black tracking-widest mb-1">기준일 대비 {item.label} 주가</p>
+                        <p className={cn(
+                          "text-xl font-black font-mono mb-2",
+                          (item.value || 0) > 0 ? "text-emerald-500" : (item.value || 0) < 0 ? "text-rose-500" : "text-gray-400"
+                        )}>
+                          {item.value != null ? `${item.value > 0 ? '+' : ''}${item.value.toFixed(1)}%` : 'N/A'}
+                        </p>
+                      </div>
+                      {item.price != null && result.returnRates?.prices?.current != null && (
+                        <div className="border-t border-gray-100 pt-2.5 mt-1 flex justify-between items-center text-[9px] font-mono font-medium text-gray-500">
                           <div className="flex flex-col text-left">
-                            <span className="text-gray-400 mb-0.5 tracking-tighter">당시</span>
+                            <span className="text-gray-400 mb-0.5 tracking-tighter">과거</span>
                             <span>${item.price.toFixed(2)}</span>
                           </div>
                           <ArrowRight className="h-2.5 w-2.5 text-gray-300 mx-1" />
@@ -609,17 +651,10 @@ export function AnalysisOutput({ results, conditions, isLoading, onSendEmail }: 
                             <span className="text-gray-900 font-bold">${result.returnRates.prices.current.toFixed(2)}</span>
                           </div>
                         </div>
-                        {result.returnRates.prices.realCurrent != null && result.returnRates.prices.realCurrent !== result.returnRates.prices.current && (
-                          <div className="flex justify-end pt-1 border-t border-dashed border-gray-100">
-                            <span className="text-[8px] text-blue-500 bg-blue-50 px-1.5 py-0.5 rounded font-black tracking-widest">
-                              실시간 현재가: ${result.returnRates.prices.realCurrent.toFixed(2)}
-                            </span>
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                ))}
+                      )}
+                    </div>
+                  ))}
+                </div>
               </div>
 
               {/* 전략 매칭 대시보드 */}
