@@ -20,7 +20,6 @@ export default function BacktestDashboard() {
   const [ticker, setTicker] = useState('AAPL');
   const [startDate, setStartDate] = useState('2024-01-01');
   const [endDate, setEndDate] = useState(new Date().toISOString().split('T')[0]);
-  const [initialAmount, setInitialAmount] = useState(100000);
 
   const [isTesting, setIsTesting] = useState(false);
   const [progress, setProgress] = useState(0);
@@ -160,18 +159,7 @@ export default function BacktestDashboard() {
                 </div>
               </div>
 
-              <div>
-                <label className="text-[10px] uppercase font-black text-white/40 mb-2 block">초기 자본금</label>
-                <div className="bg-[#0f111a] border border-white/10 p-3 rounded-xl flex flex-col">
-                  <Input 
-                    type="number" 
-                    value={initialAmount}
-                    onChange={(e) => setInitialAmount(Number(e.target.value))}
-                    className="bg-transparent border-none text-base font-mono font-bold text-white p-0 h-auto focus-visible:ring-0" 
-                  />
-                  <p className="text-[9px] text-white/30 uppercase mt-1">USD ($)</p>
-                </div>
-              </div>
+
             </div>
 
             <button
