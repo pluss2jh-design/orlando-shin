@@ -9,22 +9,25 @@ export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
     const ticker = searchParams.get('ticker');
-    const period = searchParams.get('period') || '1y';
+    const startDateParam = searchParams.get('startDate');
+    const endDateParam = searchParams.get('endDate');
 
     if (!ticker) {
       return NextResponse.json({ error: 'Ticker is required' }, { status: 400 });
     }
 
     // 과거 데이터 조회 기간 설정
-    const end = new Date();
-    const start = new Date();
+    let end = new Date();
+    let start = new Date();
     
-    switch (period) {
-      case '3m': start.setMonth(end.getMonth() - 3); break;
-      case '6m': start.setMonth(end.getMonth() - 6); break;
-      case '1y': start.setFullYear(end.getFullYear() - 1); break;
-      case '3y': start.setFullYear(end.getFullYear() - 3); break;
-      default: start.setFullYear(end.getFullYear() - 1);
+    if (endDateParam) {
+      end = new Date(endDateParam);
+    }
+    
+    if (startDateParam) {
+      start = new Date(startDateParam);
+    } else {
+      start.setFullYear(end.getFullYear() - 1);
     }
 
     const extendedStart = new Date(start);
