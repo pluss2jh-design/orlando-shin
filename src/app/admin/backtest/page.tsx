@@ -20,6 +20,7 @@ export default function BacktestDashboard() {
   const [ticker, setTicker] = useState('AAPL');
   const [startDate, setStartDate] = useState('2024-01-01');
   const [endDate, setEndDate] = useState(new Date().toISOString().split('T')[0]);
+  const [error, setError] = useState<string | null>(null);
 
   const [isTesting, setIsTesting] = useState(false);
   const [progress, setProgress] = useState(0);
@@ -35,6 +36,7 @@ export default function BacktestDashboard() {
     if (!ticker) return;
     setIsTesting(true);
     setProgress(20);
+    setError(null);
     setPointA(null);
     setPointB(null);
 
@@ -42,17 +44,19 @@ export default function BacktestDashboard() {
       const res = await fetch(`/api/stock/backtest?ticker=${ticker}&startDate=${startDate}&endDate=${endDate}`);
       setProgress(60);
       
+      const data = await res.json();
+      
       if (!res.ok) {
-        throw new Error('Failed to fetch data');
+        throw new Error(data.error || '데이터를 가져오는데 실패했습니다.');
       }
 
-      const data = await res.json();
       setChartData(data.history || []);
       setMetrics(data.metrics || null);
       setProgress(100);
 
     } catch (e) {
-      alert((e as Error).message);
+      setError((e as Error).message);
+      setChartData([]);
     } finally {
       setTimeout(() => setIsTesting(false), 500);
     }
@@ -177,7 +181,18 @@ export default function BacktestDashboard() {
             <div className="p-6 rounded-3xl bg-[#161b22] border border-white/5 flex-1 relative overflow-hidden group min-h-[500px] flex flex-col">
               <div className="absolute top-0 right-0 p-32 bg-indigo-500/5 blur-[80px] pointer-events-none rounded-full" />
               
-              {!isTesting && chartData.length === 0 ? (
+              {!isTesting && error ? (
+                <div className="h-full flex flex-col items-center justify-center text-center flex-1 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                  <div className="w-16 h-16 rounded-3xl bg-rose-500/10 border border-rose-500/20 flex items-center justify-center mb-4">
+                    <Activity className="h-8 w-8 text-rose-500" />
+                  </div>
+                  <h3 className="text-sm font-black text-white">데이터를 불러올 수 없습니다</h3>
+                  <p className="text-xs text-rose-400 mt-2 max-w-sm font-bold bg-rose-500/5 px-4 py-2 rounded-lg border border-rose-500/10">
+                    {error}
+                  </p>
+                  <p className="text-[10px] text-white/30 mt-4 uppercase tracking-widest font-black">티커가 올바른지, 혹은 해당 기간의 데이터가 존재하는지 확인하세요.</p>
+                </div>
+              ) : !isTesting && chartData.length === 0 ? (
                 <div className="h-full flex flex-col items-center justify-center text-center opacity-70 flex-1">
                   <div className="w-16 h-16 rounded-3xl bg-white/5 border border-white/10 flex items-center justify-center mb-4">
                     <Database className="h-8 w-8 text-white/20" />
