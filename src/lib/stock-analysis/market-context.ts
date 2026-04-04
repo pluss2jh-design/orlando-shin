@@ -138,13 +138,23 @@ export async function analyzeStockSentiment(
       };
     }
 
-    const prompt = `Analyze the sentiment and future potential of the following news headlines and expert articles for stock ticker ${ticker}. 
+    const prompt = `You are a strict financial news validator and sentiment analyzer for the public company traded under the ticker ${ticker}. 
+    
+    1. STRICT FILTERING: Critically evaluate each headline to determine if it is TRULY about the financial company ${ticker}. 
+       WARNING: Tickers like "KEYS", "APPLE", "FOX" might return news about sports players (e.g., Madison Keys), generic terms, or unrelated entities. 
+       You MUST completely ignore and discard any headline that is not about the corporate entity ${ticker}.
+       If ALL headlines are unrelated to the company, return score: 0 and label: 'Neutral'.
+       
+    2. SENTIMENT SCORING: Analyze the sentiment of only the RELEVANT headlines. 
+       Return a score from -10 (very negative) to 10 (very positive).
+       WARNING: If relevant headlines contain bearish sentiment, "sell" recommendations, downgrades, or significant risks, you MUST lower the score significantly (e.g., -5 to -10) and assign the 'Negative' label. DO NOT give a high score or "High Potential" label if the news is telling investors to sell or avoid the stock.
+
     Return a JSON object with:
-    - score: integer from -10 (very negative) to 10 (very positive)
+    - score: integer from -10 to 10
     - label: 'Positive', 'Neutral', 'Negative' or 'High Potential'
-    - summary: brief 1-sentence summary of the news impact and future growth potential (MUST BE IN KOREAN)
-    - riskHeadlines: array of headlines that suggest potential risks (MUST BE IN KOREAN)
-    - focusKeywords: array of key growth factors found in news (e.g., technology, market expansion, monopoly) (KOREAN)
+    - summary: brief 1-sentence summary of the news impact (MUST BE IN KOREAN)
+    - riskHeadlines: array of headlines that suggest potential risks or sell opinions (MUST BE IN KOREAN)
+    - focusKeywords: array of key topics found in relevant news (KOREAN)
     
     Headlines:
     ${headlines.map((h: { title: string }) => h.title).join('\n- ')}

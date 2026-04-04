@@ -306,7 +306,7 @@ export async function runAnalysisEngine(
     const itemPct = 85 + Math.floor((i / trackACandidates.length) * 5);
     if (onProgress) onProgress(itemPct, `[Track A] AI 정밀 분석 중: ${stock.ticker} (${i + 1}/${trackACandidates.length})`);
 
-    const result = await performDeepAnalysis(stock, knowledge, newsAiModel, newsApiKey, 'A');
+    const result = await performDeepAnalysis(stock, knowledge, asOfDate, newsAiModel, newsApiKey, 'A');
     if (result) trackAResults.push(result);
   }
 
@@ -315,7 +315,7 @@ export async function runAnalysisEngine(
     const itemPct = 90 + Math.floor((i / trackBCandidates.length) * 5);
     if (onProgress) onProgress(itemPct, `[Track B] AI 유닛 경제성 분석 중: ${stock.ticker} (${i + 1}/${trackBCandidates.length})`);
 
-    const result = await performDeepAnalysis(stock, knowledge, newsAiModel, newsApiKey, 'B');
+    const result = await performDeepAnalysis(stock, knowledge, asOfDate, newsAiModel, newsApiKey, 'B');
     if (result) trackBResults.push(result);
   }
 
@@ -345,13 +345,14 @@ export async function runAnalysisEngine(
 async function performDeepAnalysis(
   stock: any, 
   knowledge: LearnedKnowledge, 
+  asOfDate: Date | undefined,
   aiModel?: string, 
   apiKey?: string,
   track: 'A' | 'B' = 'A'
 ): Promise<AnalysisResult | null> {
   try {
     const exchangeRate = await fetchExchangeRate();
-    const macroContext = await fetchMarketMacroContext(new Date());
+    const macroContext = await fetchMarketMacroContext(asOfDate);
 
     const sentiment = await analyzeStockSentiment(stock.ticker, aiModel, apiKey);
     if (!sentiment) return null;
