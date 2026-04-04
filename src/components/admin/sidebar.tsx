@@ -14,13 +14,15 @@ import {
     ChevronLeft,
     ChevronRight,
     Menu,
-    CreditCard
+    CreditCard,
+    Activity
 } from 'lucide-react';
 import { signOut } from 'next-auth/react';
 
 const menuItems = [
     { href: '/admin/dashboard', label: '통합 대시보드', icon: LayoutDashboard },
     { href: '/admin/expert-analysis', label: '전문가 분석', icon: Brain },
+    { href: '/admin/backtest', label: '백테스트 엔진', icon: Activity },
     { href: '/admin/data-library', label: '데이터 라이브러리', icon: Database },
     { href: '/admin/payments', label: '결제 관리', icon: CreditCard },
     { href: '/admin/plans', label: '플랜 관리', icon: Settings },
