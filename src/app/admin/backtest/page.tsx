@@ -60,8 +60,16 @@ export default function BacktestDashboard() {
   };
 
   const handleChartClick = useCallback((e: any) => {
-    if (!e || !e.activePayload || !e.activePayload[0]) return;
-    const clickedPoint = e.activePayload[0].payload as BacktestPoint;
+    if (!e) return;
+    
+    let clickedPoint: Omit<BacktestPoint, ""> | null = null;
+    if (e.activePayload && e.activePayload.length > 0) {
+      clickedPoint = e.activePayload[0].payload as BacktestPoint;
+    } else if (e.activeLabel) {
+      clickedPoint = chartData.find(d => d.date === e.activeLabel) || null;
+    }
+
+    if (!clickedPoint) return;
     
     if (!pointA) {
       setPointA(clickedPoint);
@@ -78,7 +86,7 @@ export default function BacktestDashboard() {
       setPointB(null);
       setPointA(clickedPoint);
     }
-  }, [pointA, pointB]);
+  }, [pointA, pointB, chartData]);
 
   // Calculate customized return
   let customReturn = 0;
