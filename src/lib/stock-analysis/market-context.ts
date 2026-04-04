@@ -313,6 +313,8 @@ export async function generateExpertVerdict(
     Analyze stock "${ticker}" by synthesizing market news and your articles.
     
     Context:
+    - Business Profile: Sector - ${metrics.sector}, Industry - ${metrics.industry}
+    - Business Summary: ${metrics.businessSummary ? metrics.businessSummary.slice(0, 500) : 'N/A'}
     - Expert Articles/Knowledge: ${knowledge.keyConditionsSummary || 'N/A'}
     - Current News Sentiment: ${sentiment.score}/10 (${sentiment.label})
     - Stock Data (Secondary): PER ${metrics.trailingPE}, Macro ${macro.marketMode}
@@ -325,6 +327,7 @@ export async function generateExpertVerdict(
     - convictionScore: 0-100 (high conviction if news/articles are strongly positive)
     - title: brief catchy title
     - summary: summary of verdict focusing on qualitative growth (KOREAN)
+    - businessModel: 1-2 sentence core business description (what they make, how they make money, main products/innovation) (KOREAN)
     - keyPoints: array of 3-4 specific growth catalysts from news/articles (KOREAN)
     - risks: array of strings (KOREAN)
     - authorCitations: array of objects { fileName: string, pageOrTimestamp: string }

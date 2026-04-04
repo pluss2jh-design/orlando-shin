@@ -332,6 +332,14 @@ export function AnalysisOutput({ results, conditions, isLoading, onSendEmail }: 
                   </div>
 
                   <div className="space-y-3">
+                    {result.expertVerdict?.businessModel && (
+                      <div className="bg-blue-50/50 p-2.5 rounded-xl border border-blue-100/50 mb-1">
+                        <p className="text-[10px] text-gray-700 font-bold leading-relaxed break-keep">
+                          <span className="text-blue-600 bg-blue-100/50 px-1.5 py-0.5 rounded mr-1.5 uppercase tracking-widest text-[8px] font-black">Business</span>
+                          {result.expertVerdict.businessModel}
+                        </p>
+                      </div>
+                    )}
                     <p className="text-xs text-gray-500 line-clamp-2 font-medium leading-relaxed">
                       {result.description}
                     </p>
@@ -498,6 +506,17 @@ export function AnalysisOutput({ results, conditions, isLoading, onSendEmail }: 
                         </div>
                       </div>
                     </div>
+
+                    {result.expertVerdict?.businessModel && (
+                      <div className="bg-blue-50/50 p-4 rounded-2xl border border-blue-100/50">
+                        <h5 className="text-[10px] font-black text-blue-600 uppercase tracking-widest flex items-center gap-2 mb-2">
+                          <Target className="h-3 w-3" /> 비즈니스 모델 & 핵심 제품
+                        </h5>
+                        <p className="text-sm text-gray-700 leading-relaxed font-medium">
+                          {result.expertVerdict.businessModel}
+                        </p>
+                      </div>
+                    )}
 
                     <p className="text-lg text-gray-700 leading-relaxed font-serif italic border-l-4 border-blue-100 pl-6 py-2">
                       "{result.expertVerdict.summary || '상세 요약이 생성되지 않았습니다.'}"

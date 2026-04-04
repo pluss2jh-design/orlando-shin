@@ -59,6 +59,7 @@ export interface ExpertVerdict {
   recommendation: 'BUY' | 'SELL' | 'HOLD';
   title: string;
   summary: string;
+  businessModel?: string;
   convictionScore: number;
   keyPoints: string[];
   risks: string[];
@@ -279,6 +280,8 @@ export interface YahooFinanceData {
   dividendYield?: number;
   marketCap?: number;
   sector?: string;
+  industry?: string;
+  businessSummary?: string;
   revenueGrowth?: number;
 
   priceHistory: PriceHistoryEntry[];

@@ -311,6 +311,8 @@ export async function fetchYahooFinanceData(
       ? (price.marketCap * (currentPrice / (price.regularMarketPrice || currentPrice)))
       : price?.marketCap,
     sector: assetProfile?.sector,
+    industry: assetProfile?.industry,
+    businessSummary: assetProfile?.longBusinessSummary,
     revenueGrowth: financial?.revenueGrowth,
     priceHistory,
     financialHistory,
