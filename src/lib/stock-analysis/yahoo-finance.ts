@@ -138,13 +138,13 @@ export async function fetchYahooFinanceData(
 
   // ── 1. 기본 Summary (asOfDate가 현재일 경우만 최신 데이터 활용) ──
   try {
-    summaryResult = await withTimeout(
-      yahooFinance.quoteSummary(ticker, {
-        modules: ['financialData', 'price', 'defaultKeyStatistics', 'summaryDetail', 'assetProfile'],
-      }, { validateResult: false }),
-      15000,
-      `quoteSummary(${ticker})`
-    );
+      summaryResult = await withTimeout(
+        yahooFinance.quoteSummary(ticker, {
+          modules: ['financialData', 'price', 'defaultKeyStatistics', 'summaryDetail', 'assetProfile', 'insiderTransactions', 'institutionOwnership'],
+        }, { validateResult: false }),
+        15000,
+        `quoteSummary(${ticker})`
+      );
   } catch (error) {
     console.warn(`QuoteSummary failed for ${ticker}:`, (error as Error).message?.slice(0, 80));
     try {
@@ -325,6 +325,9 @@ export async function fetchYahooFinanceData(
     returnOnAssets: financial?.returnOnAssets,
     heldPercentInstitutions: keyStats?.heldPercentInstitutions,
     heldPercentInsiders: keyStats?.heldPercentInsiders,
+    insiderTransactions: (summaryResult.insiderTransactions?.transactions || [])
+      .filter((t: any) => !asOfDate || new Date(t.startDate) <= asOfDate),
+    institutionalHolders: summaryResult.institutionOwnership?.ownershipList || [],
     priceHistory,
     financialHistory,
     returnRates,

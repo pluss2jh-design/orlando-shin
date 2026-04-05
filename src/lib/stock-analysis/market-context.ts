@@ -121,12 +121,49 @@ export async function fetchMarketMacroContext(asOfDate?: Date): Promise<MacroCon
 export async function analyzeStockSentiment(
   ticker: string, 
   aiModel?: string,
-  apiKey?: string
+  apiKey?: string,
+  asOfDate?: Date
 ): Promise<SentimentAnalysis | null> {
   try {
-    const searchResult = await yahooFinance.search(ticker, {}, { validateResult: false }) as any;
-    const news = (searchResult.news || []).slice(0, 5);
-    const headlines = news.map((n: any) => ({ title: n.title, url: n.link || n.url })).filter((n: any) => n.title);
+    let headlines: { title: string, url?: string }[] = [];
+    const isHistorical = asOfDate && (new Date().getTime() - asOfDate.getTime() > 1000 * 60 * 60 * 24 * 7); // 7일 이상 과거
+
+    if (isHistorical && asOfDate) {
+      // ── [Time Machine: Historical News Fetch] ──
+      // Google News RSS의 기간 한정 검색 쿼리 사용
+      const end = asOfDate.toISOString().split('T')[0];
+      const startObj = new Date(asOfDate);
+      startObj.setMonth(startObj.getMonth() - 2); // 2개월 전부터 뉴스 수집
+      const start = startObj.toISOString().split('T')[0];
+      
+      const query = `${ticker}+stock+after:${start}+before:${end}`;
+      const rssUrl = `https://news.google.com/rss/search?q=${query}&hl=en-US&gl=US&ceid=US:en`;
+      
+      console.log(`[Time Machine] Fetching historical news from RSS: ${rssUrl}`);
+      
+      try {
+        const response = await fetch(rssUrl, {
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+          }
+        });
+        const xml = await response.text();
+        // 간단한 정규식으로 <title> 태그 추출 (라이브러리 최소화)
+        const matches = xml.match(/<title>(.*?)<\/title>/g) || [];
+        headlines = matches
+          .slice(1, 15) // 첫 번째는 채널 제목이므로 무시
+          .map(m => ({ title: m.replace(/<title>|<\/title>/g, '').replace(/&amp;/g, '&'), url: '' }))
+          .filter(h => h.title.length > 10);
+      } catch (e) {
+        console.warn('Historical news fetch failed, falling back to recent search');
+      }
+    }
+
+    if (headlines.length === 0) {
+      const searchResult = await yahooFinance.search(ticker, {}, { validateResult: false }) as any;
+      const news = (searchResult.news || []).slice(0, 10);
+      headlines = news.map((n: any) => ({ title: n.title, url: n.link || n.url })).filter((n: any) => n.title);
+    }
 
     if (headlines.length === 0) {
       return {

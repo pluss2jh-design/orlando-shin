@@ -11,7 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { AnalysisResult, InvestmentConditions, StrategyMatchScore, MatchRuleResult, MatchRuleSource, RecommendationResult } from '@/types/stock-analysis';
 import { cn } from '@/lib/utils';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, Legend } from 'recharts';
+import { LineChart, Line, BarChart, Bar, Cell, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, Legend } from 'recharts';
 import { BacktestDialog } from './backtest-dialog';
 import { History } from 'lucide-react';
 
@@ -656,6 +656,95 @@ export function AnalysisOutput({ results, conditions, isLoading, onSendEmail }: 
                   </div>
                 </div>
               </div>
+
+              {/* [New] Ownership & Insider Trend Section */}
+              {(result.yahooData?.insiderTransactions?.length || 0) > 0 && (
+                <div className="pt-8 border-t border-gray-100">
+                  <h4 className="text-[10px] font-black text-gray-500 uppercase tracking-[0.3em] mb-6 flex items-center gap-2">
+                    <Zap className="h-4 w-4 text-amber-500" /> Shareholder & Insider Activity Trend
+                  </h4>
+                  
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    {/* Insider Transaction Chart */}
+                    <div className="p-6 rounded-2xl bg-gray-50/50 border border-gray-100 shadow-inner">
+                      <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-4">내부자 전수 조사: 월별 순거래량 (Insiders Track)</p>
+                      <div className="h-[200px] w-full">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <BarChart
+                            data={(() => {
+                              const txs = result.yahooData?.insiderTransactions || [];
+                              const groups: { [key: string]: number } = {};
+                              txs.forEach(t => {
+                                const date = new Date(t.startDate);
+                                const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+                                const shares = t.shares || 0;
+                                const isSale = t.transactionText?.toLowerCase().includes('sale');
+                                groups[key] = (groups[key] || 0) + (isSale ? -shares : shares);
+                              });
+                              return Object.entries(groups)
+                                .sort((a, b) => a[0].localeCompare(b[0]))
+                                .map(([month, amount]) => ({ month, amount }));
+                            })()}
+                          >
+                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                            <XAxis 
+                              dataKey="month" 
+                              fontSize={9} 
+                              tickLine={false} 
+                              axisLine={false}
+                              tickFormatter={(val) => val.split('-')[1] + '월'}
+                              fontFamily="monospace"
+                            />
+                            <YAxis hide />
+                            <RechartsTooltip 
+                              cursor={{ fill: 'rgba(59, 130, 246, 0.05)' }}
+                              contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)', fontSize: '10px' }}
+                              labelStyle={{ fontWeight: 'bold' }}
+                              formatter={(value: any) => [value.toLocaleString() + ' shares', 'Net Trade']}
+                            />
+                            <Bar dataKey="amount" radius={[4, 4, 0, 0]}>
+                              {(() => {
+                                const txs = result.yahooData?.insiderTransactions || [];
+                                const groupsArr: { month: string, amount: number }[] = [];
+                                const groups: { [key: string]: number } = {};
+                                txs.forEach(t => {
+                                  const date = new Date(t.startDate);
+                                  const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+                                  const shares = t.shares || 0;
+                                  groups[key] = (groups[key] || 0) + (t.transactionText?.toLowerCase().includes('sale') ? -shares : shares);
+                                });
+                                const sorted = Object.entries(groups).sort((a, b) => a[0].localeCompare(b[0]));
+                                return sorted.map((entry, index) => (
+                                  <Cell key={`cell-${index}`} fill={entry[1] >= 0 ? '#10b981' : '#f43f5e'} />
+                                ));
+                              })()}
+                            </Bar>
+                          </BarChart>
+                        </ResponsiveContainer>
+                      </div>
+                    </div>
+
+                    {/* Institutional Holders List */}
+                    <div className="space-y-4">
+                      <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-4">현재 주요 기관 지배 구조 (Institutional Breakdown)</p>
+                      <div className="grid grid-cols-1 gap-2 max-h-[220px] overflow-y-auto pr-2 custom-scrollbar">
+                        {(result.yahooData?.institutionalHolders || []).slice(0, 10).map((holder: any, idx: number) => (
+                          <div key={idx} className="flex items-center justify-between p-3 rounded-xl bg-white border border-gray-100 hover:border-blue-200 transition-all hover:bg-blue-50/10 hover:shadow-sm">
+                            <div className="flex flex-col">
+                              <span className="text-xs font-black text-gray-800 tracking-tight">{holder.organization}</span>
+                              <span className="text-[9px] text-gray-400 font-bold uppercase mt-0.5">Holding: {holder.position?.toLocaleString()} Shares</span>
+                            </div>
+                            <div className="text-right">
+                               <div className="text-[11px] font-black text-blue-600">{(holder.pctHeld * 100).toFixed(2)}%</div>
+                               <div className="text-[8px] text-gray-400 font-bold uppercase tracking-tighter">Ownership</div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {result.sources && result.sources.length > 0 && (
                 <div className="space-y-4 pt-4 border-t border-gray-200/50">

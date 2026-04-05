@@ -360,7 +360,7 @@ async function performDeepAnalysis(
     const exchangeRate = await fetchExchangeRate();
     const macroContext = await fetchMarketMacroContext(asOfDate);
 
-    const sentiment = await analyzeStockSentiment(stock.ticker, aiModel, apiKey);
+    const sentiment = await analyzeStockSentiment(stock.ticker, aiModel, apiKey, asOfDate);
     if (!sentiment) return null;
 
     const prediction = await predictStockGrowth(stock.ticker, stock.yahooData, macroContext, sentiment, aiModel, apiKey);
@@ -414,6 +414,7 @@ async function performDeepAnalysis(
       sentiment,
       prediction,
       macroContext,
+      yahooData: stock.yahooData,
       earningsRevision: (stock.yahooData as any).earningsRevision,
       fetchedAt: new Date(),
       extractedAt: new Date(),

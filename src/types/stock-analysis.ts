@@ -186,6 +186,7 @@ export interface AnalysisResult extends Partial<FilteredCandidate> {
   macroContext?: MacroContext;
   sentiment?: SentimentAnalysis;
   prediction?: PredictiveAnalysis;
+  yahooData?: YahooFinanceData;
   
   extractedAt: Date;
 }
@@ -302,6 +303,8 @@ export interface YahooFinanceData {
 
   heldPercentInstitutions?: number;
   heldPercentInsiders?: number;
+  insiderTransactions?: any[];
+  institutionalHolders?: any[];
 
   priceHistory: PriceHistoryEntry[];
   financialHistory?: FinancialRecord[];
