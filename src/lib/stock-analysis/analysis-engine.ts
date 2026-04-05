@@ -248,15 +248,21 @@ export async function runAnalysisEngine(
 
         const finalScore = totalWeightSum > 0 ? (weightedScoreSum / totalWeightSum) : 0;
         
-        // ── [Track A 고도화: Buy the Dip & Turnaround] ──
+        // ── [Track A 고도화: Blue Chips & Fundamental Quality] ──
         const isUndervalued = (fullData.trailingPE || 50) < 25 || (fullData.priceToBook || 10) < 3;
         const isNotOverheated = (fullData.currentPrice / (fullData.fiftyTwoWeekHigh || 1)) < 0.95;
-        // earningsEstimate (Yahoo API 모듈명) 기준으로 체크
         const revisions = (fullData as any).earningsRevision;
         const isImproving = (revisions?.upLast30Days || 0) > (revisions?.downLast30Days || 0);
+        
+        // 고도화 지표: 이익의 질과 수급
+        const isHighQuality = (fullData.returnOnEquity || 0) > 0.15 || (fullData.operatingMargins || 0) > 0.15;
+        const hasInstitutionalBacking = (fullData.heldPercentInstitutions || 0) > 0.5; // 50% 이상 기관 보유
 
-        // ── [Track B 고도화: Energy Accumulation & News Breakout] ──
+        // ── [Track B 고도화: Smart Money & Relative Strength Breakout] ──
         const isSideways = Math.abs(fullData.returnRates?.oneMonth || 0) < 5;
+        // 지수 대비 강점 (S&P 500이 하락/횡보할 때 버티는 힘)
+        const hasRelativeStrength = (fullData.returnRates?.oneMonth || 0) > (macroContext.sp500Trend === 'Downtrend' ? -2 : 0);
+        const hasSmartMoney = (fullData.heldPercentInstitutions || 0) > 0.3; // 일정 수준 이상의 기관 발자취
 
         stocksWithScores.push({
           ticker: stock.ticker,
@@ -265,8 +271,8 @@ export async function runAnalysisEngine(
           company: { metrics: { roe: fullData.returnOnEquity } },
           ruleScores,
           totalScore: Number(finalScore.toFixed(2)),
-          isStrongBase: isUndervalued && isNotOverheated && isImproving,
-          isEnergyCoiling: isSideways,
+          isStrongBase: isUndervalued && isNotOverheated && isImproving && isHighQuality,
+          isEnergyCoiling: isSideways && hasRelativeStrength && hasSmartMoney,
         });
       } catch (err) {
         console.error(`[Engine] Analysis failed for ${stock.ticker}:`, err);
@@ -327,8 +333,8 @@ export async function runAnalysisEngine(
   return {
     trackA: finalTrackA,
     trackB: finalTrackB,
-    trackADescription: "학습된 룰을 모두 통과한 전통적 우량주 및 검증된 기업 기반의 정교한 포트폴리오입니다.",
-    trackBDescription: "정량 데이터는 부족하지만 AI가 원천 데이터(뉴스/리포트)에서 강력한 성장 잠재력(Unit Economics)을 발견한 잠재적 유망주입니다.",
+    trackADescription: "이익의 질(ROE/마진)과 기관의 두터운 수급이 확인된 실적 우량주 및 가치 매력도가 높은 기업군입니다.",
+    trackBDescription: "지수 대비 강력하게 버티는 힘(Relative Strength)과 기관의 발자취가 포착된 에너지가 응축된 잠재 돌파 종목군입니다.",
     analysisDate: new Date(),
     summary: `시장 유니버스(${universeType}) 전수 조사를 통해 우량주 ${finalTrackA.length}개와 잠재유망주 ${finalTrackB.length}개를 선별했습니다.`,
     investmentConditions: conditions,

@@ -243,10 +243,11 @@ export async function predictStockGrowth(
   apiKey?: string
 ): Promise<PredictiveAnalysis | null> {
   try {
-    const prompt = `Predict the 6-month growth potential for ${ticker} based on these factors:
-    1. Financial Metrics: PER ${metrics.trailingPE}, PBR ${metrics.priceToBook}, ROE ${metrics.returnOnEquity}
-    2. Macro Context: Market Mode ${macro.marketMode}, VIX ${macro.vixStatus}, 10Y Yield ${macro.yieldStatus}
-    3. Sentiment Score: ${sentiment.score}/10 (${sentiment.label})
+    const prompt = `Predict the 6-month growth potential for ${ticker} based on these deep factors:
+    1. Financial Quality: PER ${metrics.trailingPE}, PBR ${metrics.priceToBook}, ROE ${metrics.returnOnEquity}, Operating Margin ${metrics.operatingMargins}, Free Cash Flow ${metrics.freeCashFlow}
+    2. Supply/Demand Context: Institutional Ownership ${metrics.heldPercentInstitutions}, Insider Ownership ${metrics.heldPercentInsiders}
+    3. Macro Context: Market Mode ${macro.marketMode}, VIX ${macro.vixStatus}, 10Y Yield ${macro.yieldStatus}
+    4. Sentiment Score: ${sentiment.score}/10 (${sentiment.label})
     
     Return a JSON object:
     - growthPotential: 'Bullish', 'Neutral', or 'Bearish'
@@ -327,7 +328,9 @@ export async function generateExpertVerdict(
     - Business Summary: ${metrics.businessSummary ? metrics.businessSummary.slice(0, 500) : 'N/A'}
     - Expert Articles/Knowledge: ${knowledge.keyConditionsSummary || 'N/A'}
     - Current News Sentiment: ${sentiment.score}/10 (${sentiment.label})
-    - Stock Data (Secondary): PER ${metrics.trailingPE}, Macro ${macro.marketMode}
+    - Stock Performance: 1m Return ${metrics.returnRates?.oneMonth}%, 1y Return ${metrics.returnRates?.oneYear}%
+    - Key Metrics: PER ${metrics.trailingPE}, ROE ${metrics.returnOnEquity}, Institutional Prop ${metrics.heldPercentInstitutions}
+    - Macro Environment: Market ${macro.marketMode}, VIX ${macro.vixStatus}
     
     Priority: If the news/articles suggest a breakthrough technology or market disruption, prioritize this over weak financial data.
     

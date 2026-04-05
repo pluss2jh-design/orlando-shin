@@ -401,12 +401,12 @@ export function AnalysisOutput({ results, conditions, isLoading, onSendEmail }: 
           </Badge>
           <h2 className="text-4xl font-black text-gray-900 tracking-tight">AI Dual-Track Investment Report</h2>
           <p className="text-gray-500 max-w-2xl mx-auto font-medium">
-            전통적 계량 지표(A)와 지능형 유닛 경제성(B)을 결합한 하이브리드 포트폴리오 스캔 결과입니다.
+            전통적 가치 지표와 이익의 질(A), 그리고 스마트 머니의 흐름과 상대적 강성(B)을 결합한 하이브리드 포트폴리오 스캔 결과입니다.
           </p>
         </div>
 
-        {renderTrack("Master Track A: Blue Chips", results.trackADescription, results.trackA, "border-blue-500/10")}
-        {renderTrack("Alpha Track B: Growth Prospects", results.trackBDescription, results.trackB, "border-purple-500/10", true)}
+        {renderTrack("Master Track A: Quality & Stability", results.trackADescription, results.trackA, "border-blue-500/10")}
+        {renderTrack("Alpha Track B: Smart Money & Momentum", results.trackBDescription, results.trackB, "border-purple-500/10", true)}
 
         <BacktestDialog 
           ticker={backtestTicker || ''} 

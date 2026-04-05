@@ -291,6 +291,17 @@ export interface YahooFinanceData {
   industry?: string;
   businessSummary?: string;
   revenueGrowth?: number;
+  operatingMargins?: number;
+  ebitdaMargins?: number;
+  grossMargins?: number;
+  profitMargins?: number;
+
+  freeCashFlow?: number;
+  operatingCashflow?: number;
+  returnOnAssets?: number;
+
+  heldPercentInstitutions?: number;
+  heldPercentInsiders?: number;
 
   priceHistory: PriceHistoryEntry[];
   financialHistory?: FinancialRecord[];
