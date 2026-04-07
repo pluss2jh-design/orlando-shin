@@ -178,12 +178,15 @@ export async function listDriveFiles(
       if (shouldCancel && shouldCancel()) break;
     } while (nextPageToken);
 
+    // [중속성 수정] 최종 결과에서는 폴더를 제외하고 파일수만 카운트하여 사용자 혼선을 방지합니다.
+    const onlyFiles = allFiles.filter(f => f.mimeType !== 'application/vnd.google-apps.folder');
+
     if (depth === 0) {
-      console.log(`[Drive] Total files discovered across all subfolders: ${allFiles.length}`);
+      console.log(`[Drive] Total files discovered (excluding folders): ${onlyFiles.length}`);
     }
     return {
-      files: allFiles,
-      totalCount: allFiles.length,
+      files: allFiles, // 리스트 트리 표시를 위해 구조는 유지하되
+      totalCount: onlyFiles.length, // 카운트만 수정한 버전
       syncedAt: new Date(),
     };
   } catch (error: any) {

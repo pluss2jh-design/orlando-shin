@@ -18,6 +18,7 @@ export async function GET() {
             totalFiles: learningStatus.totalFiles,
             completedFiles: learningStatus.completedFiles,
             failedFiles: learningStatus.failedFiles,
+            failedDetails: learningStatus.failedDetails,
             error: learningStatus.error,
             message: learningStatus.message,
         });

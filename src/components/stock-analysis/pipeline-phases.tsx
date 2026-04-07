@@ -50,9 +50,33 @@ export function Phase1Panel({ knowledge, isLearning, learningStatus }: {
             value={(learningStatus.completedFiles / Math.max(1, learningStatus.totalFiles)) * 100}
             className="h-1.5 bg-amber-950"
           />
-          <p className="text-[10px] text-amber-500/70 font-medium mt-1.5 truncate">
-            {learningStatus.message || '원천 데이터 분석 중...'}
-          </p>
+          <div className="flex items-center justify-between mt-2">
+            <p className="text-[10px] text-amber-500/70 font-medium truncate flex-1">
+              {learningStatus.message || '원천 데이터 분석 중...'}
+            </p>
+            {learningStatus.failedFiles > 0 && (
+              <div className="flex items-center gap-1.5 text-rose-500 group relative cursor-help ml-2 shrink-0">
+                <AlertCircle className="h-3 w-3" />
+                <span className="text-[10px] font-black">{learningStatus.failedFiles} FAILED</span>
+                
+                {/* Hover Tooltip for Failed Files */}
+                <div className="absolute top-full right-0 mt-2 w-80 p-3 bg-[#1c2128] border border-rose-500/30 rounded-xl shadow-2xl opacity-0 group-hover:opacity-100 pointer-events-none transition-all z-50 transform -translate-y-1 group-hover:translate-y-0">
+                  <p className="text-[10px] font-black text-rose-400 mb-2 border-b border-rose-500/20 pb-1.5 uppercase tracking-widest flex items-center gap-2">
+                    <AlertCircle className="h-3 w-3" />
+                    분석 실패 파일 상세 원인
+                  </p>
+                  <div className="space-y-2 max-h-48 overflow-y-auto pr-1 custom-scrollbar">
+                    {learningStatus.failedDetails?.map((fd: any, idx: number) => (
+                      <div key={idx} className="text-[10px] leading-relaxed border-b border-white/5 pb-1.5 last:border-0 text-left">
+                        <span className="text-rose-300 font-bold block truncate mb-0.5">{fd.fileName}</span>
+                        <span className="text-white/40 block italic">{fd.reason}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       )}
 

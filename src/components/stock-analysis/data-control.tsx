@@ -779,12 +779,28 @@ export function DataControl({ onFilesChange, onSyncStatusChange, onLearningCompl
                    <Check className="h-3 w-3" />
                    <span>{backendLearningStatus.completedFiles} SUCCESS</span>
                  </div>
-                 {backendLearningStatus.failedFiles > 0 && (
-                   <div className="flex items-center gap-1.5 text-rose-500">
-                     <AlertCircle className="h-3 w-3" />
-                     <span>{backendLearningStatus.failedFiles} FAILED</span>
-                   </div>
-                 )}
+                  {backendLearningStatus.failedFiles > 0 && (
+                    <div className="flex items-center gap-1.5 text-rose-500 group relative cursor-help">
+                      <AlertCircle className="h-3 w-3" />
+                      <span>{backendLearningStatus.failedFiles} FAILED</span>
+                      
+                      {/* Hover Tooltip for Failed Files */}
+                      <div className="absolute bottom-full left-0 mb-2 w-80 p-3 bg-[#1c2128] border border-rose-500/30 rounded-xl shadow-2xl opacity-0 group-hover:opacity-100 pointer-events-none transition-all z-50 transform translate-y-1 group-hover:translate-y-0">
+                        <p className="text-[10px] font-black text-rose-400 mb-2 border-b border-rose-500/20 pb-1.5 uppercase tracking-widest flex items-center gap-2">
+                          <AlertCircle className="h-3 w-3" />
+                          분석 실패 파일 상세 원인
+                        </p>
+                        <div className="space-y-2 max-h-48 overflow-y-auto pr-1 custom-scrollbar">
+                          {(backendLearningStatus as any).failedDetails?.map((fd: any, idx: number) => (
+                            <div key={idx} className="text-[10px] leading-relaxed border-b border-white/5 pb-1.5 last:border-0">
+                              <span className="text-rose-300 font-bold block truncate mb-0.5">{fd.fileName}</span>
+                              <span className="text-white/40 block italic">{fd.reason}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  )}
                  <div className="flex items-center gap-1.5 text-muted-foreground animate-pulse">
                    <Loader2 className="h-3 w-3 animate-spin" />
                    <span>PROCESSING {backendLearningStatus.completedFiles + backendLearningStatus.failedFiles} / {backendLearningStatus.totalFiles}</span>

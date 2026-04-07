@@ -24,6 +24,7 @@ interface GlobalLearningStatus {
   error: string | null;
   message: string | null;
   isCancelled: boolean;
+  failedDetails: { fileName: string; reason: string }[];
 }
 
 declare global {
@@ -39,7 +40,8 @@ export const learningStatus = globalThis.learningStatus || {
   startTime: null,
   error: null,
   message: null,
-  isCancelled: false
+  isCancelled: false,
+  failedDetails: []
 };
 globalThis.learningStatus = learningStatus;
 
@@ -52,6 +54,7 @@ export function resetLearningStatus(total: number) {
   learningStatus.error = null;
   learningStatus.message = '학습을 시작합니다...';
   learningStatus.isCancelled = false;
+  learningStatus.failedDetails = [];
 }
 
 export function stopLearning() {
@@ -108,6 +111,7 @@ export async function runLearningPipeline(
         if (!content || content.trim().length === 0) {
           console.warn(`[AI Learning] Skipping file (No content): ${file.name}`);
           learningStatus.failedFiles++;
+          learningStatus.failedDetails.push({ fileName: file.name, reason: '내용 없음 (빈 파일 또는 추출 실패)' });
           return;
         }
 
@@ -126,6 +130,10 @@ export async function runLearningPipeline(
       } catch (error: any) {
         console.error(`Error analyzing file ${file.name}:`, error?.message || error);
         learningStatus.failedFiles++;
+        learningStatus.failedDetails.push({ 
+          fileName: file.name, 
+          reason: error?.message || String(error) 
+        });
       }
     }));
   }
