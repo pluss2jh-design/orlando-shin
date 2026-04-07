@@ -31,6 +31,7 @@ interface AnalysisJobStatus {
   };
   macroContext?: any;
   isCancelled?: boolean;
+  conditions?: InvestmentConditions;
 }
 
 
@@ -144,7 +145,8 @@ export class StockService {
       startedAt: new Date(),
       progress: 1, // 0%에서 멈춘 것처럼 보이지 않게 즉시 1%로 시작
       progressMessage: '분석 엔진 초기화 중...',
-      isCancelled: false
+      isCancelled: false,
+      conditions: options.conditions || (options as any)
     });
 
     // 4. 백그라운드 엔진 실행 (비동기 - fire & forget)
@@ -193,14 +195,16 @@ export class StockService {
         );
 
         // 성공 시 사용량 카운트 업 및 개별 리포트 저장
+        const allResults = [...(result.trackA || []), ...(result.trackB || [])];
         await Promise.all([
           StockService.incrementAnalysisUsage(userId),
-          StockService.saveAnalysisReports(userId, result.topPicks || [], result.investmentConditions)
+          StockService.saveAnalysisReports(userId, allResults, result.investmentConditions)
         ]);
 
         userAnalysisJobs.set(userId, {
           status: 'completed',
           result,
+          conditions: result.investmentConditions,
           startedAt: new Date(),
           excludedStockCount: result.excludedStockCount,
           excludedDetails: result.excludedDetails,

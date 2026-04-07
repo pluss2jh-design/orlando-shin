@@ -607,29 +607,62 @@ export function AnalysisOutput({ results, conditions, isLoading, onSendEmail }: 
                     </p>
                     <div className="flex items-center gap-3 mb-3">
                       <div className="text-3xl font-black text-gray-900">{result.sentiment?.score}</div>
-                      <Badge className={cn("px-2 py-0.5 text-[9px] font-black border-none shadow-none", result.sentiment?.score && result.sentiment.score >= 7 ? "bg-emerald-500/10 text-emerald-600" : "bg-blue-500/10 text-blue-600")}>
-                        {result.sentiment?.label === 'Positive' ? '긍정적' : result.sentiment?.label === 'Negative' ? '부정적' : '중립'}
+                      <Badge className={cn(
+                        "px-2 py-0.5 text-[9px] font-black border-none shadow-none uppercase tracking-tighter", 
+                        result.sentiment?.label === 'Positive' ? "bg-emerald-500/10 text-emerald-600" : 
+                        result.sentiment?.label === 'High Potential' ? "bg-purple-500/10 text-purple-600" :
+                        result.sentiment?.label === 'Negative' ? "bg-rose-500/10 text-rose-600" :
+                        "bg-blue-500/10 text-blue-600"
+                      )}>
+                        {result.sentiment?.label === 'Positive' ? '긍정적' : 
+                         result.sentiment?.label === 'High Potential' ? '강력 추천' :
+                         result.sentiment?.label === 'Negative' ? '부정적' : '중립'}
                       </Badge>
                     </div>
                     {result.sentiment?.summary && (
-                      <p className="text-[11px] text-gray-600 mb-4 italic leading-relaxed">"{result.sentiment.summary}"</p>
+                      <p className="text-[11px] text-gray-600 mb-4 font-medium leading-relaxed italic">"{result.sentiment.summary}"</p>
                     )}
+
+                    {/* Top AI Signals Selection */}
+                    {result.sentiment?.topSignals && result.sentiment.topSignals.length > 0 && (
+                      <div className="mt-4 pt-4 border-t border-gray-100">
+                        <div className="flex items-center justify-between mb-3">
+                          <p className="text-[9px] font-black text-blue-600 uppercase tracking-widest font-mono">핵심 투자 시그널 (Top 10 Selection)</p>
+                          <Badge variant="outline" className="text-[8px] border-blue-100 text-blue-500 bg-blue-50/30">AI Filtered</Badge>
+                        </div>
+                        <div className="space-y-3">
+                          {result.sentiment.topSignals.map((signal, idx) => (
+                            <div key={idx} className="group/sig relative pl-4 border-l-2 border-gray-100 hover:border-blue-400 transition-all duration-300">
+                              <p className="text-[10px] font-bold text-gray-800 line-clamp-1 mb-0.5 group-hover/sig:text-blue-700 transition-colors uppercase leading-tight">{signal.title}</p>
+                              <p className="text-[9px] text-gray-400 group-hover/sig:text-gray-500 line-clamp-2 leading-snug">{signal.impact}</p>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Reference Sources */}
                     {result.sentiment?.recentHeadlines && result.sentiment.recentHeadlines.length > 0 && (
-                      <div className="space-y-1.5 pt-3 border-t border-gray-100">
-                        <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1.5 font-mono">분석 대상 뉴스 헤드라인 (Yahoo Finance)</p>
-                        {result.sentiment.recentHeadlines.slice(0, 3).map((h: any, idx: number) => (
-                           <a 
-                             key={idx} 
-                             href={h.url} 
-                             target="_blank" 
-                             rel="noopener noreferrer"
-                             className="flex gap-2 items-start group/news hover:bg-blue-50/50 p-1 rounded transition-colors"
-                           >
-                             <div className="mt-1.5 w-1 h-1 rounded-full bg-blue-400 shrink-0 group-hover/news:bg-blue-600 transition-colors" />
-                             <span className="text-[10px] text-gray-500 line-clamp-1 group-hover/news:text-blue-600 transition-colors font-medium">{h.title}</span>
-                             <ExternalLink className="h-2.5 w-2.5 text-gray-300 opacity-0 group-hover/news:opacity-100 transition-all shrink-0 mt-0.5" />
-                           </a>
-                        ))}
+                      <div className="mt-4 pt-4 border-t border-gray-100">
+                        <p className="text-[8px] font-black text-gray-300 uppercase tracking-widest mb-3 font-mono">원천 데이터 인용 (Reference Sources)</p>
+                        <div className="space-y-2 opacity-60 hover:opacity-100 transition-opacity">
+                          {result.sentiment.recentHeadlines.slice(0, 5).map((h: any, idx: number) => (
+                             <a 
+                               key={idx} 
+                               href={h.url} 
+                               target="_blank" 
+                               rel="noopener noreferrer"
+                               className="flex gap-2 items-start group/news p-1 -mx-1 rounded transition-colors"
+                             >
+                               <div className="mt-1.5 w-1 h-1 rounded-full bg-gray-200 shrink-0 group-hover/news:bg-blue-400" />
+                               <span className="text-[9px] text-gray-400 line-clamp-1 group-hover/news:text-gray-600 transition-colors font-medium">{h.title}</span>
+                               <ExternalLink className="h-2 w-2 text-gray-300 opacity-0 group-hover/news:opacity-100 transition-all shrink-0 mt-0.5" />
+                             </a>
+                          ))}
+                          {result.sentiment.recentHeadlines.length > 5 && (
+                            <p className="text-[8px] text-gray-300 italic pl-3">외 {result.sentiment.recentHeadlines.length - 5}개의 추가 데이터 소스 분석됨</p>
+                          )}
+                        </div>
                       </div>
                     )}
                   </div>
@@ -658,7 +691,7 @@ export function AnalysisOutput({ results, conditions, isLoading, onSendEmail }: 
               </div>
 
               {/* [New] Ownership & Insider Trend Section */}
-              {(result.yahooData?.insiderTransactions?.length || 0) > 0 && (
+              {((result.yahooData?.insiderTransactions?.length || 0) > 0 || (result.yahooData?.institutionalHolders?.length || 0) > 0) && (
                 <div className="pt-8 border-t border-gray-100">
                   <h4 className="text-[10px] font-black text-gray-500 uppercase tracking-[0.3em] mb-6 flex items-center gap-2">
                     <Zap className="h-4 w-4 text-amber-500" /> Shareholder & Insider Activity Trend
@@ -668,59 +701,65 @@ export function AnalysisOutput({ results, conditions, isLoading, onSendEmail }: 
                     {/* Insider Transaction Chart */}
                     <div className="p-6 rounded-2xl bg-gray-50/50 border border-gray-100 shadow-inner">
                       <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-4">내부자 전수 조사: 월별 순거래량 (Insiders Track)</p>
-                      <div className="h-[200px] w-full">
-                        <ResponsiveContainer width="100%" height="100%">
-                          <BarChart
-                            data={(() => {
-                              const txs = result.yahooData?.insiderTransactions || [];
-                              const groups: { [key: string]: number } = {};
-                              txs.forEach(t => {
-                                const date = new Date(t.startDate);
-                                const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-                                const shares = t.shares || 0;
-                                const isSale = t.transactionText?.toLowerCase().includes('sale');
-                                groups[key] = (groups[key] || 0) + (isSale ? -shares : shares);
-                              });
-                              return Object.entries(groups)
-                                .sort((a, b) => a[0].localeCompare(b[0]))
-                                .map(([month, amount]) => ({ month, amount }));
-                            })()}
-                          >
-                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-                            <XAxis 
-                              dataKey="month" 
-                              fontSize={9} 
-                              tickLine={false} 
-                              axisLine={false}
-                              tickFormatter={(val) => val.split('-')[1] + '월'}
-                              fontFamily="monospace"
-                            />
-                            <YAxis hide />
-                            <RechartsTooltip 
-                              cursor={{ fill: 'rgba(59, 130, 246, 0.05)' }}
-                              contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)', fontSize: '10px' }}
-                              labelStyle={{ fontWeight: 'bold' }}
-                              formatter={(value: any) => [value.toLocaleString() + ' shares', 'Net Trade']}
-                            />
-                            <Bar dataKey="amount" radius={[4, 4, 0, 0]}>
-                              {(() => {
+                      <div className="h-[200px] w-full flex items-center justify-center">
+                        {(result.yahooData?.insiderTransactions?.length || 0) > 0 ? (
+                          <ResponsiveContainer width="100%" height="100%">
+                            <BarChart
+                              data={(() => {
                                 const txs = result.yahooData?.insiderTransactions || [];
-                                const groupsArr: { month: string, amount: number }[] = [];
                                 const groups: { [key: string]: number } = {};
                                 txs.forEach(t => {
                                   const date = new Date(t.startDate);
                                   const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
                                   const shares = t.shares || 0;
-                                  groups[key] = (groups[key] || 0) + (t.transactionText?.toLowerCase().includes('sale') ? -shares : shares);
+                                  const isSale = t.transactionText?.toLowerCase().includes('sale');
+                                  groups[key] = (groups[key] || 0) + (isSale ? -shares : shares);
                                 });
-                                const sorted = Object.entries(groups).sort((a, b) => a[0].localeCompare(b[0]));
-                                return sorted.map((entry, index) => (
-                                  <Cell key={`cell-${index}`} fill={entry[1] >= 0 ? '#10b981' : '#f43f5e'} />
-                                ));
+                                return Object.entries(groups)
+                                  .sort((a, b) => a[0].localeCompare(b[0]))
+                                  .map(([month, amount]) => ({ month, amount }));
                               })()}
-                            </Bar>
-                          </BarChart>
-                        </ResponsiveContainer>
+                            >
+                              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                              <XAxis 
+                                dataKey="month" 
+                                fontSize={9} 
+                                tickLine={false} 
+                                axisLine={false}
+                                tickFormatter={(val) => val.split('-')[1] + '월'}
+                                fontFamily="monospace"
+                              />
+                              <YAxis hide />
+                              <RechartsTooltip 
+                                cursor={{ fill: 'rgba(59, 130, 246, 0.05)' }}
+                                contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)', fontSize: '10px' }}
+                                labelStyle={{ fontWeight: 'bold' }}
+                                formatter={(value: any) => [value.toLocaleString() + ' shares', 'Net Trade']}
+                              />
+                              <Bar dataKey="amount" radius={[4, 4, 0, 0]}>
+                                {(() => {
+                                  const txs = result.yahooData?.insiderTransactions || [];
+                                  const groups: { [key: string]: number } = {};
+                                  txs.forEach(t => {
+                                    const date = new Date(t.startDate);
+                                    const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+                                    const shares = t.shares || 0;
+                                    groups[key] = (groups[key] || 0) + (t.transactionText?.toLowerCase().includes('sale') ? -shares : shares);
+                                  });
+                                  const sorted = Object.entries(groups).sort((a, b) => a[0].localeCompare(b[0]));
+                                  return sorted.map((entry, index) => (
+                                    <Cell key={`cell-${index}`} fill={entry[1] >= 0 ? '#10b981' : '#f43f5e'} />
+                                  ));
+                                })()}
+                              </Bar>
+                            </BarChart>
+                          </ResponsiveContainer>
+                        ) : (
+                          <div className="text-center space-y-2">
+                             <Activity className="h-8 w-8 text-gray-200 mx-auto" />
+                             <p className="text-[10px] text-gray-400 font-bold">최근 공시된 내부자 거래 내역이 없습니다.</p>
+                          </div>
+                        )}
                       </div>
                     </div>
 
@@ -728,18 +767,25 @@ export function AnalysisOutput({ results, conditions, isLoading, onSendEmail }: 
                     <div className="space-y-4">
                       <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-4">현재 주요 기관 지배 구조 (Institutional Breakdown)</p>
                       <div className="grid grid-cols-1 gap-2 max-h-[220px] overflow-y-auto pr-2 custom-scrollbar">
-                        {(result.yahooData?.institutionalHolders || []).slice(0, 10).map((holder: any, idx: number) => (
-                          <div key={idx} className="flex items-center justify-between p-3 rounded-xl bg-white border border-gray-100 hover:border-blue-200 transition-all hover:bg-blue-50/10 hover:shadow-sm">
-                            <div className="flex flex-col">
-                              <span className="text-xs font-black text-gray-800 tracking-tight">{holder.organization}</span>
-                              <span className="text-[9px] text-gray-400 font-bold uppercase mt-0.5">Holding: {holder.position?.toLocaleString()} Shares</span>
+                        {(result.yahooData?.institutionalHolders?.length || 0) > 0 ? (
+                          (result.yahooData?.institutionalHolders || []).slice(0, 10).map((holder: any, idx: number) => (
+                            <div key={idx} className="flex items-center justify-between p-3 rounded-xl bg-white border border-gray-100 hover:border-blue-200 transition-all hover:bg-blue-50/10 hover:shadow-sm">
+                              <div className="flex flex-col">
+                                <span className="text-xs font-black text-gray-800 tracking-tight">{holder.organization}</span>
+                                <span className="text-[9px] text-gray-400 font-bold uppercase mt-0.5">Holding: {holder.position?.toLocaleString()} Shares</span>
+                              </div>
+                              <div className="text-right">
+                                 <div className="text-[11px] font-black text-blue-600">{(holder.pctHeld * 100).toFixed(2)}%</div>
+                                 <div className="text-[8px] text-gray-400 font-bold uppercase tracking-tighter">Ownership</div>
+                              </div>
                             </div>
-                            <div className="text-right">
-                               <div className="text-[11px] font-black text-blue-600">{(holder.pctHeld * 100).toFixed(2)}%</div>
-                               <div className="text-[8px] text-gray-400 font-bold uppercase tracking-tighter">Ownership</div>
-                            </div>
+                          ))
+                        ) : (
+                          <div className="h-[180px] border border-dashed border-gray-200 rounded-xl flex flex-col items-center justify-center gap-2 opacity-50">
+                             <FileText className="h-6 w-6 text-gray-300" />
+                             <p className="text-[10px] font-bold text-gray-400">기관 투자자 공시 데이터를 불러올 수 없습니다.</p>
                           </div>
-                        ))}
+                        )}
                       </div>
                     </div>
                   </div>

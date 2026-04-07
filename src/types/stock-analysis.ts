@@ -413,10 +413,12 @@ export interface MacroContext {
 
 export interface SentimentAnalysis {
   score: number; // -10 to 10
-  label: 'Positive' | 'Negative' | 'Neutral';
+  label: 'Positive' | 'Negative' | 'Neutral' | 'High Potential';
   summary: string;
+  topSignals?: { title: string; impact: string }[];
   recentHeadlines: { title: string; url?: string }[];
   riskHeadlines: { title: string; url?: string }[];
+  focusKeywords?: string[];
 }
 
 export interface PredictiveAnalysis {

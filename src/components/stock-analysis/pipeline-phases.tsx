@@ -619,9 +619,19 @@ function RuleCard({ rule, expanded = false }: { rule: any; expanded?: boolean })
               {rule.quantification.target_metric}
             </span>
             <span className="text-white/40 font-black">{rule.quantification.condition}</span>
-            <span className="text-lg font-black text-amber-300">{rule.quantification.benchmark}</span>
-            <span className="text-xs text-white/30 font-bold ml-auto">{rule.quantification.benchmark_type?.toUpperCase()}</span>
+            <span className="text-lg font-black text-amber-300">{rule.quantification.benchmark || rule.quantification.value}</span>
+            <span className="text-xs text-white/30 font-bold ml-auto">{rule.quantification.benchmark_type?.toUpperCase() || 'ABSOLUTE'}</span>
           </div>
+        </div>
+      )}
+
+      {/* Rationale */}
+      {rule.weightRationale && (
+        <div className="mb-4 p-3 rounded-xl bg-amber-500/5 border border-amber-500/10 flex items-start gap-2.5">
+          <Brain className="h-4 w-4 text-amber-400 shrink-0 mt-0.5" />
+          <p className="text-[11px] text-amber-300/80 font-medium leading-relaxed italic">
+            &ldquo;{rule.weightRationale}&rdquo;
+          </p>
         </div>
       )}
 

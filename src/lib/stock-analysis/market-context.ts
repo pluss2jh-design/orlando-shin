@@ -129,17 +129,15 @@ export async function analyzeStockSentiment(
     const isHistorical = asOfDate && (new Date().getTime() - asOfDate.getTime() > 1000 * 60 * 60 * 24 * 7); // 7일 이상 과거
 
     if (isHistorical && asOfDate) {
-      // ── [Time Machine: Historical News Fetch] ──
-      // Google News RSS의 기간 한정 검색 쿼리 사용
       const end = asOfDate.toISOString().split('T')[0];
       const startObj = new Date(asOfDate);
-      startObj.setMonth(startObj.getMonth() - 2); // 2개월 전부터 뉴스 수집
+      startObj.setMonth(startObj.getMonth() - 2); 
       const start = startObj.toISOString().split('T')[0];
       
       const query = `${ticker}+stock+after:${start}+before:${end}`;
       const rssUrl = `https://news.google.com/rss/search?q=${query}&hl=en-US&gl=US&ceid=US:en`;
       
-      console.log(`[Time Machine] Fetching historical news from RSS: ${rssUrl}`);
+      console.log(`[Time Machine] Fetching deep historical news (35+ items) for filtering: ${rssUrl}`);
       
       try {
         const response = await fetch(rssUrl, {
@@ -148,12 +146,11 @@ export async function analyzeStockSentiment(
           }
         });
         const xml = await response.text();
-        // 간단한 정규식으로 <title> 태그 추출 (라이브러리 최소화)
         const matches = xml.match(/<title>(.*?)<\/title>/g) || [];
         headlines = matches
-          .slice(1, 15) // 첫 번째는 채널 제목이므로 무시
+          .slice(1, 40) // Increased limit to 40 for better filtering pool
           .map(m => ({ title: m.replace(/<title>|<\/title>/g, '').replace(/&amp;/g, '&'), url: '' }))
-          .filter(h => h.title.length > 10);
+          .filter(h => h.title.length > 15);
       } catch (e) {
         console.warn('Historical news fetch failed, falling back to recent search');
       }
@@ -161,7 +158,7 @@ export async function analyzeStockSentiment(
 
     if (headlines.length === 0) {
       const searchResult = await yahooFinance.search(ticker, {}, { validateResult: false }) as any;
-      const news = (searchResult.news || []).slice(0, 10);
+      const news = (searchResult.news || []).slice(0, 30); 
       headlines = news.map((n: any) => ({ title: n.title, url: n.link || n.url })).filter((n: any) => n.title);
     }
 
@@ -175,28 +172,27 @@ export async function analyzeStockSentiment(
       };
     }
 
-    const prompt = `You are a strict financial news validator and sentiment analyzer for the public company traded under the ticker ${ticker}. 
-    
-    1. STRICT FILTERING: Critically evaluate each headline to determine if it is TRULY about the financial company ${ticker}. 
-       WARNING: Tickers like "KEYS", "APPLE", "FOX" might return news about sports players (e.g., Madison Keys), generic terms, or unrelated entities. 
-       You MUST completely ignore and discard any headline that is not about the corporate entity ${ticker}.
-       If ALL headlines are unrelated to the company, return score: 0 and label: 'Neutral'.
-       
-    2. SENTIMENT SCORING: Analyze the sentiment of only the RELEVANT headlines. 
-       Return a score from -10 (very negative) to 10 (very positive).
-       WARNING: If relevant headlines contain bearish sentiment, "sell" recommendations, downgrades, or significant risks, you MUST lower the score significantly (e.g., -5 to -10) and assign the 'Negative' label. DO NOT give a high score or "High Potential" label if the news is telling investors to sell or avoid the stock.
+    const prompt = `You are a professional investment analyst tasked with identifying CRITICAL signals for ${ticker}.
+
+    1. DATA INPUT: You are provided with ${headlines.length} news headlines related to ${ticker}. 
+    2. SIGNAL EXTRACTION (MAP): Carefully read each headline and categorize it:
+       - 'Signal': Direct impact on earnings, product launch, M&A, regulatory changes, or significant insider/institutional activity.
+       - 'Noise': Generic market updates, sports/celebrities with similar names, simple price movements without reasons, or ads.
+    3. SELECTION (REDUCE): From the 'Signals', select the TOP 10 most impactful headlines for long-term investors.
+    4. ANALYSIS: Calculate a sentiment score (-10 to 10) based ONLY on these top 10 signals. 
 
     Return a JSON object with:
-    - score: integer from -10 to 10
+    - score: integer from -10 to 10 based on the net impact of the top 10 signals.
     - label: 'Positive', 'Neutral', 'Negative' or 'High Potential'
-    - summary: brief 1-sentence summary of the news impact (MUST BE IN KOREAN)
-    - riskHeadlines: array of headlines that suggest potential risks or sell opinions (MUST BE IN KOREAN)
-    - focusKeywords: array of key topics found in relevant news (KOREAN)
+    - summary: A cohesive 2-sentence summary of the overall news tone (KOREAN)
+    - topSignals: Array of objects { title: string, impact: string } where impact is a 1-sentence explanation (KOREAN). Max 10 items.
+    - riskHeadlines: Array of strings representing headlines explicitly mentioning downsides (KOREAN).
+    - focusKeywords: 3-5 keywords representing the core theme (KOREAN).
     
-    Headlines:
+    Headlines to analyze:
     ${headlines.map((h: { title: string }) => h.title).join('\n- ')}
     
-    Return ONLY JSON. All text descriptions must be in Korean.`;
+    Return ONLY JSON. All explanations, summaries, and impacts must be in Korean.`;
 
     const text = await withRetry(async () => {
       if (!aiModel) throw new Error('AI 모델이 선택되지 않았습니다.');

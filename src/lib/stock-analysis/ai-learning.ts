@@ -195,28 +195,52 @@ async function extractFileContent(file: DriveFileInfo): Promise<string> {
  */
 async function analyzeIndividualFile(genAI: any, modelName: string, file: DriveFileInfo, content: string) {
   const prompt = `
-    당신은 전설적인 주식 투자자들의 논리를 학습하는 AI입니다. 
-    다음 제공된 자료(파일내용)에서 '훌륭한 기업을 찾는 기준'과 '매수 타이밍/패턴'을 추출하세요.
+    당신은 전설적인 주식 투자자들의 논리를 학습하고 데이터에서 초과 수익의 원천(Alpha)을 발굴하는 수석 데이터 과학자입니다. 
+    제공된 자료에서 '훌륭한 기업을 찾는 기준'과 '매수 타이밍/패턴'을 정밀하게 추출하고 고도의 '투자 알고리즘'으로 변환하십시오.
 
     파일명: ${file.name}
-    내용 요약: ${content.substring(0, 15000)}...
+    내용 자료 (최대 100k 자): 
+    ${content.substring(0, 100000)}
 
-    주의사항:
-    1. 특정 기업의 고유한 기술(예: 구글 TPU)은 '상기 기업의 핵심 Moat: 수직 계열화 및 공정 효율'과 같은 일반화된 규칙으로 변환하세요.
-    2. 정량적 지표가 있다면 반드시 추출하세요 (예: ROE > 15%, 부채비율 < 100%).
-    3. 필수 여부(isCritical)를 참/거짓으로 설정하지 말고, 반드시 필요한 기준일수록 높은 가중치(weight)를 주세요. (1~5 사이)
+    [분석 및 필터링 지침]
+    1. 노이즈 제거: 자료의 앞이나 뒷부분에 나타나는 인사말, 공지사항 등 투자 로직과 관계없는 텍스트는 무시하십시오.
     
-    JSON 형식으로만 대답하세요:
+    2. 다차원적 규칙 발굴: 단순한 수익성 지표에 그치지 말고, 아래 관점에서 전방위적으로 포착하십시오.
+       - 비즈니스 모델: 경제적 해자(Moat), 가격 결정력, 네트워크 효과, 규모의 경제.
+       - 성장 모멘텀: 지속 가능한 성장률, 신시장 개척 역량, 제품 혁신 주기.
+       - 재무적 건전성: 자본 효율성(ROE/ROIC), 잉여현금흐름(FCF) 창출력, 자산 경량화 여부.
+       - 밸류에이션: 기업 성장 단계나 업종 평균 대비 매력적인 가격대 설정 로직.
+       - 리스크 통제: 경영진 도덕성, 부채 구조, 규제 리스크 방어 기제.
+
+    3. 맥락 인지적 수치화: 구체적인 수치가 언급될 경우, 이를 모든 기업에 일괄 적용하는지(절대 수칙), 특정 섹터나 조건에만 적용되는지(상대 수칙) 구분하십시오.
+       - 섹터 특이성: 해당 지표가 특히 중요한 섹터(예: Tech, Financials 등)를 명시하십시오.
+       - 벤치마크 유형: 비교 기준점(분야 평균 대비, 역사적 저점 대비 등)을 명확히 하십시오.
+       - 텐베거 징후: 만약 큰 폭의 성장이 기대되는 기업(텐베거)의 특징이 언급된다면 이를 핵심 로직으로 포함하십시오.
+
+    4. 논리적 가중치 산출 (1~5점): '신뢰도 x 영향력' 점수에 따라 부여하십시오.
+       - 가중치 5: 결정적 요인. 이 요인이 없으면 투자의 근간이 무너지는 핵심 로직.
+       - 가중치 1~2: 보조 지표. 긍정적인 신호이나 다른 지표와 결합이 필요한 요인.
+
+    결과는 반드시 유효한 JSON 형식으로만 답변하십시오:
     {
-      "summary": "자료의 핵심 요약",
+      "summary": "자료의 핵심 투자 철학 요약",
       "keyConditions": ["추출된 핵심 조건 1", "핵심 조건 2"],
       "criteria": [
         {
           "name": "규칙 이름",
-          "category": "Quality/Value/Growth/Technical 등",
-          "description": "규칙의 상세 설명 및 원천 사례",
+          "category": "수익성/성장성/해자/섹터특화 등",
+          "description": "규칙의 상세 설명 (노이즈가 섞이지 않은 핵심 논리)",
+          "quantification": {
+            "target_metric": "대상 지표명 (영어)",
+            "benchmark_type": "absolute / sector_relative / sector_percentile",
+            "condition": "> / < / >= / <= / ==",
+            "value": "적용할 수치 또는 설명"
+          },
+          "targetSectors": ["Technology", "Industrial" 등 관련 섹터 목록, 범용이면 ["General"]],
+          "applicableContexts": ["Growth Phase", "Recession" 등 상황],
           "weight": 1~5 사이 가중치,
-          "isCritical": false
+          "weightRationale": "이 가중치를 부여한 논리적 근거",
+          "isCritical": boolean (핵심 킬러 지표 여부)
         }
       ]
     }

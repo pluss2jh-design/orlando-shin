@@ -529,23 +529,62 @@ function evaluateQuantifiedRule(
     }
   }
 
-  // 2. 종목 지합 매핑 (매크로가 아닌 경우)
+  // 2. 종목 지표 매핑 (매크로가 아닌 경우)
   if (actualValue === undefined) {
     switch (metricLower) {
-      case 'revenue_growth': actualValue = (data as any).revenueGrowth !== undefined ? (data as any).revenueGrowth * 100 : undefined; break;
-      case 'net_income_growth': actualValue = (data as any).netIncomeGrowth !== undefined ? (data as any).netIncomeGrowth * 100 : undefined; break;
-      case 'roe': actualValue = data.returnOnEquity !== undefined ? data.returnOnEquity * 100 : undefined; break;
-      case 'per': actualValue = data.trailingPE; break;
-      case 'pbr': actualValue = data.priceToBook; break;
-      case 'debt_ratio': actualValue = (data as any).debtToEquity; break;
-      case 'operating_margin': actualValue = (data as any).operatingMargins !== undefined ? (data as any).operatingMargins * 100 : undefined; break;
-      case 'dividend_yield': actualValue = data.dividendYield !== undefined ? data.dividendYield * 100 : undefined; break;
+      case 'revenue_growth': 
+      case 'top_line_growth':
+        actualValue = (data as any).revenueGrowth !== undefined ? (data as any).revenueGrowth * 100 : undefined; break;
+      case 'net_income_growth': 
+        actualValue = (data as any).netIncomeGrowth !== undefined ? (data as any).netIncomeGrowth * 100 : undefined; break;
+      case 'roe': 
+      case 'return_on_equity':
+        actualValue = data.returnOnEquity !== undefined ? data.returnOnEquity * 100 : undefined; break;
+      case 'roic':
+      case 'return_on_invested_capital':
+        actualValue = (data as any).returnOnAssets !== undefined ? (data as any).returnOnAssets * 100 : undefined; break; // ROA as proxy if ROIC missing
+      case 'roa':
+        actualValue = (data as any).returnOnAssets !== undefined ? (data as any).returnOnAssets * 100 : undefined; break;
+      case 'per': 
+      case 'p/e':
+      case 'pe_ratio':
+        actualValue = data.trailingPE; break;
+      case 'forward_pe':
+        actualValue = (data as any).forwardPE; break;
+      case 'pbr': 
+      case 'p/b':
+      case 'pb_ratio':
+        actualValue = data.priceToBook; break;
+      case 'ps_ratio':
+      case 'psr':
+        actualValue = (data as any).priceToSales; break;
+      case 'debt_ratio': 
+      case 'debt_to_equity':
+        actualValue = (data as any).debtToEquity; break;
+      case 'operating_margin': 
+      case 'opm':
+        actualValue = (data as any).operatingMargins !== undefined ? (data as any).operatingMargins * 100 : undefined; break;
+      case 'gross_margin':
+        actualValue = (data as any).grossMargins !== undefined ? (data as any).grossMargins * 100 : undefined; break;
+      case 'dividend_yield': 
+        actualValue = data.dividendYield !== undefined ? data.dividendYield * 100 : undefined; break;
       case 'current_ratio': actualValue = (data as any).currentRatio; break;
       case 'quick_ratio': actualValue = (data as any).quickRatio; break;
-      case 'eps_growth': actualValue = (data as any).epsGrowth !== undefined ? (data as any).epsGrowth * 100 : undefined; break;
-      case 'market_cap': actualValue = data.marketCap ? data.marketCap / 1000000000 : undefined; break; // Billions
+      case 'eps_growth': 
+        actualValue = (data as any).epsGrowth !== undefined ? (data as any).epsGrowth * 100 : undefined; break;
+      case 'market_cap': 
+        actualValue = data.marketCap ? data.marketCap / 1000000000 : undefined; break; // Billions
+      case 'fcf':
+      case 'free_cash_flow':
+        actualValue = (data as any).freeCashFlow ? (data as any).freeCashFlow / 1000000 : undefined; break; // Millions
+      case 'asset_turnover':
+        actualValue = (data as any).assetTurnover; break;
       default:
+        // 퍼지 매칭
         if (metricLower.includes('revenue')) actualValue = (data as any).revenueGrowth !== undefined ? (data as any).revenueGrowth * 100 : undefined;
+        else if (metricLower.includes('margin')) actualValue = (data as any).operatingMargins !== undefined ? (data as any).operatingMargins * 100 : undefined;
+        else if (metricLower.includes('debt')) actualValue = (data as any).debtToEquity;
+        else if (metricLower.includes('cash') || metricLower.includes('flow')) actualValue = (data as any).freeCashFlow ? (data as any).freeCashFlow / 1000000 : undefined;
         else if (metricLower.includes('profit')) actualValue = (data as any).operatingMargins !== undefined ? (data as any).operatingMargins * 100 : undefined;
     }
   }
