@@ -269,7 +269,7 @@ export class StockService {
    */
   static async runLearning(options: {
     fileIds?: string[];
-    aiModels?: Record<string, string>;
+    aiModel?: string;
     title?: string;
   }) {
     // 0. 학습 상태 즉시 초기화 (Race Condition 방지)
@@ -279,7 +279,7 @@ export class StockService {
     // 1. 학습 파이프라인 시작 (비동기)
     (async () => {
       try {
-        const knowledge = await runLearningPipeline(options.fileIds, options.aiModels);
+        const knowledge = await runLearningPipeline(options.fileIds, options.aiModel);
         const knowledgeId = await saveKnowledgeToDB(knowledge, options.title);
         console.log(`Learning completed: ${knowledgeId}`);
       } catch (error: any) {

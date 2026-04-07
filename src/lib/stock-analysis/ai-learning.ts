@@ -74,13 +74,13 @@ export const cancelLearningPipeline = stopLearning;
  */
 export async function runLearningPipeline(
   fileIds?: string[],
-  aiModels?: Record<string, string>
+  aiModel?: string
 ): Promise<LearnedKnowledge> {
   const apiKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY || process.env.GEMINI_API_KEY;
   if (!apiKey) throw new Error('API Key가 설정되지 않았습니다 (GOOGLE_GENERATIVE_AI_API_KEY 또는 GEMINI_API_KEY).');
   
   const genAI = new GoogleGenAI({ apiKey });
-  const modelName = aiModels?.전체 || 'gemini-1.5-pro';
+  const modelName = aiModel || 'gemini-1.5-pro';
 
   // 1. 대상 파일 식별
   let driveFiles: DriveFileInfo[] = [];

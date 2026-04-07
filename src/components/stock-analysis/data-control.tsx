@@ -23,6 +23,8 @@ interface AIModel {
   reqKey: string;
   supportsPDF: boolean;
   supportsVideo: boolean;
+  provider: string;
+  isRecommendedForLearning?: boolean;
 }
 
 interface APIKeys {
@@ -66,7 +68,7 @@ export function DataControl({ onFilesChange, onSyncStatusChange, onLearningCompl
   
   const [availableModels, setAvailableModels] = useState<AIModel[]>([]);
   const [keys, setKeys] = useState<APIKeys | null>(null);
-  const [aiModels, setAiModels] = useState<Record<string, string>>({});
+  const [selectedModel, setSelectedModel] = useState<string>('gemini-1.5-flash');
   const [backendLearningStatus, setBackendLearningStatus] = useState<{
     isLearning: boolean;
     totalFiles: number;
@@ -125,16 +127,6 @@ export function DataControl({ onFilesChange, onSyncStatusChange, onLearningCompl
         if (keysRes.ok) {
           const kData = await keysRes.json();
           setKeys(kData.keys || {});
-        }
-
-        // 2. Check for active learning task (Persistence)
-        const learningRes = await fetch('/api/admin/learning-status', { cache: 'no-store' });
-        if (learningRes.ok) {
-          const lData = await learningRes.json();
-          if (lData.isLearning) {
-            setIsLearning(true);
-            setBackendLearningStatus(lData);
-          }
         }
 
         // 3. Check for active sync task and initial file list (Persistence)
@@ -356,7 +348,7 @@ export function DataControl({ onFilesChange, onSyncStatusChange, onLearningCompl
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           fileIds: selectedFileIds,
-          aiModels: aiModels,
+          aiModel: selectedModel,
           title: `Expert Session ${new Date().toLocaleDateString()}`
         })
       });
@@ -665,51 +657,41 @@ export function DataControl({ onFilesChange, onSyncStatusChange, onLearningCompl
                   <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wider">AI 분석 모델 설정</h4>
                 </div>
                 
-                <Tabs defaultValue="전체" className="w-full">
-                  <TabsList className="grid grid-cols-3 bg-muted/50 p-1 h-8">
-                    <TabsTrigger value="전체" className="text-[10px] uppercase font-bold">전체</TabsTrigger>
-                    <TabsTrigger value="pdf" className="text-[10px] uppercase font-bold">PDF</TabsTrigger>
-                    <TabsTrigger value="mp4" className="text-[10px] uppercase font-bold">MP4</TabsTrigger>
-                  </TabsList>
-
-                  {['전체', 'pdf', 'mp4'].map((ext) => (
-                    <TabsContent key={ext} value={ext} className="mt-3 space-y-2">
-                      <Select 
-                        value={aiModels[ext] || ''} 
-                        onValueChange={(val) => setAiModels(prev => ({ ...prev, [ext]: val }))}
-                      >
-                        <SelectTrigger className="w-full h-9 text-xs bg-background border-muted-foreground/20">
-                          <SelectValue placeholder={`${ext.toUpperCase()} 처리 모델 선택`} />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {availableModels
-                            .filter(m => {
-                              if (ext === 'pdf') return m.supportsPDF;
-                              if (ext === 'mp4') return m.supportsVideo;
-                              if (ext === '전체') return m.supportsPDF && m.supportsVideo;
-                              return true;
-                            })
-                            .map((model) => {
-                              const hasKey = keys && keys[model.reqKey as keyof APIKeys];
-                              return (
-                                <SelectItem 
-                                  key={model.value} 
-                                  value={model.value} 
-                                  disabled={!hasKey}
-                                  className="text-xs"
-                                >
-                                  <div className="flex items-center justify-between w-full gap-8">
-                                    <span>{model.label}</span>
-                                    {!hasKey && <span className="text-[10px] text-red-500 font-medium">Key 미등록</span>}
-                                  </div>
-                                </SelectItem>
-                              );
-                            })}
-                        </SelectContent>
-                      </Select>
-                    </TabsContent>
-                  ))}
-                </Tabs>
+                <Select 
+                  value={selectedModel} 
+                  onValueChange={setSelectedModel}
+                >
+                  <SelectTrigger className="w-full h-11 bg-background border-muted-foreground/20 rounded-xl">
+                    <SelectValue placeholder="분석에 사용할 모델 선택 (예: Gemini 2.5 Flash Lite)" />
+                  </SelectTrigger>
+                  <SelectContent className="max-h-[400px]">
+                    {availableModels
+                      .map((model) => {
+                        const hasKey = keys && keys[model.reqKey as keyof APIKeys];
+                        return (
+                          <SelectItem 
+                            key={model.value} 
+                            value={model.value} 
+                            disabled={!hasKey}
+                            className="py-3 px-4"
+                          >
+                            <div className="flex flex-col gap-0.5">
+                              <div className="flex items-center justify-between w-full gap-8">
+                                <span className={cn("font-bold text-sm", model.isRecommendedForLearning && "text-blue-600")}>
+                                  {model.label}
+                                  {model.isRecommendedForLearning && <span className="ml-2 text-[9px] bg-blue-100 text-blue-600 px-1.5 py-0.5 rounded-full uppercase tracking-tighter">Recommended</span>}
+                                </span>
+                                {!hasKey && <span className="text-[10px] text-red-500 font-medium">Key 미등록</span>}
+                              </div>
+                              <span className="text-[10px] text-muted-foreground">
+                                {model.provider.toUpperCase()} • {model.supportsPDF && model.supportsVideo ? "PDF & Video 지원" : (model.supportsPDF ? "PDF 전용" : "텍스트 전용")}
+                              </span>
+                            </div>
+                          </SelectItem>
+                        );
+                      })}
+                  </SelectContent>
+                </Select>
               </div>
             )}
           </div>
