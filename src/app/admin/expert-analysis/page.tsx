@@ -314,22 +314,35 @@ export default function ExpertAnalysisPage() {
               {activePhase === 1 && (
                 <div className="space-y-6">
                   <div className="flex items-center gap-4 mb-2">
-                    <div className="p-3 bg-blue-500/20 rounded-2xl">
-                      <BookOpen className="h-6 w-6 text-blue-400" />
+                    <div className="relative">
+                      <div className="p-3 bg-blue-500/20 rounded-2xl">
+                        <BookOpen className="h-6 w-6 text-blue-400" />
+                      </div>
+                      <div className="absolute -top-1 -right-1 w-5 h-5 bg-blue-500 rounded-lg flex items-center justify-center text-[10px] font-black text-white border border-[#0f111a]">1</div>
                     </div>
                     <div>
                       <h2 className="text-xl font-black text-white">Source Data Management</h2>
-                      <p className="text-sm text-white/40">분석의 근거가 되는 원천 데이터를 업로드하고 AI 학습을 관리합니다</p>
+                      <p className="text-sm text-white/40 font-bold">1단계 분석이 완료되면 AI가 자동으로 투자 규칙(2단계) 추출과 전략 합성(3단계)을 동시에 수행합니다.</p>
                     </div>
                   </div>
                   <DataControl onLearningComplete={fetchActiveKnowledge} />
                 </div>
               )}
               {activePhase === 2 && (
-                <Phase1Panel knowledge={knowledge} isLearning={false} learningStatus={null} />
+                <div className="space-y-4">
+                  <div className="px-4 py-2 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs font-bold text-amber-300">
+                    💡 2단계 결과는 1단계 원천 데이터 분석 시 3단계(지식 합성) 데이터와 함께 생성됩니다.
+                  </div>
+                  <Phase1Panel knowledge={knowledge} isLearning={false} learningStatus={null} />
+                </div>
               )}
               {activePhase === 3 && (
-                <Phase2Panel knowledge={knowledge} />
+                <div className="space-y-4">
+                  <div className="px-4 py-2 rounded-xl bg-indigo-500/10 border border-indigo-500/20 text-xs font-bold text-indigo-300">
+                    💡 3단계 결과는 1단계 원천 데이터 분석 시 2단계(규칙 추출) 데이터와 함께 생성됩니다.
+                  </div>
+                  <Phase2Panel knowledge={knowledge} />
+                </div>
               )}
               {activePhase === 4 && (
                 <Phase3Panel 
