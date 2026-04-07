@@ -313,19 +313,21 @@ export default function ExpertAnalysisPage() {
             <div className="animate-in fade-in duration-500">
               {activePhase === 1 && (
                 <div className="space-y-6">
-                  <div className="flex items-center gap-4 mb-2">
-                    <div className="relative">
-                      <div className="p-3 bg-blue-500/20 rounded-2xl">
-                        <BookOpen className="h-6 w-6 text-blue-400" />
-                      </div>
-                      <div className="absolute -top-1 -right-1 w-5 h-5 bg-blue-500 rounded-lg flex items-center justify-center text-[10px] font-black text-white border border-[#0f111a]">1</div>
+                  <div className="flex items-center gap-4 mb-6">
+                    <div className="w-9 h-9 rounded-xl bg-blue-500/10 flex items-center justify-center font-black text-base text-blue-400 shrink-0">
+                      1
                     </div>
-                    <div>
-                      <h2 className="text-xl font-black text-white">Source Data Management</h2>
-                      <p className="text-sm text-white/40 font-bold">1단계 분석이 완료되면 AI가 자동으로 투자 규칙(2단계) 추출과 전략 합성(3단계)을 동시에 수행합니다.</p>
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2">
+                        <BookOpen className="h-5 w-5 text-blue-400" />
+                        <h2 className="text-xl font-black text-white">Source Data Management</h2>
+                      </div>
+                      <p className="text-sm text-white/40 font-bold mt-1">1단계 분석이 완료되면 AI가 자동으로 투자 규칙(2단계) 추출과 전략 합성(3단계)을 동시에 수행합니다.</p>
                     </div>
                   </div>
-                  <DataControl onLearningComplete={fetchActiveKnowledge} />
+                  <div className="bg-[#161b22] rounded-2xl border border-blue-500/20 p-1">
+                    <DataControl onLearningComplete={fetchActiveKnowledge} />
+                  </div>
                 </div>
               )}
               {activePhase === 2 && (

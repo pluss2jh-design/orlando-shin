@@ -148,15 +148,15 @@ export function Phase2Panel({ knowledge }: { knowledge: any }) {
       isActive={false}
       open={open}
       onToggle={() => setOpen(v => !v)}
-      stats={isCompleted ? `전략 유형: ${knowledge.strategyType || '—'} · 합의 점수: ${knowledge.consensusScore || '—'}%` : undefined}
+      stats={isCompleted ? `전략 유형: ${knowledge.strategyType === 'moderate' ? '중립형' : knowledge.strategyType === 'aggressive' ? '공격형' : '보수형'} · 합의 점수: ${knowledge.consensusScore || '—'}%` : undefined}
     >
       {isCompleted ? (
         <div className="space-y-4">
           {/* Philosophy Quote */}
           <div className="p-4 rounded-xl bg-gradient-to-br from-indigo-600/20 to-purple-600/10 border border-indigo-500/20">
-            <p className="text-[10px] font-black text-indigo-400 uppercase tracking-[0.2em] mb-2">SYNTHESIS PHILOSOPHY</p>
+            <p className="text-[10px] font-black text-indigo-400 uppercase tracking-[0.2em] mb-2">통합 투자 가이드라인</p>
             <p className="text-sm text-white/80 font-medium leading-relaxed italic">
-              &ldquo;{knowledge.keyConditionsSummary?.slice(0, 200)}...&rdquo;
+              &ldquo;{knowledge.keyConditionsSummary?.slice(0, 400)}&rdquo;
             </p>
           </div>
 
