@@ -251,14 +251,17 @@ export async function downloadTextContent(fileId: string): Promise<string> {
 
   if (mimeType === 'application/pdf') {
     try {
+      // 1. Google Doc 기반 PDF인 경우 export 시도
       const exported = await drive.files.export({
         fileId,
         mimeType: 'text/plain',
       });
       return exported.data as string;
     } catch (error) {
-      console.error('PDF export error:', error);
-      return '';
+      // 2. 일반 업로드 PDF인 경우 (Export 미지원) -> 미디어로 다운로드 후 base64 반환하여 AI 직접 전달 유도
+      console.log(`[Drive] PDF Export failed, falling back to media download for: ${fileId}`);
+      const buffer = await downloadDriveFile(fileId, 'temp.pdf');
+      return `BASE64_PDF:${buffer.toString('base64')}`;
     }
   }
 

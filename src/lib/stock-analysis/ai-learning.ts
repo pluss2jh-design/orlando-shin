@@ -202,13 +202,16 @@ async function extractFileContent(file: DriveFileInfo): Promise<string> {
  * 개별 파일 내용을 분석하여 핵심 지식 파편을 추출합니다.
  */
 async function analyzeIndividualFile(genAI: any, modelName: string, file: DriveFileInfo, content: string) {
+  const isBase64Pdf = content.startsWith('BASE64_PDF:');
+  const pdfData = isBase64Pdf ? content.split('BASE64_PDF:')[1] : null;
+  const textContent = isBase64Pdf ? "" : content.substring(0, 100000);
+
   const prompt = `
     당신은 전설적인 주식 투자자들의 논리를 학습하고 데이터에서 초과 수익의 원천(Alpha)을 발굴하는 수석 데이터 과학자입니다. 
     제공된 자료에서 '훌륭한 기업을 찾는 기준'과 '매수 타이밍/패턴'을 정밀하게 추출하고 고도의 '투자 알고리즘'으로 변환하십시오.
 
     파일명: ${file.name}
-    내용 자료 (최대 100k 자): 
-    ${content.substring(0, 100000)}
+    ${isBase64Pdf ? "[안내] 이 파일은 PDF 형식입니다. 첨부된 문서를 직접 분석하여 내용을 파악하십시오." : `내용 자료 (최대 100k 자):\n${textContent}`}
 
     [분석 및 필터링 지침]
     1. 노이즈 제거: 자료의 앞이나 뒷부분에 나타나는 인사말, 공지사항 등 투자 로직과 관계없는 텍스트는 무시하십시오.
@@ -254,9 +257,19 @@ async function analyzeIndividualFile(genAI: any, modelName: string, file: DriveF
     }
   `;
 
+  const parts: any[] = [{ text: prompt }];
+  if (isBase64Pdf && pdfData) {
+    parts.push({
+      inlineData: {
+        mimeType: 'application/pdf',
+        data: pdfData
+      }
+    });
+  }
+
   const result = await genAI.models.generateContent({
     model: modelName,
-    contents: [{ role: 'user', parts: [{ text: prompt }] }] as any
+    contents: [{ role: 'user', parts }] as any
   });
   
   const text = (result as any).text || '';
