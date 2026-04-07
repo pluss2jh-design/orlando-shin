@@ -20,9 +20,9 @@ import { cn } from '@/lib/utils';
 
 /** Phase Header Step */
 function PipelineStep({
-  num, label, color, isActive, isCompleted, isLast, onClick
+  num, label, color, isActive, isCompleted, phase3Done, isLast, onClick
 }: {
-  num: number; label: string; color: string; isActive: boolean; isCompleted: boolean; isLast?: boolean; onClick?: () => void;
+  num: number; label: string; color: string; isActive: boolean; isCompleted: boolean; phase3Done?: boolean; isLast?: boolean; onClick?: () => void;
 }) {
   const colorMap: Record<string, string> = {
     amber: 'bg-amber-500 ring-amber-500/30 text-white',
@@ -37,10 +37,10 @@ function PipelineStep({
     <div className="flex items-center gap-2">
       <button 
         onClick={onClick}
-        disabled={!isCompleted && !isActive}
+        disabled={(!isCompleted && !isActive && num > 1 && num !== 4) || (num === 4 && !phase3Done && !isActive)}
         className={cn(
-          "flex items-center gap-2 transition-all transition-all outline-none",
-          (!isCompleted && !isActive) ? "cursor-not-allowed opacity-50" : "hover:scale-105 active:scale-95"
+          "flex items-center gap-2 transition-all outline-none",
+          ((!isCompleted && !isActive && num > 1 && num !== 4) || (num === 4 && !phase3Done && !isActive)) ? "cursor-not-allowed opacity-30" : "hover:scale-105 active:scale-95"
         )}
       >
         <div className={cn(
@@ -290,6 +290,7 @@ export default function ExpertAnalysisPage() {
                 num={4} label="Sensing & Analysis" color="teal" 
                 isActive={activePhase === 4} 
                 isCompleted={phase4Done && activePhase !== 4} 
+                phase3Done={phase3Done}
                 isLast 
                 onClick={() => setActivePhase(4)}
               />
