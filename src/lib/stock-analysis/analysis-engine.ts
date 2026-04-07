@@ -122,13 +122,15 @@ export async function runAnalysisEngine(
       });
       
       await new Promise(resolve => setTimeout(resolve, 200));
-    } catch (error) {
+    } catch (error: any) {
+      if (error?.message === 'STOPPED_BY_USER') throw error;
       console.warn(`[Engine] Batch error at index ${i}, falling back to individual fetches`);
       for (const ticker of batch) {
         try {
           const singleQuote = await fetchBatchQuotes([ticker]);
           allYahooData.push(...singleQuote);
-        } catch (e) { 
+        } catch (e: any) { 
+          if (e?.message === 'STOPPED_BY_USER') throw e;
           console.error(`[Engine] Failed to fetch individual ticker: ${ticker}`);
         }
       }
@@ -274,7 +276,10 @@ export async function runAnalysisEngine(
           isStrongBase: isUndervalued && isNotOverheated && isImproving && isHighQuality,
           isEnergyCoiling: isSideways && hasRelativeStrength && hasSmartMoney,
         });
-      } catch (err) {
+      } catch (err: any) {
+        if (err?.message === 'STOPPED_BY_USER') {
+          throw err;
+        }
         console.error(`[Engine] Analysis failed for ${stock.ticker}:`, err);
         analyzedCount++;
       }

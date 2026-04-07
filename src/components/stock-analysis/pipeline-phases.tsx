@@ -24,7 +24,7 @@ export function Phase1Panel({ knowledge, isLearning, learningStatus }: {
 
   return (
     <PanelWrapper
-      phase={1}
+      phase={2}
       title="Knowledge Extraction"
       subtitle="원천 데이터에서 투자 조건 추출"
       color="amber"
@@ -140,7 +140,7 @@ export function Phase2Panel({ knowledge }: { knowledge: any }) {
 
   return (
     <PanelWrapper
-      phase={2}
+      phase={3}
       title="Knowledge Synthesis"
       subtitle="지식 합성 및 상황별 트리거 매핑"
       color="indigo"
@@ -296,7 +296,7 @@ export function Phase3Panel({
 
   return (
     <PanelWrapper
-      phase={3}
+      phase={4}
       title="Sensing & Dynamic Analysis"
       subtitle="현시점 시장 상황 진단 및 맞춤형 기업 스캔"
       color="teal"
