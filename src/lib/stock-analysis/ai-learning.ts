@@ -81,6 +81,8 @@ export async function runLearningPipeline(
   
   const genAI = new GoogleGenAI({ apiKey });
   const modelName = aiModel || 'gemini-1.5-pro';
+  console.log(`[AI Learning] Starting pipeline with model: ${modelName}`);
+  learningStatus.message = `학습 준비 중 (모델: ${modelName})...`;
 
   // 1. 대상 파일 식별
   let driveFiles: DriveFileInfo[] = [];
@@ -103,10 +105,13 @@ export async function runLearningPipeline(
   const CHUNK_SIZE = 3;
   for (let i = 0; i < driveFiles.length; i += CHUNK_SIZE) {
     if (learningStatus.isCancelled) break;
-    
     const chunk = driveFiles.slice(i, i + CHUNK_SIZE);
     await Promise.all(chunk.map(async (file) => {
       try {
+        const currentIdx = i + chunk.indexOf(file) + 1;
+        console.log(`[AI Learning] [${currentIdx}/${learningStatus.totalFiles}] Downloading/Extracting: ${file.name}`);
+        learningStatus.message = `${file.name} 추출 중... (${currentIdx}/${learningStatus.totalFiles})`;
+
         const content = await extractFileContent(file);
         if (!content || content.trim().length === 0) {
           console.warn(`[AI Learning] Skipping file (No content): ${file.name}`);
@@ -116,7 +121,8 @@ export async function runLearningPipeline(
         }
 
         // 개별 파일 분석 및 핵심 인사이트 추출
-        console.log(`[AI Learning] Analyzing file: ${file.name} (${i + chunk.indexOf(file) + 1}/${learningStatus.totalFiles})`);
+        console.log(`[AI Learning] [${currentIdx}/${learningStatus.totalFiles}] Analyzing with AI: ${file.name}`);
+        learningStatus.message = `${file.name} 분석 중... (${currentIdx}/${learningStatus.totalFiles})`;
         const analysis = await analyzeIndividualFile(genAI, modelName, file, content);
         fileAnalyses.push(analysis.fileAnalysis);
         knowledgeFragments.push({ 
@@ -168,28 +174,8 @@ async function extractFileContent(file: DriveFileInfo): Promise<string> {
     
     if (file.mimeType.startsWith('video/') || file.name.endsWith('.mp4')) {
       const fileBuffer = await downloadDriveFile(file.id, file.name);
-      
-      // 비디오 처리 서비스 호출
-      const videoId = await videoProcessingService.processVideo(fileBuffer, file.name, {
-        performStt: true,
-        extractAudio: true,
-        captureFrames: false // 학습 단계에서는 텍스트 위주로 분석
-      });
-
-      // 완료 대기 (최대 5분)
-      let attempts = 0;
-      while (attempts < 60) {
-        const result = videoProcessingService.getProcessingResult(videoId);
-        if (result?.status === 'completed' && result.transcript) {
-          // segments를 합쳐서 전체 텍스트 생성
-          return result.transcript.segments.map(s => s.text).join('\n');
-        }
-        if (result?.status === 'error') throw new Error(`Video processing failed: ${result.error}`);
-        
-        await new Promise(r => setTimeout(r, 5000));
-        attempts++;
-      }
-      throw new Error('Video processing timed out');
+      // Gemini 1.5/2.0+ 의 멀티모달 기능을 활용하기 위해 Base64로 반환
+      return `BASE64_VIDEO:${fileBuffer.toString('base64')}`;
     }
   } catch (error) {
     console.error(`Extraction failed: ${file.name}`, error);
@@ -203,15 +189,19 @@ async function extractFileContent(file: DriveFileInfo): Promise<string> {
  */
 async function analyzeIndividualFile(genAI: any, modelName: string, file: DriveFileInfo, content: string) {
   const isBase64Pdf = content.startsWith('BASE64_PDF:');
+  const isBase64Video = content.startsWith('BASE64_VIDEO:');
   const pdfData = isBase64Pdf ? content.split('BASE64_PDF:')[1] : null;
-  const textContent = isBase64Pdf ? "" : content.substring(0, 100000);
+  const videoData = isBase64Video ? content.split('BASE64_VIDEO:')[1] : null;
+  const textContent = (isBase64Pdf || isBase64Video) ? "" : content.substring(0, 100000);
 
   const prompt = `
     당신은 전설적인 주식 투자자들의 논리를 학습하고 데이터에서 초과 수익의 원천(Alpha)을 발굴하는 수석 데이터 과학자입니다. 
     제공된 자료에서 '훌륭한 기업을 찾는 기준'과 '매수 타이밍/패턴'을 정밀하게 추출하고 고도의 '투자 알고리즘'으로 변환하십시오.
 
     파일명: ${file.name}
-    ${isBase64Pdf ? "[안내] 이 파일은 PDF 형식입니다. 첨부된 문서를 직접 분석하여 내용을 파악하십시오." : `내용 자료 (최대 100k 자):\n${textContent}`}
+    ${isBase64Pdf ? "[안내] 이 파일은 PDF 형식 문서입니다. 첨부된 문서를 직접 분석하여 내용을 파악하십시오." : 
+      isBase64Video ? "[안내] 이 파일은 동영상 형식입니다. 첨부된 영상과 오디오를 직접 분석하여 핵심 내용을 파악하십시오." :
+      `내용 자료 (최대 100k 자):\n${textContent}`}
 
     [분석 및 필터링 지침]
     1. 노이즈 제거: 자료의 앞이나 뒷부분에 나타나는 인사말, 공지사항 등 투자 로직과 관계없는 텍스트는 무시하십시오.
@@ -263,6 +253,13 @@ async function analyzeIndividualFile(genAI: any, modelName: string, file: DriveF
       inlineData: {
         mimeType: 'application/pdf',
         data: pdfData
+      }
+    });
+  } else if (isBase64Video && videoData) {
+    parts.push({
+      inlineData: {
+        mimeType: 'video/mp4',
+        data: videoData
       }
     });
   }
