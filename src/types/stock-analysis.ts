@@ -255,6 +255,7 @@ export interface LearnedKnowledge {
   strategy: InvestmentStrategy;
   strategyType?: 'aggressive' | 'moderate' | 'stable';
   keyConditionsSummary?: string;
+  consensusScore?: number;
   rawSummaries: {
     fileName: string;
     summary: string

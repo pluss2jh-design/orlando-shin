@@ -301,10 +301,9 @@ async function synthesizeKnowledge(genAI: any, modelName: string, analyses: File
     ${JSON.stringify(fragments)}
 
     [작업 목표]
-    1. 각 파일에서 추출된 규칙(extractedRules)들을 상호 보완적으로 결합하세요.
-    2. 중복된 규칙을 하나로 합칩니다.
     3. 일반화된 규칙 세트를 만듭니다. (특정 기업의 지식인 경우, 보편적인 원칙으로 승화시키되 설명에 예시를 남기세요)
     4. 엔진이 구동할 수 있도록 '정량 지표 매핑'을 수행하세요.
+    5. 여러 원천 자료(fragments)간의 투자 로직 일관성을 평가하여 0~100점 사이의 '합의 점수(consensusScore)'를 산출하세요. 자료들이 상충하지 않고 서로를 보완할수록 높은 점수를 부여합니다.
     
     [중요: 지원 가능한 정량 지표 리스트] 
     (이 리스트에 있는 이름만 metric에 사용하세요. 다른 이름을 사용하면 분석 엔진이 인식하지 못합니다)
@@ -349,7 +348,8 @@ async function synthesizeKnowledge(genAI: any, modelName: string, analyses: File
         "riskManagementRules": ["손절/위험 관리 원칙"]
       },
       "keyConditionsSummary": "전체 전략에 대한 한 문장 요약",
-      "strategyType": "aggressive / moderate / stable"
+      "strategyType": "aggressive / moderate / stable",
+      "consensusScore": 0~100 사이 숫자
     }
   `;
 
@@ -368,6 +368,7 @@ async function synthesizeKnowledge(genAI: any, modelName: string, analyses: File
     criteria: parsed.criteria,
     strategy: parsed.strategy,
     strategyType: parsed.strategyType,
+    consensusScore: parsed.consensusScore || 0,
     keyConditionsSummary: parsed.keyConditionsSummary,
     rawSummaries: fragments.map(f => ({ fileName: f.fileName, summary: f.summary })),
     learnedAt: new Date(),
