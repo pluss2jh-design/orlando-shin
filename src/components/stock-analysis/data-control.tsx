@@ -49,10 +49,11 @@ interface DriveFileInfo {
 interface DataControlProps {
   onFilesChange?: (files: UploadedFile[]) => void;
   onSyncStatusChange?: (status: CloudSyncStatus) => void;
+  onLearningStart?: () => void;
   onLearningComplete?: () => void;
 }
 
-export function DataControl({ onFilesChange, onSyncStatusChange, onLearningComplete }: DataControlProps) {
+export function DataControl({ onFilesChange, onSyncStatusChange, onLearningStart, onLearningComplete }: DataControlProps) {
   const [files, setFiles] = useState<UploadedFile[]>([]);
   const [isDragging, setIsDragging] = useState(false);
   const [syncStatus, setSyncStatus] = useState<CloudSyncStatus>({ status: 'idle' });
@@ -69,6 +70,7 @@ export function DataControl({ onFilesChange, onSyncStatusChange, onLearningCompl
   const [availableModels, setAvailableModels] = useState<AIModel[]>([]);
   const [keys, setKeys] = useState<APIKeys | null>(null);
   const [selectedModel, setSelectedModel] = useState<string>('gemini-1.5-flash');
+  const [forceFullAnalysis, setForceFullAnalysis] = useState(false);
   const [backendLearningStatus, setBackendLearningStatus] = useState<{
     isLearning: boolean;
     totalFiles: number;
@@ -325,6 +327,7 @@ export function DataControl({ onFilesChange, onSyncStatusChange, onLearningCompl
     const confirmed = window.confirm('학습을 위해 AI 모델을 사용하며 비용이 발생할 수 있습니다. 계속하시겠습니까?');
     if (!confirmed) return;
 
+    onLearningStart?.();
     setIsLearning(true);
     setIsRequesting(true);
     setLearningStatus('학습 요청을 보내는 중...');
@@ -349,6 +352,7 @@ export function DataControl({ onFilesChange, onSyncStatusChange, onLearningCompl
         body: JSON.stringify({
           fileIds: selectedFileIds,
           aiModel: selectedModel,
+          forceFullAnalysis,
           title: `Expert Session ${new Date().toLocaleDateString()}`
         })
       });
@@ -692,6 +696,28 @@ export function DataControl({ onFilesChange, onSyncStatusChange, onLearningCompl
                       })}
                   </SelectContent>
                 </Select>
+
+                <div className="flex items-center space-x-2 pt-2 border-t border-muted-foreground/5 mt-2">
+                  <Checkbox 
+                    id="force-full" 
+                    checked={forceFullAnalysis} 
+                    onCheckedChange={(v) => setForceFullAnalysis(v === true)} 
+                  />
+                  <div className="grid gap-1.5 leading-none">
+                    <label
+                      htmlFor="force-full"
+                      className="text-[11px] font-black leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-amber-600 cursor-pointer flex items-center gap-1.5"
+                    >
+                      <AlertCircle className="h-3 w-3" />
+                      {forceFullAnalysis ? "기존 데이터 무시하고 전체 파일 분석 (Full Re-analysis)" : "기존 데이터 유지 후 분석 안된 파일만 분석 (Incremental)"}
+                    </label>
+                    <p className="text-[10px] text-muted-foreground font-medium">
+                      {forceFullAnalysis 
+                        ? "체크 해제 시: 이미 분석된 파일은 건너뛰고 새로운 파일만 분석합니다. (추천: 빠른 업데이트)"
+                        : "체크 시: 이미 분석된 파일도 현재 모델로 처음부터 다시 분석합니다. (추천: AI 모델 변경 시)"}
+                    </p>
+                  </div>
+                </div>
               </div>
             )}
           </div>

@@ -60,7 +60,8 @@ export function Phase1Panel({ knowledge, isLearning, learningStatus }: {
                 <span className="text-[10px] font-black">{learningStatus.failedFiles} FAILED</span>
                 
                 {/* Hover Tooltip for Failed Files */}
-                <div className="absolute top-full right-0 mt-2 w-80 p-3 bg-[#1c2128] border border-rose-500/30 rounded-xl shadow-2xl opacity-0 group-hover:opacity-100 pointer-events-none transition-all z-50 transform -translate-y-1 group-hover:translate-y-0">
+                <div className="absolute top-full right-0 pt-2 w-80 opacity-0 group-hover:opacity-100 transition-all z-50 transform -translate-y-1 group-hover:translate-y-0">
+                  <div className="p-3 bg-[#1c2128] border border-rose-500/30 rounded-xl shadow-2xl pointer-events-auto">
                   <p className="text-[10px] font-black text-rose-400 mb-2 border-b border-rose-500/20 pb-1.5 uppercase tracking-widest flex items-center gap-2">
                     <AlertCircle className="h-3 w-3" />
                     분석 실패 파일 상세 원인
@@ -73,9 +74,40 @@ export function Phase1Panel({ knowledge, isLearning, learningStatus }: {
                       </div>
                     ))}
                   </div>
+                  </div>
                 </div>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* 학습 완료 후 결과 요약 (실패 내역 포함) */}
+      {!isLearning && knowledge?.failedFilesCount !== undefined && knowledge.failedFilesCount > 0 && (
+        <div className="mb-4 p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <AlertCircle className="h-4 w-4 text-rose-500" />
+            <span className="text-xs font-black text-rose-300">
+              분석 완료: 성공 {knowledge.fileAnalyses?.length || 0}개 / 실패 {knowledge.failedFilesCount}개
+            </span>
+          </div>
+          <div className="relative group cursor-help">
+            <Badge variant="outline" className="text-[10px] border-rose-500/30 text-rose-400 font-black">실패 원인 보기</Badge>
+            <div className="absolute bottom-full right-0 mb-2 w-80 opacity-0 group-hover:opacity-100 transition-all z-50 pointer-events-auto">
+              <div className="p-3 bg-[#1c2128] border border-rose-500/40 rounded-xl shadow-2xl">
+                <p className="text-[10px] font-black text-rose-400 mb-2 border-b border-rose-500/20 pb-1.5 uppercase tracking-widest">
+                  실패 파일 상세 원인
+                </p>
+                <div className="space-y-2 max-h-48 overflow-y-auto custom-scrollbar pr-1">
+                  {knowledge.failedDetails?.map((fd: any, idx: number) => (
+                    <div key={idx} className="text-[10px] leading-relaxed border-b border-white/5 pb-1.5 last:border-0">
+                      <span className="text-rose-300 font-bold block truncate">{fd.fileName}</span>
+                      <span className="text-white/40 block italic">{fd.reason}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       )}
@@ -148,7 +180,7 @@ export function Phase2Panel({ knowledge }: { knowledge: any }) {
       isActive={false}
       open={open}
       onToggle={() => setOpen(v => !v)}
-      stats={isCompleted ? `전략 유형: ${knowledge.strategyType === 'moderate' ? '중립형' : knowledge.strategyType === 'aggressive' ? '공격형' : '보수형'} · 합의 점수: ${knowledge.consensusScore || '—'}%` : undefined}
+      stats={isCompleted ? `전략 유형: ${knowledge.strategyType === 'moderate' ? '중립형' : knowledge.strategyType === 'aggressive' ? '공격형' : '보수형'} · 합의 점수: ${knowledge.consensusScore ?? '—'}%` : undefined}
     >
       {isCompleted ? (
         <div className="space-y-4">

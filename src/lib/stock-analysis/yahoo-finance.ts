@@ -118,9 +118,9 @@ export async function fetchYahooFinanceData(
   const effectiveEnd = asOfDate || new Date();
   const effectiveEndStr = effectiveEnd.toISOString().split('T')[0];
 
-  // 2년치 차트 기간 (asOfDate 기준 역산)
+  // 5년치 차트 기간 (asOfDate 기준 역산)
   const period1 = new Date(effectiveEnd);
-  period1.setMonth(period1.getMonth() - 18); // 2년(24개월) -> 1.5년(18개월)로 조정
+  period1.setMonth(period1.getMonth() - 60); // 5년(60개월)로 조정
   const period1Str = period1.toISOString().split('T')[0];
 
   // 타임아웃 헬퍼 (ms 단위)
@@ -140,7 +140,16 @@ export async function fetchYahooFinanceData(
   try {
       summaryResult = await withTimeout(
         yahooFinance.quoteSummary(ticker, {
-          modules: ['financialData', 'price', 'defaultKeyStatistics', 'summaryDetail', 'assetProfile', 'insiderTransactions', 'institutionOwnership'],
+          modules: [
+            'financialData',
+            'price',
+            'defaultKeyStatistics',
+            'summaryDetail',
+            'assetProfile',
+            'insiderTransactions',
+            'institutionOwnership',
+            'quoteType', // ipoDate(상장일)용
+          ],
         }, { validateResult: false }),
         15000,
         `quoteSummary(${ticker})`
@@ -179,22 +188,34 @@ export async function fetchYahooFinanceData(
   }
 
 
-  // ── 3. 재무제표 — fundamentalsTimeSeries ──
-  try {
-    const fts = await withTimeout(
+  // ── 3. 재무제표 — fundamentalsTimeSeries (income + balance-sheet 병렬) ──
+  let ftsBalanceData: any[] = [];
+  await Promise.all([
+    // 3a. 연간 소득 제표 (영업이익률, 매출성장률)
+    withTimeout(
       yahooFinance.fundamentalsTimeSeries(ticker, {
         period1: period1Str,
-        period2: effectiveEnd, // asOfDate까지만 조회
+        period2: effectiveEnd,
         type: 'annual',
         module: 'financials',
       }, { validateResult: false }),
       15000,
-      `fundamentalsTimeSeries(${ticker})`
-    );
-    ftsData = Array.isArray(fts) ? fts : [];
-  } catch (error) {
-    console.debug(`FTS failed for ${ticker}:`, (error as Error).message?.slice(0, 60));
-  }
+      `fts-income(${ticker})`
+    ).then(fts => { ftsData = Array.isArray(fts) ? fts : []; })
+     .catch(e => console.debug(`FTS-income failed for ${ticker}:`, (e as Error).message?.slice(0, 60))),
+    // 3b. 연간 재무상태표 (자돈 → ROE 계산용)
+    withTimeout(
+      yahooFinance.fundamentalsTimeSeries(ticker, {
+        period1: period1Str,
+        period2: effectiveEnd,
+        type: 'annual',
+        module: 'balance-sheet',
+      }, { validateResult: false }),
+      15000,
+      `fts-balance(${ticker})`
+    ).then(fts => { ftsBalanceData = Array.isArray(fts) ? fts : []; })
+     .catch(e => console.debug(`FTS-balance failed for ${ticker}:`, (e as Error).message?.slice(0, 60))),
+  ]);
 
   const financial = summaryResult.financialData;
   const price = summaryResult.price;
@@ -202,6 +223,85 @@ export async function fetchYahooFinanceData(
   const summaryDetail = summaryResult.summaryDetail;
   const assetProfile = summaryResult.assetProfile;
   const currency = detectTickerCurrency(ticker, price?.currency);
+
+  // ── 기준일 기준 연간 FTS에서 historical 지표 추출 ──
+  // ftsData는 sortedFinancials로 을바뀌기 전 원시 데이터를 이용
+  // asOfDate 이전에 해당하는 가장 전 연도 항목을 선택
+  let historicalROE: number | undefined;
+  let historicalOperatingMargins: number | undefined;
+  let historicalRevenueGrowth: number | undefined;
+
+  const ftsIncomeFiltered = asOfDate
+    ? ftsData.filter(e => e.date && new Date(e.date) <= asOfDate)
+    : ftsData;
+  ftsIncomeFiltered.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+  if (ftsIncomeFiltered.length >= 1) {
+    const latestEntry = ftsIncomeFiltered[0];
+    const prevEntry = ftsIncomeFiltered[1]; // 전년도 항목
+
+    const rev = latestEntry.totalRevenue ?? 0;
+    const opInc = latestEntry.operatingIncome ?? 0;
+    const netInc = latestEntry.netIncome ?? 0;
+
+    if (rev > 0) historicalOperatingMargins = opInc / rev;
+    if (prevEntry && prevEntry.totalRevenue > 0) {
+      historicalRevenueGrowth = (rev - prevEntry.totalRevenue) / prevEntry.totalRevenue;
+    }
+
+    // ROE = 순이익 / 자본 (balance-sheet FTS 활용)
+    const ftsBalanceFiltered = asOfDate
+      ? ftsBalanceData.filter(e => e.date && new Date(e.date) <= asOfDate)
+      : ftsBalanceData;
+    ftsBalanceFiltered.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+    if (ftsBalanceFiltered.length >= 1) {
+      const equity = ftsBalanceFiltered[0].stockholdersEquity ?? ftsBalanceFiltered[0].totalStockholderEquity ?? 0;
+      if (equity > 0) historicalROE = netInc / equity;
+    }
+  }
+
+  // ipoDate: quoteType 모듈의 firstTradeDateEpochUtc 활용
+  // (price 모듈에는 없는 경우가 많아 quoteType이 신뢰도 높음)
+  const rawIpoEpoch = summaryResult.quoteType?.firstTradeDateEpochUtc
+    ?? summaryResult.price?.firstTradeDateEpochUtc;
+  
+  let ipoDate: Date | undefined;
+  try {
+    if (rawIpoEpoch) {
+      let val: number | null = null;
+      // Handle various formats (Date object, object with .raw, number, string)
+      if (rawIpoEpoch instanceof Date || Object.prototype.toString.call(rawIpoEpoch) === '[object Date]') {
+        val = (rawIpoEpoch as Date).getTime();
+      } else if (typeof rawIpoEpoch === 'number') {
+        val = rawIpoEpoch;
+      } else if (typeof rawIpoEpoch === 'object' && (rawIpoEpoch as any).raw) {
+        val = Number((rawIpoEpoch as any).raw);
+      } else if (typeof rawIpoEpoch === 'string') {
+        val = Number(rawIpoEpoch);
+      }
+
+      if (val && !isNaN(val) && val > 0) {
+        // Detect Units: Seconds (< 50B) vs MS vs Microseconds (> 50T)
+        // Use 50 billion as threshold (~Year 3500 in seconds)
+        if (val < 50000000000) {
+          val *= 1000;
+        } else if (val > 50000000000000) {
+          val /= 1000;
+        }
+
+        const d = new Date(val);
+        // Final sanity check: restrict to 1950 ~ 2100
+        if (!isNaN(d.getTime()) && d.getFullYear() >= 1950 && d.getFullYear() <= 2100) {
+          ipoDate = d;
+        }
+      }
+    }
+  } catch (e) {
+    console.error(`[Yahoo] IPO Date parsing failed for ${ticker}:`, (e as Error).message);
+  }
+
+  console.log(`[Yahoo] ${ticker} | Historical: ROE=${historicalROE?.toFixed(3)} opMargin=${historicalOperatingMargins?.toFixed(3)} revGrowth=${historicalRevenueGrowth?.toFixed(3)} | ipoDate=${ipoDate?.toISOString().slice(0,10) ?? 'unknown'}`);
 
   const priceHistory: PriceHistoryEntry[] = (chartQuotes || [])
     .filter((q: any) => q.close != null)
@@ -306,7 +406,9 @@ export async function fetchYahooFinanceData(
     trailingPE,
     forwardPE: summaryDetail?.forwardPE ?? keyStats?.forwardPE,
     priceToBook,
-    returnOnEquity: financial?.returnOnEquity,
+    // 분기별 실제 데이터와 현재치를 합친 fallback 구조
+    // asOfDate가 있는 경우 역사 지표를 우선적으로 사용
+    returnOnEquity: historicalROE ?? financial?.returnOnEquity,
     trailingEps: keyStats?.trailingEps || (price?.regularMarketPrice / (trailingPE || 1)),
     dividendYield: (summaryDetail?.dividendYield as number | undefined) ?? 0,
     marketCap: (asOfDate && currentPrice > 0 && price?.marketCap)
@@ -315,8 +417,8 @@ export async function fetchYahooFinanceData(
     sector: assetProfile?.sector,
     industry: assetProfile?.industry,
     businessSummary: assetProfile?.longBusinessSummary,
-    revenueGrowth: financial?.revenueGrowth,
-    operatingMargins: financial?.operatingMargins,
+    revenueGrowth: historicalRevenueGrowth ?? financial?.revenueGrowth,
+    operatingMargins: historicalOperatingMargins ?? financial?.operatingMargins,
     ebitdaMargins: financial?.ebitdaMargins,
     grossMargins: financial?.grossMargins,
     profitMargins: financial?.profitMargins,
@@ -332,6 +434,7 @@ export async function fetchYahooFinanceData(
     financialHistory,
     returnRates,
     fetchedAt: new Date(),
+    ipoDate,
   };
 }
 

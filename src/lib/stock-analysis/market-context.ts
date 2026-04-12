@@ -3,7 +3,7 @@ import YahooFinance from 'yahoo-finance2';
 import { GoogleGenAI } from '@google/genai';
 import OpenAI from 'openai';
 import Anthropic from '@anthropic-ai/sdk';
-import { withRetry } from '@/lib/utils/retry';
+import { callWithModelFallback } from '@/lib/utils/retry';
 
 const yahooFinance = new YahooFinance({ 
   suppressNotices: ['yahooSurvey'] 
@@ -122,7 +122,8 @@ export async function analyzeStockSentiment(
   ticker: string, 
   aiModel?: string,
   apiKey?: string,
-  asOfDate?: Date
+  asOfDate?: Date,
+  fallbackAiModel?: string
 ): Promise<SentimentAnalysis | null> {
   try {
     let headlines: { title: string, url?: string }[] = [];
@@ -194,48 +195,45 @@ export async function analyzeStockSentiment(
     
     Return ONLY JSON. All explanations, summaries, and impacts must be in Korean.`;
 
-    const text = await withRetry(async () => {
-      if (!aiModel) throw new Error('AI 모델이 선택되지 않았습니다.');
-      const modelLower = aiModel.toLowerCase();
-      if (modelLower.includes('gpt-') || modelLower.includes('o1-')) {
-        const gptApiKey = apiKey || process.env.OPENAI_API_KEY;
-        if (!gptApiKey) throw new Error('OPENAI_API_KEY is missing');
-        const openai = new OpenAI({ apiKey: gptApiKey });
-        const response = await openai.chat.completions.create({
-          model: aiModel,
-          messages: [{ role: 'user', content: prompt }],
-          response_format: { type: 'json_object' }
-        });
-        return response.choices[0].message.content || '';
-      } else if (modelLower.includes('claude-')) {
-        const claudeApiKey = apiKey || process.env.CLAUDE_API_KEY;
-        if (!claudeApiKey) throw new Error('CLAUDE_API_KEY is missing');
-        const anthropic = new Anthropic({ apiKey: claudeApiKey });
-        const response = await anthropic.messages.create({
-          model: aiModel,
-          max_tokens: 1024,
-          messages: [{ role: 'user', content: prompt }]
-        });
-        return (response.content[0] as any).text || '';
-      } else {
-        const geminiApiKey = apiKey || process.env.GEMINI_API_KEY;
-        if (!geminiApiKey) throw new Error('GEMINI_API_KEY is missing');
-        const genAI = new GoogleGenAI({ apiKey: geminiApiKey });
-        const modelName = aiModel.startsWith('models/') ? aiModel : `models/${aiModel}`;
-        try {
+    const text = await callWithModelFallback(
+      aiModel || '',
+      fallbackAiModel,
+      async (model) => {
+        if (!model) throw new Error('AI 모델이 선택되지 않았습니다.');
+        const modelLower = model.toLowerCase();
+        if (modelLower.includes('gpt-') || modelLower.includes('o1-')) {
+          const gptApiKey = apiKey || process.env.OPENAI_API_KEY;
+          if (!gptApiKey) throw new Error('OPENAI_API_KEY is missing');
+          const openai = new OpenAI({ apiKey: gptApiKey });
+          const response = await openai.chat.completions.create({
+            model,
+            messages: [{ role: 'user', content: prompt }],
+            response_format: { type: 'json_object' }
+          });
+          return response.choices[0].message.content || '';
+        } else if (modelLower.includes('claude-')) {
+          const claudeApiKey = apiKey || process.env.CLAUDE_API_KEY;
+          if (!claudeApiKey) throw new Error('CLAUDE_API_KEY is missing');
+          const anthropic = new Anthropic({ apiKey: claudeApiKey });
+          const response = await anthropic.messages.create({
+            model,
+            max_tokens: 1024,
+            messages: [{ role: 'user', content: prompt }]
+          });
+          return (response.content[0] as any).text || '';
+        } else {
+          const geminiApiKey = apiKey || process.env.GEMINI_API_KEY;
+          if (!geminiApiKey) throw new Error('GEMINI_API_KEY is missing');
+          const genAI = new GoogleGenAI({ apiKey: geminiApiKey });
+          const modelName = model.startsWith('models/') ? model : `models/${model}`;
           const result = await genAI.models.generateContent({
             model: modelName,
             contents: [{ role: 'user', parts: [{ text: prompt }] }] as any
           });
           return (result as any).text || '';
-        } catch (aiErr: any) {
-          if (aiErr.status === 429 || aiErr.message?.includes('429') || aiErr.message?.includes('quota')) {
-            throw new Error('AI_QUOTA_EXCEEDED');
-          }
-          throw aiErr;
         }
       }
-    });
+    );
     
     const jsonMatch = text.match(/\{[\s\S]*\}/);
     if (jsonMatch) {
@@ -273,7 +271,8 @@ export async function predictStockGrowth(
   macro: MacroContext,
   sentiment: SentimentAnalysis,
   aiModel?: string,
-  apiKey?: string
+  apiKey?: string,
+  fallbackAiModel?: string
 ): Promise<PredictiveAnalysis | null> {
   try {
     const prompt = `Predict the 6-month growth potential for ${ticker} based on these deep factors:
@@ -290,42 +289,39 @@ export async function predictStockGrowth(
     
     Return ONLY JSON. All explanations must be in Korean.`;
 
-    const text = await withRetry(async () => {
-      if (!aiModel) throw new Error('AI 모델이 선택되지 않았습니다.');
-      const modelLower = aiModel.toLowerCase();
-      if (modelLower.includes('gpt-') || modelLower.includes('o1-')) {
-        const openai = new OpenAI({ apiKey: apiKey || process.env.OPENAI_API_KEY });
-        const res = await openai.chat.completions.create({
-          model: aiModel,
-          messages: [{ role: 'user', content: prompt }],
-          response_format: { type: 'json_object' }
-        });
-        return res.choices[0].message.content || '';
-      } else if (modelLower.includes('claude-')) {
-        const anthropic = new Anthropic({ apiKey: apiKey || process.env.CLAUDE_API_KEY });
-        const res = await anthropic.messages.create({
-          model: aiModel,
-          max_tokens: 1024,
-          messages: [{ role: 'user', content: prompt }]
-        });
-        return (res.content[0] as any).text || '';
-      } else {
-        const genAI = new GoogleGenAI({ apiKey: apiKey || process.env.GEMINI_API_KEY });
-        const modelName = aiModel.startsWith('models/') ? aiModel : `models/${aiModel}`;
-        try {
+    const text = await callWithModelFallback(
+      aiModel || '',
+      fallbackAiModel,
+      async (model) => {
+        if (!model) throw new Error('AI 모델이 선택되지 않았습니다.');
+        const modelLower = model.toLowerCase();
+        if (modelLower.includes('gpt-') || modelLower.includes('o1-')) {
+          const openai = new OpenAI({ apiKey: apiKey || process.env.OPENAI_API_KEY });
+          const res = await openai.chat.completions.create({
+            model,
+            messages: [{ role: 'user', content: prompt }],
+            response_format: { type: 'json_object' }
+          });
+          return res.choices[0].message.content || '';
+        } else if (modelLower.includes('claude-')) {
+          const anthropic = new Anthropic({ apiKey: apiKey || process.env.CLAUDE_API_KEY });
+          const res = await anthropic.messages.create({
+            model,
+            max_tokens: 1024,
+            messages: [{ role: 'user', content: prompt }]
+          });
+          return (res.content[0] as any).text || '';
+        } else {
+          const genAI = new GoogleGenAI({ apiKey: apiKey || process.env.GEMINI_API_KEY });
+          const modelName = model.startsWith('models/') ? model : `models/${model}`;
           const result = await genAI.models.generateContent({
             model: modelName,
             contents: [{ role: 'user', parts: [{ text: prompt }] }] as any
           });
           return (result as any).text || '';
-        } catch (aiErr: any) {
-          if (aiErr.status === 429 || aiErr.message?.includes('429') || aiErr.message?.includes('quota')) {
-            throw new Error('AI_QUOTA_EXCEEDED');
-          }
-          throw aiErr;
         }
       }
-    });
+    );
 
     const jsonMatch = text.match(/\{[\s\S]*\}/);
     if (jsonMatch) return JSON.parse(jsonMatch[0]);
@@ -350,7 +346,8 @@ export async function generateExpertVerdict(
   prediction: PredictiveAnalysis,
   knowledge: any,
   aiModel?: string,
-  apiKey?: string
+  apiKey?: string,
+  fallbackAiModel?: string
 ): Promise<any> {
   try {
     const prompt = `You are the investment expert who curated the provided knowledge base. 
@@ -380,35 +377,39 @@ export async function generateExpertVerdict(
     
     All text descriptions must be in Korean.`;
 
-    const text = await withRetry(async () => {
-      if (!aiModel) throw new Error('AI 모델이 선택되지 않았습니다.');
-      const modelLower = aiModel.toLowerCase();
-      if (modelLower.includes('gpt-') || modelLower.includes('o1-')) {
-        const openai = new OpenAI({ apiKey: apiKey || process.env.OPENAI_API_KEY });
-        const res = await openai.chat.completions.create({
-          model: aiModel,
-          messages: [{ role: 'user', content: prompt }],
-          response_format: { type: 'json_object' }
-        });
-        return res.choices[0].message.content || '';
-      } else if (modelLower.includes('claude-')) {
-        const anthropic = new Anthropic({ apiKey: apiKey || process.env.CLAUDE_API_KEY });
-        const res = await anthropic.messages.create({
-          model: aiModel,
-          max_tokens: 1500,
-          messages: [{ role: 'user', content: prompt }]
-        });
-        return (res.content[0] as any).text || '';
-      } else {
-        const genAI = new GoogleGenAI({ apiKey: apiKey || process.env.GEMINI_API_KEY });
-        const modelName = aiModel.startsWith('models/') ? aiModel : `models/${aiModel}`;
-        const result = await genAI.models.generateContent({
-          model: modelName,
-          contents: [{ role: 'user', parts: [{ text: prompt }] }] as any
-        });
-        return (result as any).text || '';
+    const text = await callWithModelFallback(
+      aiModel || '',
+      fallbackAiModel,
+      async (model) => {
+        if (!model) throw new Error('AI 모델이 선택되지 않았습니다.');
+        const modelLower = model.toLowerCase();
+        if (modelLower.includes('gpt-') || modelLower.includes('o1-')) {
+          const openai = new OpenAI({ apiKey: apiKey || process.env.OPENAI_API_KEY });
+          const res = await openai.chat.completions.create({
+            model,
+            messages: [{ role: 'user', content: prompt }],
+            response_format: { type: 'json_object' }
+          });
+          return res.choices[0].message.content || '';
+        } else if (modelLower.includes('claude-')) {
+          const anthropic = new Anthropic({ apiKey: apiKey || process.env.CLAUDE_API_KEY });
+          const res = await anthropic.messages.create({
+            model,
+            max_tokens: 1500,
+            messages: [{ role: 'user', content: prompt }]
+          });
+          return (res.content[0] as any).text || '';
+        } else {
+          const genAI = new GoogleGenAI({ apiKey: apiKey || process.env.GEMINI_API_KEY });
+          const modelName = model.startsWith('models/') ? model : `models/${model}`;
+          const result = await genAI.models.generateContent({
+            model: modelName,
+            contents: [{ role: 'user', parts: [{ text: prompt }] }] as any
+          });
+          return (result as any).text || '';
+        }
       }
-    });
+    );
 
     const jsonMatch = text.match(/\{[\s\S]*\}/);
     if (jsonMatch) return JSON.parse(jsonMatch[0]);

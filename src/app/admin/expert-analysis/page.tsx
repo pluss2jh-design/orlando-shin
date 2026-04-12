@@ -1,24 +1,36 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { 
+  Brain, Sparkles, AlertCircle, CheckCircle2, BookOpen,
+  ChevronRight, BarChart3, ArrowRight, ChevronDown, ChevronUp,
+  Globe, Building2,
+  Calendar, Target, Cpu, Zap
+} from 'lucide-react';
 
 import { DataControl } from '@/components/stock-analysis/data-control';
 import { InvestmentInput } from '@/components/stock-analysis/investment-input';
+import { SingleCompanyBar } from '@/components/stock-analysis/single-company-bar';
 import { AnalysisOutput } from '@/components/stock-analysis/analysis-output';
 import { AnalysisReport } from '@/components/stock-analysis/analysis-report';
 import {
   Phase1Panel, Phase2Panel, Phase3Panel
 } from '@/components/stock-analysis/pipeline-phases';
 import { Badge } from '@/components/ui/badge';
-import {
-  Brain, Sparkles, AlertCircle, CheckCircle2, BookOpen,
-  ChevronRight, BarChart3, ArrowRight, ChevronDown, ChevronUp
-} from 'lucide-react';
-import { AnalysisState, InvestmentConditions } from '@/types/stock-analysis';
+import { InvestmentConditions, AnalysisResult, ExcludedStockDetail } from '@/types/stock-analysis';
 import { cn } from '@/lib/utils';
 
-
-/** Phase Header Step */
+export interface AnalysisState {
+  isAnalyzing: boolean;
+  progress: number;
+  progressMessage: string;
+  results: any;
+  error: string | null;
+  excludedStockCount: number;
+  excludedDetails: ExcludedStockDetail[];
+  conditions: InvestmentConditions | null;
+  processedCount: number;
+}
 function PipelineStep({
   num, label, color, isActive, isCompleted, phase3Done, isLast, onClick
 }: {
@@ -91,6 +103,14 @@ export default function ExpertAnalysisPage() {
   const [macroContext, setMacroContext] = useState<any>(null);
   const [showReport, setShowReport] = useState(false);
   const [activePhase, setActivePhase] = useState<number>(4);
+
+  // ── 단일 기업 분석 설정 ──
+  const [analysisMode, setAnalysisMode] = useState<'universe' | 'single'>('universe');
+  const [singleTicker, setSingleTicker] = useState('');
+  const [singleAnalysisModel, setSingleAnalysisModel] = useState<{ newsAiModel?: string; fallbackAiModel?: string; conditions?: any }>({});
+  const [singleResult, setSingleResult] = useState<AnalysisResult | null>(null);
+  const [singleResultPresent, setSingleResultPresent] = useState<AnalysisResult | null>(null);
+  const [singleLoading, setSingleLoading] = useState(false);
 
   // ─── Fetch initial data ───────────────────────────────────────────
   useEffect(() => {
@@ -238,6 +258,137 @@ export default function ExpertAnalysisPage() {
     }
   };
 
+  const handleSingleAnalyze = async () => {
+    if (!singleTicker.trim()) { alert('티커를 입력해주세요.'); return; }
+    if (!singleAnalysisModel.newsAiModel) { alert('AI 모델을 선택해주세요.'); return; }
+    setSingleLoading(true); setSingleResult(null); setSingleResultPresent(null);
+    setAnalysisState(prev => ({ ...prev, error: null }));
+    setActivePhase(4);
+    
+    try {
+      const isPast = !!singleAnalysisModel.conditions?.asOfDate;
+      const res = fetch('/api/analysis/single', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ticker: singleTicker.trim().toUpperCase(),
+          conditions: singleAnalysisModel.conditions || {},
+          newsAiModel: singleAnalysisModel.newsAiModel,
+          fallbackAiModel: singleAnalysisModel.fallbackAiModel,
+        }),
+      });
+
+      let resPresent;
+      if (isPast) {
+         resPresent = fetch('/api/analysis/single', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+               ticker: singleTicker.trim().toUpperCase(),
+               conditions: { ...singleAnalysisModel.conditions, asOfDate: undefined },
+               newsAiModel: singleAnalysisModel.newsAiModel,
+               fallbackAiModel: singleAnalysisModel.fallbackAiModel,
+            }),
+         });
+      }
+
+      const [pastObj, presentObj] = await Promise.all([res, resPresent]);
+      const dataPast = await pastObj.json();
+      if (!pastObj.ok) throw new Error(dataPast.error || '분석 실패');
+      setSingleResult(dataPast.result);
+
+      if (presentObj) {
+         const dataPresent = await presentObj.json();
+         if (presentObj.ok) {
+            setSingleResultPresent(dataPresent.result);
+         }
+      }
+    } catch (e: any) {
+      setAnalysisState(prev => ({ ...prev, error: e.message || '알 수 없는 오류가 발생했습니다.' }));
+    } finally {
+      setSingleLoading(false);
+    }
+  };
+
+  const renderActiveConditions = () => {
+    let modeText = analysisMode === 'universe' ? '유니버스 스캐닝' : '단일 기업 분석';
+    let asOfDateStr = '현재';
+    let modelStr = '-';
+    let targetStr = '-';
+    
+    if (analysisMode === 'universe') {
+       if (!analysisState.isAnalyzing && !analysisState.results) return null;
+       const conds = analysisState.conditions || analysisState.results?.investmentConditions;
+       if (!conds) return null;
+       asOfDateStr = conds.asOfDate ? new Date(conds.asOfDate).toLocaleDateString() : '현재 (LIVE)';
+       targetStr = conds.universeType === 'sp500' ? 'S&P 500' : conds.universeType === 'russell1000' ? 'Russell 1000' : conds.universeType === 'russell1000_exclude_sp500' ? 'Russell 1000 (S&P 500 제외)' : '가용 전체';
+       targetStr += conds.sector && conds.sector !== 'ALL' ? ` + ${conds.sector}` : '';
+       modelStr = process.env.NEXT_PUBLIC_AI_MODEL || '기본 모델';
+    } else {
+       if (!singleLoading && !singleResult) return null;
+       const conds = singleAnalysisModel.conditions;
+       asOfDateStr = singleResult?.timeLabel || conds?.timeLabel || (conds?.asOfDate ? new Date(conds.asOfDate).toLocaleDateString() : '현재 (LIVE)');
+       targetStr = singleTicker;
+       modelStr = singleAnalysisModel.newsAiModel || '기본 모델';
+    }
+    
+    return (
+       <div className="mt-4 flex flex-wrap items-center gap-3 p-3 bg-blue-500/10 border border-blue-500/20 rounded-xl text-xs font-bold text-blue-200 animate-in fade-in zoom-in duration-300">
+           <span className="bg-blue-600 text-white px-2 py-0.5 rounded font-black uppercase tracking-wider">{modeText}</span>
+           <span className="flex items-center gap-1.5"><Calendar className="w-4 h-4 opacity-70"/> 기준 일자: {asOfDateStr}</span>
+           <span className="opacity-50">|</span>
+           <span className="flex items-center gap-1.5"><Target className="w-4 h-4 opacity-70"/> 검색 대상: {targetStr}</span>
+           <span className="opacity-50">|</span>
+           <span className="flex items-center gap-1.5"><Cpu className="w-4 h-4 opacity-70"/> 모델: {modelStr}</span>
+       </div>
+    );
+  };
+
+  const renderMiniMacroContext = (macro: any, colorPrefix: 'blue' | 'emerald' | 'indigo') => {
+    if (!macro) return null;
+    
+    const getBadgeClass = (status: string) => {
+        if (status === 'Low' || status === 'Bullish' || status === 'Uptrend' || status === 'Greed') return 'bg-teal-500/20 text-teal-300';
+        if (status === 'Moderate' || status === 'Neutral' || status === 'Sideways') return 'bg-amber-500/20 text-amber-300';
+        return 'bg-rose-500/20 text-rose-300';
+    };
+
+    return (
+      <div className={`grid grid-cols-2 lg:grid-cols-4 gap-2 mb-6 border-b border-${colorPrefix}-500/20 pb-4`}>
+        <div className="p-2 rounded-lg bg-[#0f111a] border border-white/5 shadow-inner hover:bg-white/5 transition-colors">
+          <p className={`text-[10px] text-${colorPrefix}-400 font-black uppercase mb-1`}>VIX (공포 지수)</p>
+          <div className="flex items-center justify-between">
+            <span className="text-sm font-black text-white font-mono">{macro.vix?.toFixed(1) || '-'}</span>
+            <span className={cn("text-[9px] font-black px-1.5 py-0.5 rounded", getBadgeClass(macro.vixStatus))}>{macro.vixStatus}</span>
+          </div>
+        </div>
+        <div className="p-2 rounded-lg bg-[#0f111a] border border-white/5 shadow-inner hover:bg-white/5 transition-colors">
+          <p className={`text-[10px] text-${colorPrefix}-400 font-black uppercase mb-1`}>10Y Yield</p>
+          <div className="flex items-center justify-between">
+            <span className="text-sm font-black text-white font-mono">{macro.treasuryYield10Y ? macro.treasuryYield10Y.toFixed(2) + '%' : '-'}</span>
+            <span className={cn("text-[9px] font-black px-1.5 py-0.5 rounded", getBadgeClass(macro.yieldStatus))}>{macro.yieldStatus}</span>
+          </div>
+        </div>
+        <div className="p-2 rounded-lg bg-[#0f111a] border border-white/5 shadow-inner hover:bg-white/5 transition-colors">
+          <p className={`text-[10px] text-${colorPrefix}-400 font-black uppercase mb-1`}>S&P 500</p>
+          <div className="flex items-center justify-between">
+            <span className="text-sm font-black text-white font-mono truncate mr-2">{macro.sp500Trend || '-'}</span>
+            <span className={cn("text-[9px] font-black px-1.5 py-0.5 rounded shrink-0", getBadgeClass(macro.sp500Trend))}>{macro.sp500Trend || 'N/A'}</span>
+          </div>
+        </div>
+        <div className="p-2 rounded-lg bg-[#0f111a] border border-white/5 shadow-inner relative overflow-hidden">
+          <div className={cn("absolute inset-0 opacity-5", getBadgeClass(macro.marketMode))} />
+          <p className={`text-[10px] text-${colorPrefix}-400 font-black uppercase mb-1 relative z-10`}>Market Mode</p>
+          <div className="flex items-center justify-between relative z-10">
+            <span className="text-sm font-black text-white font-mono truncate mr-2">{macro.marketMode || '-'}</span>
+            <span className={cn("text-[9px] font-black px-1.5 py-0.5 rounded shrink-0", getBadgeClass(macro.marketMode))}>{macro.marketMode || 'N/A'}</span>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+
   // ─── Derived state ─────────────────────────────────────────────────
   const knowledge = activeKnowledge?.content;
   const criterias = knowledge?.criteria?.criterias || [];
@@ -326,7 +477,10 @@ export default function ExpertAnalysisPage() {
                     </div>
                   </div>
                   <div className="bg-[#161b22] rounded-2xl border border-blue-500/20 p-1">
-                    <DataControl onLearningComplete={fetchActiveKnowledge} />
+                    <DataControl 
+                      onLearningStart={() => setActiveKnowledge(null)}
+                      onLearningComplete={fetchActiveKnowledge} 
+                    />
                   </div>
                 </div>
               )}
@@ -348,35 +502,72 @@ export default function ExpertAnalysisPage() {
               )}
               {activePhase === 4 && (
                 <Phase3Panel 
-                  macroContext={macroContext}
-                  isAnalyzing={analysisState.isAnalyzing}
-                  progress={analysisState.progress}
-                  progressMessage={analysisState.progressMessage}
-                  results={analysisState.results}
-                  processedCount={analysisState.processedCount}
-                  excludedStockCount={analysisState.excludedStockCount}
+                  macroContext={analysisMode === 'universe' ? macroContext : null}
+                  isAnalyzing={analysisMode === 'universe' ? analysisState.isAnalyzing : singleLoading}
+                  progress={analysisMode === 'universe' ? analysisState.progress : (singleLoading ? 50 : 100)}
+                  progressMessage={analysisMode === 'universe' ? analysisState.progressMessage : (singleLoading ? '단일 기업 심층 분석 중...' : '')}
+                  results={analysisMode === 'universe' ? analysisState.results : (singleResult ? { trackA: [singleResult], trackB: [], summary: '단일 기업 분석 결과' } : null)}
+                  processedCount={analysisMode === 'universe' ? analysisState.processedCount : (singleResult ? 1 : 0)}
+                  excludedStockCount={analysisMode === 'universe' ? analysisState.excludedStockCount : 0}
                   totalRuleCount={criterias.length}
                   inputControls={
-                    <div className="flex items-end gap-3 flex-wrap">
-                      <InvestmentInput
-                        onAnalyze={handleAnalyze}
-                        disabled={analysisState.isAnalyzing}
-                        activeKnowledge={activeKnowledge}
-                      />
-                      {analysisState.isAnalyzing && (
+                    <div className="flex flex-col gap-4">
+                      {/* 모드 토글 */}
+                      <div className="flex items-center gap-2">
                         <button
-                          onClick={handleStopAnalysis}
-                          className="h-11 px-5 bg-rose-600 hover:bg-rose-500 text-white rounded-xl font-black text-xs flex items-center gap-2 transition-all shadow-lg shadow-rose-900/30"
+                          onClick={() => setAnalysisMode('universe')}
+                          className={cn(
+                            "flex items-center gap-1.5 px-3 h-8 rounded-lg text-[11px] font-black uppercase tracking-widest transition-all",
+                            analysisMode === 'universe' ? "bg-white text-black" : "bg-white/5 text-white/40 hover:bg-white/10"
+                          )}
                         >
-                          <AlertCircle className="h-3.5 w-3.5" />
-                          STOP
+                          <Globe className="h-3 w-3" />유니버스 스캐닝
                         </button>
-                      )}
+                        <button
+                          onClick={() => setAnalysisMode('single')}
+                          className={cn(
+                            "flex items-center gap-1.5 px-3 h-8 rounded-lg text-[11px] font-black uppercase tracking-widest transition-all",
+                            analysisMode === 'single' ? "bg-indigo-500 text-white" : "bg-white/5 text-white/40 hover:bg-white/10"
+                          )}
+                        >
+                          <Building2 className="h-3 w-3" />단일 기업 분석
+                        </button>
+                      </div>
+
+                      <div className="flex items-end gap-3 flex-wrap">
+                        {analysisMode === 'universe' ? (
+                           <InvestmentInput
+                             onAnalyze={handleAnalyze}
+                             disabled={analysisState.isAnalyzing}
+                             activeKnowledge={activeKnowledge}
+                           />
+                        ) : (
+                           <SingleCompanyBar
+                             onSearchModel={(model) => setSingleAnalysisModel(model)}
+                             onRunAnalysis={handleSingleAnalyze}
+                             singleTicker={singleTicker}
+                             onTickerChange={setSingleTicker}
+                             isLoading={singleLoading}
+                           />
+                        )}
+
+                        {analysisState.isAnalyzing && analysisMode === 'universe' && (
+                          <button
+                            onClick={handleStopAnalysis}
+                            className="h-11 px-5 bg-rose-600 hover:bg-rose-500 text-white rounded-xl font-black text-xs flex items-center gap-2 transition-all shadow-lg shadow-rose-900/30"
+                          >
+                            <AlertCircle className="h-3.5 w-3.5" />
+                            STOP
+                          </button>
+                        )}
+                      </div>
+                      
+                      {renderActiveConditions()}
                     </div>
                   }
                 >
                   {/* Final Results */}
-                  {analysisState.results && !analysisState.isAnalyzing && (
+                  {analysisMode === 'universe' && analysisState.results && !analysisState.isAnalyzing && (
                     <div className="space-y-5 pt-2">
                       {/* Completion banner */}
                       <div className="p-6 rounded-2xl bg-gradient-to-r from-emerald-600/20 to-teal-600/10 border border-emerald-500/30 flex items-center justify-between gap-4 flex-wrap">
@@ -446,6 +637,74 @@ export default function ExpertAnalysisPage() {
                       </div>
                     </div>
                   )}
+
+                  {/* Single Result */}
+                  {analysisMode === 'single' && singleResult && !singleLoading && (
+                    <div className="space-y-5 pt-2">
+                      {singleResultPresent ? (
+                          <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 items-start mt-4">
+                             <div className="rounded-2xl bg-[#161b22] border border-blue-500/20 p-6 relative overflow-hidden shadow-2xl shadow-blue-500/5 hover:border-blue-500/40 transition-colors">
+                               <div className="absolute top-0 right-0 p-12 bg-blue-50 opacity-5 -mr-6 -mt-6 rounded-full blur-2xl pointer-events-none" />
+                               <div className="flex items-center gap-3 mb-6 relative z-10">
+                                 <div className="p-2 bg-blue-500/20 rounded-xl">
+                                   <Calendar className="h-5 w-5 text-blue-400" />
+                                 </div>
+                                 <div>
+                                   <h2 className="text-base font-black text-white">과거 시점 트래킹 분석</h2>
+                                   <p className="text-sm font-bold text-blue-400">조회 시점: {singleResult.timeLabel || (singleResult.yahooData?.asOfDate ? new Date(singleResult.yahooData.asOfDate).toLocaleDateString() : '과거')}</p>
+                                 </div>
+                               </div>
+                               {renderMiniMacroContext(singleResult.macroContext, 'blue')}
+                               <AnalysisOutput 
+                                   results={{ trackA: [singleResult], trackB: [], analysisDate: new Date(), summary: '단일 기업 분석 결과' }} 
+                                   conditions={singleAnalysisModel.conditions || {}}
+                                   isLoading={false}
+                               />
+                             </div>
+                             <div className="rounded-2xl bg-[#161b22] border border-emerald-500/30 p-6 relative overflow-hidden shadow-2xl shadow-emerald-500/5 hover:border-emerald-500/40 transition-colors">
+                               <div className="absolute top-0 right-0 p-12 bg-emerald-50 opacity-5 -mr-6 -mt-6 rounded-full blur-2xl pointer-events-none" />
+                               <div className="flex items-center gap-3 mb-6 relative z-10">
+                                 <div className="p-2 bg-emerald-500/20 rounded-xl">
+                                   <Zap className="h-5 w-5 text-emerald-400" />
+                                 </div>
+                                 <div className="flex-1">
+                                   <div className="flex items-center gap-2">
+                                     <h2 className="text-base font-black text-white">현재 시점 트래킹 모델</h2>
+                                     <Badge className="bg-emerald-500/20 text-emerald-300 border-none px-2 py-0.5 text-[9px] font-black uppercase tracking-widest animate-pulse">LIVE</Badge>
+                                   </div>
+                                   <p className="text-sm font-bold text-emerald-400">조회 시점: 현재 실시간</p>
+                                 </div>
+                               </div>
+                               {renderMiniMacroContext(singleResultPresent.macroContext, 'emerald')}
+                               <AnalysisOutput 
+                                   results={{ trackA: [singleResultPresent], trackB: [], analysisDate: new Date(), summary: '단일 기업 분석 결과' }} 
+                                   conditions={{...singleAnalysisModel.conditions, asOfDate: undefined}}
+                                   isLoading={false}
+                               />
+                             </div>
+                          </div>
+                      ) : (
+                          <div className="rounded-2xl bg-[#161b22] border border-indigo-500/20 p-6 mt-4">
+                            <div className="flex items-center gap-3 mb-6">
+                              <div className="p-2 bg-indigo-500/20 rounded-xl">
+                                <Building2 className="h-5 w-5 text-indigo-400" />
+                              </div>
+                              <div>
+                                <h2 className="text-base font-black text-white">단일 기업 심층 트래킹 결과</h2>
+                                <p className="text-sm font-bold text-indigo-400">조회 시점: {singleResult.timeLabel || (singleResult.yahooData?.asOfDate ? new Date(singleResult.yahooData.asOfDate).toLocaleDateString() : '현재 (LIVE)')}</p>
+                              </div>
+                            </div>
+                            {renderMiniMacroContext(singleResult.macroContext, 'indigo')}
+                            <AnalysisOutput 
+                                results={{ trackA: [singleResult], trackB: [], analysisDate: new Date(), summary: '단일 기업 분석 결과' }} 
+                                conditions={singleAnalysisModel.conditions || {}}
+                                isLoading={false}
+                            />
+                          </div>
+                      )}
+                    </div>
+                  )}
+
                 </Phase3Panel>
               )}
             </div>

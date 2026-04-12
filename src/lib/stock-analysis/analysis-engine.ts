@@ -39,7 +39,6 @@ export async function runAnalysisEngine(
   conditions: InvestmentConditions,
   knowledge: LearnedKnowledge,
   style: InvestmentStyle = 'moderate',
-
   newsAiModel?: string,
   newsApiKey?: string,
   onProgress?: (progress: number, message: string, meta?: { 
@@ -48,7 +47,8 @@ export async function runAnalysisEngine(
     processedCount?: number;
     universeCounts?: { russellCount: number; sp500Count: number; overlapCount: number; };
     macroContext?: MacroContext;
-  }) => void
+  }) => void,
+  fallbackAiModel?: string
 ): Promise<RecommendationResult> {
 
   if (onProgress) onProgress(1, '분석 환경 초기화 중...');
@@ -168,6 +168,7 @@ export async function runAnalysisEngine(
     isSpeculative?: boolean;
     isStrongBase?: boolean;
     isEnergyCoiling?: boolean;
+    ipoDate?: Date;
   }> = [];
 
   const sectorStats = calculateSectorStats(validStocks);
@@ -275,6 +276,7 @@ export async function runAnalysisEngine(
           totalScore: Number(finalScore.toFixed(2)),
           isStrongBase: isUndervalued && isNotOverheated && isImproving && isHighQuality,
           isEnergyCoiling: isSideways && hasRelativeStrength && hasSmartMoney,
+          ipoDate: fullData.ipoDate,
         });
       } catch (err: any) {
         if (err?.message === 'STOPPED_BY_USER') {
@@ -296,7 +298,7 @@ export async function runAnalysisEngine(
       if (!a.isStrongBase && b.isStrongBase) return 1;
       return b.totalScore - a.totalScore || b.periodReturn - a.periodReturn;
     })
-    .slice(0, 15);
+    .slice(0, 50);
 
   const trackBCandidates = stocksWithScores
     .filter(s => !trackACandidates.find(a => a.ticker === s.ticker))
@@ -305,35 +307,35 @@ export async function runAnalysisEngine(
       if (!a.isEnergyCoiling && b.isEnergyCoiling) return 1;
       return b.periodReturn - a.periodReturn || b.totalScore - a.totalScore;
     })
-    .slice(0, 20);
+    .slice(0, 50);
   
   console.log(`[Engine] Candidates Sorted: Track A(${trackACandidates.length}), Track B(${trackBCandidates.length})`);
 
   const trackAResults: AnalysisResult[] = [];
   const trackBResults: AnalysisResult[] = [];
 
-  for (let i = 0; i < trackACandidates.length && trackAResults.length < 10; i++) {
+  for (let i = 0; i < trackACandidates.length; i++) {
     const stock = trackACandidates[i];
     const itemPct = 85 + Math.floor((i / trackACandidates.length) * 5);
     if (onProgress) onProgress(itemPct, `[Track A] AI 정밀 분석 중: ${stock.ticker} (${i + 1}/${trackACandidates.length})`);
 
-    const result = await performDeepAnalysis(stock, knowledge, asOfDate, newsAiModel, newsApiKey, 'A');
+    const result = await performDeepAnalysis(stock, knowledge, asOfDate, newsAiModel, newsApiKey, 'A', fallbackAiModel);
     if (result) trackAResults.push(result);
   }
 
-  for (let i = 0; i < trackBCandidates.length && trackBResults.length < 10; i++) {
+  for (let i = 0; i < trackBCandidates.length; i++) {
     const stock = trackBCandidates[i];
     const itemPct = 90 + Math.floor((i / trackBCandidates.length) * 5);
     if (onProgress) onProgress(itemPct, `[Track B] AI 유닛 경제성 분석 중: ${stock.ticker} (${i + 1}/${trackBCandidates.length})`);
 
-    const result = await performDeepAnalysis(stock, knowledge, asOfDate, newsAiModel, newsApiKey, 'B');
+    const result = await performDeepAnalysis(stock, knowledge, asOfDate, newsAiModel, newsApiKey, 'B', fallbackAiModel);
     if (result) trackBResults.push(result);
   }
 
   if (onProgress) onProgress(98, '분석 완료! 결과 정리 중...');
 
-  const finalTrackA = [...trackAResults].sort((a, b) => (b.score || 0) - (a.score || 0));
-  const finalTrackB = [...trackBResults].sort((a, b) => (b.score || 0) - (a.score || 0));
+  const finalTrackA = [...trackAResults].sort((a, b) => (b.score || 0) - (a.score || 0)).slice(0, 10);
+  const finalTrackB = [...trackBResults].sort((a, b) => (b.score || 0) - (a.score || 0)).slice(0, 10);
 
   return {
     trackA: finalTrackA,
@@ -359,16 +361,17 @@ async function performDeepAnalysis(
   asOfDate: Date | undefined,
   aiModel?: string, 
   apiKey?: string,
-  track: 'A' | 'B' = 'A'
+  track: 'A' | 'B' = 'A',
+  fallbackAiModel?: string
 ): Promise<AnalysisResult | null> {
   try {
     const exchangeRate = await fetchExchangeRate();
     const macroContext = await fetchMarketMacroContext(asOfDate);
 
-    const sentiment = await analyzeStockSentiment(stock.ticker, aiModel, apiKey, asOfDate);
+    const sentiment = await analyzeStockSentiment(stock.ticker, aiModel, apiKey, asOfDate, fallbackAiModel);
     if (!sentiment) return null;
 
-    const prediction = await predictStockGrowth(stock.ticker, stock.yahooData, macroContext, sentiment, aiModel, apiKey);
+    const prediction = await predictStockGrowth(stock.ticker, stock.yahooData, macroContext, sentiment, aiModel, apiKey, fallbackAiModel);
     if (!prediction) return null;
 
     const expertVerdict = await generateExpertVerdict(
@@ -379,7 +382,8 @@ async function performDeepAnalysis(
       prediction,
       knowledge,
       aiModel,
-      apiKey
+      apiKey,
+      fallbackAiModel
     );
     if (!expertVerdict) return null;
 
@@ -423,6 +427,11 @@ async function performDeepAnalysis(
       earningsRevision: (stock.yahooData as any).earningsRevision,
       fetchedAt: new Date(),
       extractedAt: new Date(),
+      // 신규 상장 여부: IPO일이 asOfDate와 현재시점 사이에 상장되었으면 'new_listing'
+      ipoDate: stock.ipoDate,
+      listingStatus: (stock.ipoDate && asOfDate && stock.ipoDate > asOfDate && stock.ipoDate <= new Date())
+        ? 'new_listing'
+        : 'normal',
     } as AnalysisResult;
   } catch (error) {
     console.error(`[DeepAnalysis] Error for ${stock.ticker}:`, error);
@@ -503,7 +512,7 @@ function calculateSectorStats(allData: YahooFinanceData[]): Record<string, Recor
 /**
  * AI가 추출한 계량화된 규칙을 바탕으로 실시간 데이터를 평가합니다.
  */
-function evaluateQuantifiedRule(
+export function evaluateQuantifiedRule(
   rule: any, 
   data: YahooFinanceData, 
   sectorStats?: Record<string, Record<string, { avg: number, p80: number }>>,

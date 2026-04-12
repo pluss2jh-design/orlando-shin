@@ -118,6 +118,7 @@ export class StockService {
     conditions?: { 
       companyCount?: number; 
       newsAiModel?: string; 
+      fallbackAiModel?: string;
       newsApiKey?: string; 
       sector?: string; 
       strategyType?: 'growth' | 'value' | 'all'; 
@@ -189,9 +190,8 @@ export class StockService {
                 macroContext: meta?.macroContext || currentJob.macroContext,
               });
             }
-          }
-
-
+          },
+          conditions?.fallbackAiModel
         );
 
         // 성공 시 사용량 카운트 업 및 개별 리포트 저장
@@ -271,6 +271,7 @@ export class StockService {
     fileIds?: string[];
     aiModel?: string;
     title?: string;
+    forceFullAnalysis?: boolean;
   }) {
     // 0. 학습 상태 즉시 초기화 (Race Condition 방지)
     const { resetLearningStatus } = await import('@/lib/stock-analysis/ai-learning');
@@ -279,7 +280,9 @@ export class StockService {
     // 1. 학습 파이프라인 시작 (비동기)
     (async () => {
       try {
-        const knowledge = await runLearningPipeline(options.fileIds, options.aiModel);
+        const knowledge = await runLearningPipeline(options.fileIds, options.aiModel, { 
+          forceFullAnalysis: options.forceFullAnalysis 
+        });
         const knowledgeId = await saveKnowledgeToDB(knowledge, options.title);
         console.log(`Learning completed: ${knowledgeId}`);
       } catch (error: any) {
@@ -324,8 +327,14 @@ export class StockService {
     try {
       const reports = topPicks.map(pick => ({
         userId,
-        ticker: pick.yahooData.ticker,
-        companyName: pick.company.companyName,
+        ticker: pick.yahooData?.ticker || pick.ticker,
+        // pick.company가 없을 수 있으므로 여러 경로에서 안전하게 fallback
+        companyName: pick.company?.companyName
+          || pick.companyName
+          || pick.yahooData?.shortName
+          || pick.yahooData?.longName
+          || pick.yahooData?.ticker
+          || 'Unknown',
         conditions: conditions || {},
         expertVerdict: pick.expertVerdict || {},
         ruleScores: pick.ruleScores || [],
@@ -341,7 +350,11 @@ export class StockService {
       
       console.log(`Saved ${reports.length} analysis reports for user ${userId}`);
     } catch (error) {
-      console.error('Failed to save analysis reports:', error);
+      // Error 객체는 JSON.stringify 시 {} 로 직렬화되어 로그에 내용이 안 남으므로 명시적으로 추출
+      const errMsg = error instanceof Error
+        ? `${error.message}\nStack: ${error.stack}`
+        : String(error);
+      console.error(`Failed to save analysis reports: ${errMsg}`);
     }
   }
 

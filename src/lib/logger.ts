@@ -49,7 +49,12 @@ function formatTimestamp(): string {
 function writeLog(type: 'backend' | 'frontend', level: string, args: unknown[]) {
     try {
         const message = args
-            .map(a => (typeof a === 'string' ? a : JSON.stringify(a, null, 0)))
+            .map(a => {
+                if (typeof a === 'string') return a;
+                // Error 객체는 JSON.stringify 시 {} 가 되므로 명시적으로 처리
+                if (a instanceof Error) return `${a.message}\nStack: ${a.stack}`;
+                try { return JSON.stringify(a, null, 0); } catch { return String(a); }
+            })
             .join(' ');
         const line = `[${formatTimestamp()}] [${level.padEnd(5)}] ${message}\n`;
         fs.appendFileSync(getLogFilePath(type), line, 'utf8');

@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { TrendingUp, AlertCircle, FileText, Video, CheckCircle, ChevronDown, ChevronUp, Mail, Lock, Sparkles, ArrowLeft, ArrowRight, Activity, TrendingDown, Target, Zap, ExternalLink, Newspaper, Brain, CheckCircle2, BarChart3 } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { TrendingUp, AlertCircle, FileText, Video, CheckCircle, ChevronDown, ChevronUp, Mail, Lock, Sparkles, ArrowLeft, ArrowRight, Activity, TrendingDown, Target, Zap, ExternalLink, Newspaper, Brain, CheckCircle2, BarChart3, Calendar } from 'lucide-react';
 import { useSession } from 'next-auth/react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -166,6 +166,60 @@ export function AnalysisOutput({ results, conditions, isLoading, onSendEmail }: 
   const [isScoreExpanded, setIsScoreExpanded] = useState(false);
   const [backtestTicker, setBacktestTicker] = useState<string | null>(null);
 
+  const [presentResult, setPresentResult] = useState<AnalysisResult | null>(null);
+  const [isPresentLoading, setIsPresentLoading] = useState(false);
+  const presentCacheRef = useRef<Record<string, AnalysisResult>>({});
+
+  const isSingleAnalysis = (results?.trackA?.length === 1 && (results?.trackB?.length || 0) === 0 && results?.summary === '단일 기업 분석 결과');
+  const activeCompanyIndex = isSingleAnalysis ? 0 : selectedCompanyIndex;
+  const allResults = [...(results?.trackA || []), ...(results?.trackB || [])];
+  const result = activeCompanyIndex !== null ? allResults[activeCompanyIndex] : null;
+
+  useEffect(() => {
+    presentCacheRef.current = {};
+  }, [results]);
+
+  useEffect(() => {
+    if (activeCompanyIndex !== null && !isSingleAnalysis && conditions?.asOfDate && result?.ticker) {
+      if (presentCacheRef.current[result.ticker]) {
+        setPresentResult(presentCacheRef.current[result.ticker]);
+        setIsPresentLoading(false);
+        return;
+      }
+
+      const fetchPresent = async () => {
+        setIsPresentLoading(true);
+        setPresentResult(null);
+        try {
+          const res = await fetch('/api/analysis/single', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              ticker: result.ticker,
+              conditions: { ...conditions, asOfDate: undefined },
+              newsAiModel: (conditions as any).newsAiModel,
+              fallbackAiModel: (conditions as any).fallbackAiModel,
+            }),
+          });
+          const data = await res.json();
+          if (data.result) {
+            setPresentResult(data.result);
+            presentCacheRef.current[result.ticker!] = data.result;
+          }
+        } catch (error) {
+          console.error(error);
+        } finally {
+          setIsPresentLoading(false);
+        }
+      };
+      
+      fetchPresent();
+    } else {
+      setIsPresentLoading(false);
+      setPresentResult(null);
+    }
+  }, [activeCompanyIndex, isSingleAnalysis, conditions, result?.ticker]);
+
   useEffect(() => {
     const checkFeatures = async () => {
       try {
@@ -282,7 +336,9 @@ export function AnalysisOutput({ results, conditions, isLoading, onSendEmail }: 
     );
   };
 
-  if (selectedCompanyIndex === null) {
+
+
+  if (activeCompanyIndex === null) {
     const renderTrack = (title: string, description: string | undefined, data: AnalysisResult[], accentColor: string, isTrackB = false) => (
       <div className="space-y-6">
         <div className={cn("p-6 rounded-3xl border bg-white shadow-sm relative overflow-hidden", accentColor)}>
@@ -321,9 +377,14 @@ export function AnalysisOutput({ results, conditions, isLoading, onSendEmail }: 
                       <h3 className="text-lg font-black text-gray-900 group-hover:text-blue-600 transition-colors truncate mb-1">
                         {result.companyName}
                       </h3>
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 flex-wrap">
                         <Badge variant="secondary" className="bg-gray-100 text-gray-600 border-none font-bold">{result.ticker}</Badge>
                         <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{result.market || 'NYSE'}</span>
+                        {result.listingStatus === 'new_listing' && (
+                          <Badge className="bg-amber-500/10 text-amber-600 border border-amber-500/30 text-[9px] font-black px-2 py-0.5 uppercase tracking-wider">
+                            🆕 신규 상장 {result.ipoDate ? (() => { try { const d = new Date(result.ipoDate); return `${d.getFullYear()}. ${String(d.getMonth() + 1).padStart(2, '0')}. ${String(d.getDate()).padStart(2, '0')}.`; } catch { return ''; } })() : ''}
+                          </Badge>
+                        )}
                       </div>
                     </div>
                     <span className="text-3xl font-black text-gray-50 group-hover:text-gray-100 transition-colors">
@@ -417,21 +478,92 @@ export function AnalysisOutput({ results, conditions, isLoading, onSendEmail }: 
     );
   }
 
-  const allResults = [...(results?.trackA || []), ...(results?.trackB || [])];
-  const result = allResults[selectedCompanyIndex];
+
 
   if (!result) return null;
+
+  if (activeCompanyIndex !== null && !isSingleAnalysis && conditions?.asOfDate) {
+      return (
+         <div className="space-y-6 pb-12 animate-in fade-in slide-in-from-right-4 duration-500">
+            <Button
+              variant="ghost"
+              className="text-gray-500 hover:text-gray-900 pl-0 hover:bg-transparent tracking-widest text-xs font-bold uppercase"
+              onClick={() => setSelectedCompanyIndex(null)}
+            >
+              <ArrowLeft className="h-4 w-4 mr-2" /> Back to Master List
+            </Button>
+            
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 items-start mt-4">
+              <div className="rounded-2xl bg-[#161b22] border border-blue-500/20 p-6 relative overflow-hidden shadow-2xl shadow-blue-500/5 hover:border-blue-500/40 transition-colors">
+                 <div className="absolute top-0 right-0 p-12 bg-blue-50 opacity-5 -mr-6 -mt-6 rounded-full blur-2xl pointer-events-none" />
+                 <div className="flex items-center gap-3 mb-6 relative z-10">
+                   <div className="p-2 bg-blue-500/20 rounded-xl">
+                     <Calendar className="h-5 w-5 text-blue-400" />
+                   </div>
+                   <div>
+                     <h2 className="text-base font-black text-white">과거 시점 트래킹 분석</h2>
+                     <p className="text-sm font-bold text-blue-400">조회 시점: {result.timeLabel || new Date(conditions.asOfDate).toLocaleDateString()}</p>
+                   </div>
+                 </div>
+                 <AnalysisOutput 
+                    results={{ trackA: [result], trackB: [], analysisDate: new Date(), summary: '단일 기업 분석 결과' }} 
+                    conditions={conditions}
+                 />
+              </div>
+
+              <div className="rounded-2xl bg-[#161b22] border border-emerald-500/30 p-6 relative overflow-hidden shadow-2xl shadow-emerald-500/5 hover:border-emerald-500/40 transition-colors">
+                  <div className="absolute top-0 right-0 p-12 bg-emerald-50 opacity-5 -mr-6 -mt-6 rounded-full blur-2xl pointer-events-none" />
+                  <div className="flex items-center gap-3 mb-6 relative z-10">
+                    <div className="p-2 bg-emerald-500/20 rounded-xl">
+                      <Zap className="h-5 w-5 text-emerald-400" />
+                    </div>
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                        <h2 className="text-base font-black text-white">현재 시점 트래킹 모델</h2>
+                        <Badge className="bg-emerald-500/20 text-emerald-300 border-none px-2 py-0.5 text-[9px] font-black uppercase tracking-widest animate-pulse">LIVE</Badge>
+                      </div>
+                      <p className="text-sm font-bold text-emerald-400">조회 시점: 현재 실시간</p>
+                    </div>
+                  </div>
+                  
+                  {isPresentLoading ? (
+                      <div className="py-12 flex flex-col items-center justify-center text-center space-y-4">
+                         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-500" />
+                         <div>
+                            <p className="text-emerald-400 font-black text-sm mb-1">현재 시점 기업 정보를 조회 중입니다...</p>
+                            <p className="text-gray-500 text-[10px]">적용 중인 AI 모델: {(conditions as any)?.newsAiModel} {(conditions as any)?.fallbackAiModel ? `(백업: ${(conditions as any).fallbackAiModel})` : ''}</p>
+                         </div>
+                      </div>
+                  ) : presentResult ? (
+                      <AnalysisOutput 
+                         results={{ trackA: [presentResult], trackB: [], analysisDate: new Date(), summary: '단일 기업 분석 결과' }} 
+                         conditions={{ ...conditions, asOfDate: undefined }}
+                      />
+                  ) : (
+                      <div className="py-12 flex flex-col items-center justify-center text-center text-gray-500">
+                         데이터를 불러오지 못했습니다.
+                      </div>
+                  )}
+              </div>
+            </div>
+         </div>
+      );
+  }
 
   return (
     <div className="space-y-6 pb-12 animate-in fade-in slide-in-from-right-4 duration-500">
       <div className="flex items-center justify-between">
-        <Button
-          variant="ghost"
-          className="text-gray-500 hover:text-gray-900 pl-0 hover:bg-transparent tracking-widest text-xs font-bold uppercase"
-          onClick={() => setSelectedCompanyIndex(null)}
-        >
-          <ArrowLeft className="h-4 w-4 mr-2" /> Back to Master List
-        </Button>
+        {!isSingleAnalysis ? (
+          <Button
+            variant="ghost"
+            className="text-gray-500 hover:text-gray-900 pl-0 hover:bg-transparent tracking-widest text-xs font-bold uppercase"
+            onClick={() => setSelectedCompanyIndex(null)}
+          >
+            <ArrowLeft className="h-4 w-4 mr-2" /> Back to Master List
+          </Button>
+        ) : (
+          <div /> // Placeholder for space-between flex layout
+        )}
         {result.expertVerdict && (
           <Badge className="bg-blue-600/10 text-blue-600 border border-blue-600/20 px-4 py-1.5 rounded-full font-black text-[10px] uppercase tracking-[0.2em] animate-pulse">
             Alpha Expert Intelligence Mode
@@ -588,105 +720,80 @@ export function AnalysisOutput({ results, conditions, isLoading, onSendEmail }: 
               )}
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="md:col-span-2 p-8 rounded-2xl bg-gray-50/80 border border-gray-200 relative overflow-hidden group">
+                <div className="p-8 rounded-2xl bg-gray-50/80 border border-gray-200 relative overflow-hidden group">
                   <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-blue-600 to-transparent opacity-50" />
                   <h4 className="text-[10px] font-black text-blue-500 uppercase tracking-[0.3em] mb-4 flex items-center gap-2">
                     <Sparkles className="h-4 w-4" /> Strategic Assessment & Narratives
                   </h4>
-                  <p className="text-[15px] text-gray-700 leading-loose font-medium whitespace-pre-line">
+                  <p className="text-[13px] text-gray-700 leading-loose font-medium whitespace-pre-line">
                     {result.reasoning || result.investmentThesis || '조회된 AI 전략 상세 분석 내역이 없습니다.'}
                   </p>
                 </div>
-                <div className="space-y-4">
-                  <div className="p-6 rounded-2xl bg-white border border-gray-200 shadow-sm relative overflow-hidden group">
-                    <div className="absolute top-0 right-0 p-3 opacity-10 group-hover:opacity-20 transition-opacity">
-                      <Newspaper className="h-12 w-12" />
-                    </div>
-                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3 flex items-center gap-2">
-                       <Activity className="h-3 w-3" /> 시장 감성 (Market Sentiment)
-                    </p>
-                    <div className="flex items-center gap-3 mb-3">
-                      <div className="text-3xl font-black text-gray-900">{result.sentiment?.score}</div>
-                      <Badge className={cn(
-                        "px-2 py-0.5 text-[9px] font-black border-none shadow-none uppercase tracking-tighter", 
-                        result.sentiment?.label === 'Positive' ? "bg-emerald-500/10 text-emerald-600" : 
-                        result.sentiment?.label === 'High Potential' ? "bg-purple-500/10 text-purple-600" :
-                        result.sentiment?.label === 'Negative' ? "bg-rose-500/10 text-rose-600" :
-                        "bg-blue-500/10 text-blue-600"
-                      )}>
-                        {result.sentiment?.label === 'Positive' ? '긍정적' : 
-                         result.sentiment?.label === 'High Potential' ? '강력 추천' :
-                         result.sentiment?.label === 'Negative' ? '부정적' : '중립'}
-                      </Badge>
-                    </div>
-                    {result.sentiment?.summary && (
-                      <p className="text-[11px] text-gray-600 mb-4 font-medium leading-relaxed italic">"{result.sentiment.summary}"</p>
-                    )}
-
-                    {/* Top AI Signals Selection */}
-                    {result.sentiment?.topSignals && result.sentiment.topSignals.length > 0 && (
-                      <div className="mt-4 pt-4 border-t border-gray-100">
-                        <div className="flex items-center justify-between mb-3">
-                          <p className="text-[9px] font-black text-blue-600 uppercase tracking-widest font-mono">핵심 투자 시그널 (Top 10 Selection)</p>
-                          <Badge variant="outline" className="text-[8px] border-blue-100 text-blue-500 bg-blue-50/30">AI Filtered</Badge>
-                        </div>
-                        <div className="space-y-3">
-                          {result.sentiment.topSignals.map((signal, idx) => (
-                            <div key={idx} className="group/sig relative pl-4 border-l-2 border-gray-100 hover:border-blue-400 transition-all duration-300">
-                              <p className="text-[10px] font-bold text-gray-800 line-clamp-1 mb-0.5 group-hover/sig:text-blue-700 transition-colors uppercase leading-tight">{signal.title}</p>
-                              <p className="text-[9px] text-gray-400 group-hover/sig:text-gray-500 line-clamp-2 leading-snug">{signal.impact}</p>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Reference Sources */}
-                    {result.sentiment?.recentHeadlines && result.sentiment.recentHeadlines.length > 0 && (
-                      <div className="mt-4 pt-4 border-t border-gray-100">
-                        <p className="text-[8px] font-black text-gray-300 uppercase tracking-widest mb-3 font-mono">원천 데이터 인용 (Reference Sources)</p>
-                        <div className="space-y-2 opacity-60 hover:opacity-100 transition-opacity">
-                          {result.sentiment.recentHeadlines.slice(0, 5).map((h: any, idx: number) => (
-                             <a 
-                               key={idx} 
-                               href={h.url} 
-                               target="_blank" 
-                               rel="noopener noreferrer"
-                               className="flex gap-2 items-start group/news p-1 -mx-1 rounded transition-colors"
-                             >
-                               <div className="mt-1.5 w-1 h-1 rounded-full bg-gray-200 shrink-0 group-hover/news:bg-blue-400" />
-                               <span className="text-[9px] text-gray-400 line-clamp-1 group-hover/news:text-gray-600 transition-colors font-medium">{h.title}</span>
-                               <ExternalLink className="h-2 w-2 text-gray-300 opacity-0 group-hover/news:opacity-100 transition-all shrink-0 mt-0.5" />
-                             </a>
-                          ))}
-                          {result.sentiment.recentHeadlines.length > 5 && (
-                            <p className="text-[8px] text-gray-300 italic pl-3">외 {result.sentiment.recentHeadlines.length - 5}개의 추가 데이터 소스 분석됨</p>
-                          )}
-                        </div>
-                      </div>
-                    )}
+                
+                <div className="p-6 rounded-2xl bg-white border border-gray-200 shadow-sm relative overflow-hidden group hover:border-blue-500/30 transition-all">
+                  <div className="absolute top-0 right-0 p-3 opacity-10 group-hover:opacity-20 transition-opacity">
+                    <Newspaper className="h-12 w-12" />
                   </div>
-                  <div className="p-6 rounded-2xl bg-white border border-gray-200 shadow-sm">
-                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3 flex items-center gap-2">
-                       <Target className="h-3 w-3" /> 성장 잠재력 (Growth Potential)
-                    </p>
-                    <div className="text-xl font-black text-blue-600 mb-1">
-                      {result.prediction?.growthPotential === 'Bullish' ? '상승 전망' : result.prediction?.growthPotential === 'Bearish' ? '하락 전망' : '중립'}
-                    </div>
-                    <div className="flex items-center justify-between mt-2">
-                       <span className="text-[10px] text-gray-400 uppercase font-black tracking-widest">예상 수익률</span>
-                       <span className="text-xs font-bold font-mono text-emerald-500">+{result.prediction?.expectedReturn}%</span>
-                    </div>
-                    <Progress value={result.prediction?.confidence || 70} className="h-1 mt-3 bg-gray-100" />
-                    {result.prediction?.logic && (
-                      <div className="mt-4 pt-3 border-t border-gray-100">
-                        <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-2 font-mono underline decoration-blue-500/20 underline-offset-4">분석 모델 예측 근거</p>
-                        <p className="text-[11px] text-gray-600 leading-relaxed italic">
-                          {result.prediction.logic}
-                        </p>
-                      </div>
-                    )}
+                  <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3 flex items-center gap-2">
+                      <Activity className="h-3 w-3" /> 시장 감성 (Market Sentiment)
+                  </p>
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className="text-3xl font-black text-gray-900">{result.sentiment?.score}</div>
+                    <Badge className={cn(
+                      "px-2 py-0.5 text-[9px] font-black border-none shadow-none uppercase tracking-tighter", 
+                      result.sentiment?.label === 'Positive' ? "bg-emerald-500/10 text-emerald-600" : 
+                      result.sentiment?.label === 'High Potential' ? "bg-purple-500/10 text-purple-600" :
+                      result.sentiment?.label === 'Negative' ? "bg-rose-500/10 text-rose-600" :
+                      "bg-blue-500/10 text-blue-600"
+                    )}>
+                      {result.sentiment?.label === 'Positive' ? '긍정적' : 
+                        result.sentiment?.label === 'High Potential' ? '강력 추천' :
+                        result.sentiment?.label === 'Negative' ? '부정적' : '중립'}
+                    </Badge>
                   </div>
+                  {result.sentiment?.summary && (
+                    <p className="text-[11px] text-gray-600 mb-4 font-medium leading-relaxed italic">"{result.sentiment.summary}"</p>
+                  )}
+
+                  {/* Top AI Signals Selection */}
+                  {result.sentiment?.topSignals && result.sentiment.topSignals.length > 0 && (
+                    <div className="mt-4 pt-4 border-t border-gray-100">
+                      <div className="flex items-center justify-between mb-3">
+                        <p className="text-[9px] font-black text-blue-600 uppercase tracking-widest font-mono">핵심 투자 시그널</p>
+                        <Badge variant="outline" className="text-[8px] border-blue-100 text-blue-500 bg-blue-50/30">AI Filtered</Badge>
+                      </div>
+                      <div className="space-y-3">
+                        {result.sentiment.topSignals.slice(0, 3).map((signal, idx) => (
+                          <div key={idx} className="group/sig relative pl-4 border-l-2 border-gray-100 hover:border-blue-400 transition-all duration-300">
+                            <p className="text-[10px] font-bold text-gray-800 line-clamp-1 mb-0.5 group-hover/sig:text-blue-700 transition-colors uppercase leading-tight">{signal.title}</p>
+                            <p className="text-[9px] text-gray-400 group-hover/sig:text-gray-500 line-clamp-1 leading-snug">{signal.impact}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <div className="p-6 rounded-2xl bg-white border border-gray-200 shadow-sm hover:border-blue-500/30 transition-all">
+                  <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3 flex items-center gap-2">
+                      <Target className="h-3 w-3" /> 성장 잠재력 (Growth Potential)
+                  </p>
+                  <div className="text-xl font-black text-blue-600 mb-1">
+                    {result.prediction?.growthPotential === 'Bullish' ? '상승 전망' : result.prediction?.growthPotential === 'Bearish' ? '하락 전망' : '중립'}
+                  </div>
+                  <div className="flex items-center justify-between mt-2">
+                      <span className="text-[10px] text-gray-400 uppercase font-black tracking-widest">예상 수익률</span>
+                      <span className="text-xs font-bold font-mono text-emerald-500">+{result.prediction?.expectedReturn}%</span>
+                  </div>
+                  <Progress value={result.prediction?.confidence || 70} className="h-1 mt-3 bg-gray-100" />
+                  {result.prediction?.logic && (
+                    <div className="mt-4 pt-3 border-t border-gray-100">
+                      <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-2 font-mono underline decoration-blue-500/20 underline-offset-4">분석 모델 예측 근거</p>
+                      <p className="text-[11px] text-gray-600 leading-relaxed italic line-clamp-6">
+                        {result.prediction.logic}
+                      </p>
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -706,19 +813,37 @@ export function AnalysisOutput({ results, conditions, isLoading, onSendEmail }: 
                           <ResponsiveContainer width="100%" height="100%">
                             <BarChart
                               data={(() => {
-                                const txs = result.yahooData?.insiderTransactions || [];
-                                const groups: { [key: string]: number } = {};
-                                txs.forEach(t => {
-                                  const date = new Date(t.startDate);
-                                  const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-                                  const shares = t.shares || 0;
-                                  const isSale = t.transactionText?.toLowerCase().includes('sale');
-                                  groups[key] = (groups[key] || 0) + (isSale ? -shares : shares);
-                                });
-                                return Object.entries(groups)
-                                  .sort((a, b) => a[0].localeCompare(b[0]))
-                                  .map(([month, amount]) => ({ month, amount }));
-                              })()}
+                                  const txs = result.yahooData?.insiderTransactions || [];
+                                  const groups: { [key: string]: { amount: number, isPartial: boolean, asOfStr?: string } } = {};
+                                  
+                                  const asOfDate = conditions?.asOfDate ? new Date(conditions.asOfDate) : null;
+                                  const asOfKey = asOfDate ? `${asOfDate.getFullYear()}-${String(asOfDate.getMonth() + 1).padStart(2, '0')}` : null;
+
+                                  txs.forEach(t => {
+                                    const date = new Date(t.startDate);
+                                    const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+                                    const shares = t.shares || 0;
+                                    const isSale = t.transactionText?.toLowerCase().includes('sale');
+                                    
+                                    if (!groups[key]) {
+                                      groups[key] = { 
+                                        amount: 0, 
+                                        isPartial: key === asOfKey && !!asOfDate,
+                                        asOfStr: key === asOfKey && asOfDate ? asOfDate.toLocaleDateString() : undefined
+                                      };
+                                    }
+                                    groups[key].amount += (isSale ? -shares : shares);
+                                  });
+                                  
+                                  return Object.entries(groups)
+                                    .sort((a, b) => a[0].localeCompare(b[0]))
+                                    .map(([month, data]) => ({ 
+                                      month, 
+                                      amount: data.amount, 
+                                      isPartial: data.isPartial,
+                                      asOfStr: data.asOfStr
+                                    }));
+                                })()}
                             >
                               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
                               <XAxis 
@@ -734,10 +859,19 @@ export function AnalysisOutput({ results, conditions, isLoading, onSendEmail }: 
                                 cursor={{ fill: 'rgba(59, 130, 246, 0.05)' }}
                                 contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)', fontSize: '10px' }}
                                 labelStyle={{ fontWeight: 'bold' }}
-                                formatter={(value: any) => [value.toLocaleString() + ' shares', 'Net Trade']}
+                                formatter={(value: any, name: any, props: any) => {
+                                  const amountStr = value.toLocaleString() + ' shares';
+                                  if (props.payload.isPartial) {
+                                    return [`${amountStr} (기준일 ${props.payload.asOfStr}까지 합계)`, 'Net Trade (Partial)'];
+                                  }
+                                  return [amountStr, 'Net Trade'];
+                                }}
                               />
                               <Bar dataKey="amount" radius={[4, 4, 0, 0]}>
                                 {(() => {
+                                  const asOfDate = conditions?.asOfDate ? new Date(conditions.asOfDate) : null;
+                                  const asOfKey = asOfDate ? `${asOfDate.getFullYear()}-${String(asOfDate.getMonth() + 1).padStart(2, '0')}` : null;
+                                  
                                   const txs = result.yahooData?.insiderTransactions || [];
                                   const groups: { [key: string]: number } = {};
                                   txs.forEach(t => {
@@ -747,9 +881,19 @@ export function AnalysisOutput({ results, conditions, isLoading, onSendEmail }: 
                                     groups[key] = (groups[key] || 0) + (t.transactionText?.toLowerCase().includes('sale') ? -shares : shares);
                                   });
                                   const sorted = Object.entries(groups).sort((a, b) => a[0].localeCompare(b[0]));
-                                  return sorted.map((entry, index) => (
-                                    <Cell key={`cell-${index}`} fill={entry[1] >= 0 ? '#10b981' : '#f43f5e'} />
-                                  ));
+                                  return sorted.map((entry, index) => {
+                                    const isPartial = entry[0] === asOfKey && !!asOfDate;
+                                    const baseColor = entry[1] >= 0 ? '#10b981' : '#f43f5e';
+                                    return (
+                                      <Cell 
+                                        key={`cell-${index}`} 
+                                        fill={baseColor} 
+                                        fillOpacity={isPartial ? 0.4 : 1}
+                                        stroke={isPartial ? baseColor : 'none'}
+                                        strokeDasharray={isPartial ? "4 4" : "0"}
+                                      />
+                                    );
+                                  });
                                 })()}
                               </Bar>
                             </BarChart>
@@ -833,6 +977,57 @@ export function AnalysisOutput({ results, conditions, isLoading, onSendEmail }: 
                         </div>
                       );
                     })}
+                  </div>
+                </div>
+              )}
+
+              {/* 5-Year Price Trend Chart */}
+              {result.yahooData?.priceHistory && result.yahooData.priceHistory.length > 0 && (
+                <div className="space-y-4 pt-8 border-t border-gray-200/50">
+                  <h4 className="text-[10px] font-black text-gray-500 uppercase tracking-widest flex items-center gap-2">
+                    <TrendingUp className="h-3 w-3 text-gray-600" />
+                    최근 5년 주가 변동 추이 (Price Trend)
+                  </h4>
+                  <div className="h-[250px] w-full p-4 rounded-2xl bg-white border border-gray-100 shadow-inner">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart data={result.yahooData.priceHistory}>
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
+                        <XAxis 
+                          dataKey="date" 
+                          tickFormatter={(date) => {
+                            const d = new Date(date);
+                            return `${d.getFullYear()}.${d.getMonth() + 1}`;
+                          }}
+                          tick={{ fontSize: 10, fill: '#9ca3af', fontWeight: 'bold' }}
+                          tickMargin={10}
+                          minTickGap={50}
+                          axisLine={false}
+                          tickLine={false}
+                        />
+                        <YAxis 
+                          domain={['auto', 'auto']}
+                          tickFormatter={(val) => `$${val.toLocaleString()}`}
+                          tick={{ fontSize: 10, fill: '#9ca3af', fontWeight: 'bold' }}
+                          axisLine={false}
+                          tickLine={false}
+                          width={60}
+                        />
+                        <RechartsTooltip 
+                          formatter={(value: any) => [`$${Number(value).toFixed(2)}`, 'Close']}
+                          labelFormatter={(label) => new Date(label).toLocaleDateString()}
+                          contentStyle={{ borderRadius: '16px', border: '1px solid #f3f4f6', boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)', padding: '12px' }}
+                          labelStyle={{ fontWeight: 'bold', color: '#374151', marginBottom: '4px' }}
+                        />
+                        <Line 
+                          type="monotone" 
+                          dataKey="close" 
+                          stroke={(result.change || 0) >= 0 ? '#10b981' : '#f43f5e'} 
+                          strokeWidth={2.5}
+                          dot={false}
+                          activeDot={{ r: 6, fill: (result.change || 0) >= 0 ? '#10b981' : '#f43f5e', stroke: '#fff', strokeWidth: 3 }}
+                        />
+                      </LineChart>
+                    </ResponsiveContainer>
                   </div>
                 </div>
               )}

@@ -1,10 +1,11 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Sparkles, User, MessageSquare, Lock } from 'lucide-react';
+import { Sparkles, User, MessageSquare, Lock, Building2, Globe } from 'lucide-react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { InvestmentInput } from '@/components/stock-analysis/investment-input';
+import { SingleCompanyBar } from '@/components/stock-analysis/single-company-bar';
 import { AnalysisOutput } from '@/components/stock-analysis/analysis-output';
 import { NewsSection } from '@/components/stock-analysis/news-section';
 import { BacktestDialog } from '@/components/stock-analysis/backtest-dialog';
@@ -74,8 +75,13 @@ export default function StockAnalysisPage() {
   const [showManualBacktest, setShowManualBacktest] = useState(false);
   const [manualTicker, setManualTicker] = useState('');
 
-
-
+  // ── 분석 모드 (유니버스 vs 단일 기업) ──
+  const [analysisMode, setAnalysisMode] = useState<'universe' | 'single'>('universe');
+  const [singleTicker, setSingleTicker] = useState('');
+  const [singleAnalysisModel, setSingleAnalysisModel] = useState<{ newsAiModel?: string; fallbackAiModel?: string; conditions?: any }>({});
+  const [singleResult, setSingleResult] = useState<AnalysisResult | null>(null);
+  const [singleLoading, setSingleLoading] = useState(false);
+  const [singleError, setSingleError] = useState<string | null>(null);
   const [userPlan, setUserPlan] = useState<string>('FREE');
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [showDetailReport, setShowDetailReport] = useState(false);
@@ -276,14 +282,12 @@ export default function StockAnalysisPage() {
   };
 
   const handleAnalyze = async (newConditions: InvestmentConditions & {
-    newsAiModel?: string; newsApiKey?: string; companyCount?: number;
+    newsAiModel?: string; newsApiKey?: string; companyCount?: number; fallbackAiModel?: string;
   }) => {
     analysisAlerted.current = false;
     setAnalysisState(prev => ({
       ...prev, conditions: newConditions, isAnalyzing: true, error: null, results: [], progress: 0, excludedStockCount: 0, excludedDetails: []
     }));
-
-
 
     try {
       const response = await fetch('/api/analysis', {
@@ -294,13 +298,13 @@ export default function StockAnalysisPage() {
           conditions: {
             companyCount: newConditions.companyCount || 5,
             newsAiModel: newConditions.newsAiModel,
+            fallbackAiModel: newConditions.fallbackAiModel,
             newsApiKey: newConditions.newsApiKey,
             asOfDate: newConditions.asOfDate,
             excludeSP500: newConditions.excludeSP500,
             universeType: newConditions.universeType,
           },
         }),
-
       });
 
       const data = await response.json();
@@ -315,8 +319,6 @@ export default function StockAnalysisPage() {
       }
 
       alert('AI 엔진 분석 요청이 접수되었습니다. 백그라운드에서 진행됩니다.');
-      
-      // 요청 후 즉시 상태 업데이트를 위해 폴링 수동 트리거 (또는 인터벌 대기)
       setTimeout(() => {
         window.dispatchEvent(new CustomEvent('trigger-analysis-poll'));
       }, 500);
@@ -343,7 +345,32 @@ export default function StockAnalysisPage() {
     }
   };
 
-  // ── 로딩/미인증 상태 ──
+  // ── 단일 기업 분석 ──
+  const handleSingleAnalyze = async () => {
+    if (!singleTicker.trim()) { alert('티커를 입력해주세요.'); return; }
+    if (!singleAnalysisModel.newsAiModel) { alert('AI 모델을 선택해주세요.'); return; }
+    setSingleLoading(true); setSingleError(null); setSingleResult(null);
+    try {
+      const res = await fetch('/api/analysis/single', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ticker: singleTicker.trim().toUpperCase(),
+          conditions: singleAnalysisModel.conditions || {},
+          newsAiModel: singleAnalysisModel.newsAiModel,
+          fallbackAiModel: singleAnalysisModel.fallbackAiModel,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || '분석 실패');
+      setSingleResult(data.result);
+    } catch (e: any) {
+      setSingleError(e.message);
+    } finally {
+      setSingleLoading(false);
+    }
+  };
+
   if (status === 'loading') {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -421,68 +448,75 @@ export default function StockAnalysisPage() {
         </div>
       </header>
 
-      {/* ── 스캔 및 시뮬레이션 컨트롤 통합 서브바 ── */}
+      {/* ── 스캠 및 시뮬레이션 컨트롤 통합 서브바 ── */}
       <div className="sticky top-14 z-20 bg-white border-b border-gray-200 shadow-sm">
-        <div className="mx-auto px-6 max-w-screen-2xl flex flex-col xl:flex-row items-stretch xl:items-center gap-3 py-3">
+        <div className="mx-auto px-6 max-w-screen-2xl flex flex-col gap-3 py-3">
 
-          {/* 기업 스캔 컨트롤 */}
-          <div className="flex-1 w-full">
-            <InvestmentInput
-              onAnalyze={handleAnalyze}
-              disabled={analysisState.isAnalyzing}
-            />
+          {/* 모드 토글 */}
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setAnalysisMode('universe')}
+              className={cn(
+                "flex items-center gap-1.5 px-3 h-8 rounded-lg text-[11px] font-black uppercase tracking-widest transition-all",
+                analysisMode === 'universe' ? "bg-gray-900 text-white" : "bg-gray-100 text-gray-500 hover:bg-gray-200"
+              )}
+            >
+              <Globe className="h-3 w-3" />유니버스 스캐닝
+            </button>
+            <button
+              onClick={() => setAnalysisMode('single')}
+              className={cn(
+                "flex items-center gap-1.5 px-3 h-8 rounded-lg text-[11px] font-black uppercase tracking-widest transition-all",
+                analysisMode === 'single' ? "bg-indigo-600 text-white" : "bg-gray-100 text-gray-500 hover:bg-gray-200"
+              )}
+            >
+              <Building2 className="h-3 w-3" />단일 기업 분석
+            </button>
           </div>
 
-          {/* 수동 백테스트 컨트롤 - 바로 옆에 배치 */}
-          <div className="flex items-center gap-3 shrink-0 h-12">
-            <div className="hidden xl:block h-6 w-px bg-gray-200" /> {/* 구분선 */}
-
-            {showManualBacktest ? (
-              <div className="flex items-center gap-2 animate-in slide-in-from-right-3 duration-300 w-full xl:w-auto">
-                <Input
-                  placeholder="Ticker (e.g. TSLA)"
-                  value={manualTicker}
-                  onChange={(e) => setManualTicker(e.target.value.toUpperCase())}
-                  className="w-full xl:w-40 h-12 bg-gray-50 font-black uppercase text-xs tracking-widest border-blue-100 focus:border-blue-500 rounded-xl"
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' && manualTicker) {
-                      setBacktestTicker(manualTicker);
-                      setShowManualBacktest(false);
-                    }
-                  }}
-                />
-                <Button
-                  size="sm"
-                  className="h-12 px-6 bg-blue-600 hover:bg-blue-500 font-black text-xs uppercase tracking-widest rounded-xl shadow-lg shadow-blue-500/10"
-                  onClick={() => {
-                    if (manualTicker) {
-                      setBacktestTicker(manualTicker);
-                      setShowManualBacktest(false);
-                    }
-                  }}
-                >
-                  <Search className="h-4 w-4 mr-2" /> 시뮬레이션
-                </Button>
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  className="h-12 w-12 rounded-xl text-gray-400 shrink-0"
-                  onClick={() => setShowManualBacktest(false)}
-                >
-                  <X className="h-5 w-5" />
-                </Button>
+          {analysisMode === 'universe' ? (
+            <div className="flex xl:flex-row flex-col items-stretch xl:items-center gap-3">
+              <div className="flex-1 w-full">
+                <InvestmentInput onAnalyze={handleAnalyze} disabled={analysisState.isAnalyzing} />
               </div>
-            ) : (
-              <Button
-                variant="outline"
-                className="h-12 px-6 border-blue-100 text-blue-600 hover:bg-blue-50 font-black uppercase text-xs tracking-widest gap-2 rounded-xl w-full xl:w-auto"
-                onClick={() => setShowManualBacktest(true)}
-              >
-                <History className="h-4 w-4" />
-                Manual Backtest
-              </Button>
-            )}
-          </div>
+              <div className="flex items-center gap-3 shrink-0 h-12">
+                <div className="hidden xl:block h-6 w-px bg-gray-200" />
+                {showManualBacktest ? (
+                  <div className="flex items-center gap-2 animate-in slide-in-from-right-3 duration-300 w-full xl:w-auto">
+                    <Input
+                      placeholder="Ticker (e.g. TSLA)"
+                      value={manualTicker}
+                      onChange={(e) => setManualTicker(e.target.value.toUpperCase())}
+                      className="w-full xl:w-40 h-12 bg-gray-50 font-black uppercase text-xs tracking-widest border-blue-100 focus:border-blue-500 rounded-xl"
+                      onKeyDown={(e) => { if (e.key === 'Enter' && manualTicker) { setBacktestTicker(manualTicker); setShowManualBacktest(false); } }}
+                    />
+                    <Button size="sm" className="h-12 px-6 bg-blue-600 hover:bg-blue-500 font-black text-xs uppercase tracking-widest rounded-xl"
+                      onClick={() => { if (manualTicker) { setBacktestTicker(manualTicker); setShowManualBacktest(false); } }}>
+                      <Search className="h-4 w-4 mr-2" />시뮬레이션
+                    </Button>
+                    <Button size="icon" variant="ghost" className="h-12 w-12 rounded-xl text-gray-400 shrink-0" onClick={() => setShowManualBacktest(false)}>
+                      <X className="h-5 w-5" />
+                    </Button>
+                  </div>
+                ) : (
+                  <Button variant="outline"
+                    className="h-12 px-6 border-blue-100 text-blue-600 hover:bg-blue-50 font-black uppercase text-xs tracking-widest gap-2 rounded-xl w-full xl:w-auto"
+                    onClick={() => setShowManualBacktest(true)}>
+                    <History className="h-4 w-4" />Manual Backtest
+                  </Button>
+                )}
+              </div>
+            </div>
+          ) : (
+            /* ── 단일 기업 검색 모드 ── */
+            <SingleCompanyBar
+              onSearchModel={(model) => setSingleAnalysisModel(model)}
+              onRunAnalysis={handleSingleAnalyze}
+              singleTicker={singleTicker}
+              onTickerChange={setSingleTicker}
+              isLoading={singleLoading}
+            />
+          )}
         </div>
       </div>
 

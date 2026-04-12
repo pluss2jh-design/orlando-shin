@@ -21,6 +21,7 @@ export interface InvestmentConditions {
   asOfDate?: Date;
   excludeSP500?: boolean;
   universeType?: 'sp500' | 'russell1000' | 'russell1000_exclude_sp500';
+  timeLabel?: string;
 }
 
 
@@ -189,6 +190,13 @@ export interface AnalysisResult extends Partial<FilteredCandidate> {
   yahooData?: YahooFinanceData;
   
   extractedAt: Date;
+
+  /** 신규 상장 여부: asOfDate 이후에 상장된 경우 'new_listing', 정상은 'normal' */
+  listingStatus?: 'new_listing' | 'normal';
+  /** 최초 거래일 */
+  ipoDate?: Date;
+  /** 시점 라벨 (예: "6개월 전", "지금") */
+  timeLabel?: string;
 }
 
 export interface ExtractedMetrics {
@@ -262,11 +270,13 @@ export interface LearnedKnowledge {
   }[];
   learnedAt: Date;
   sourceFiles: string[];
+  failedFilesCount?: number;
+  failedDetails?: { fileName: string; reason: string }[];
 }
 
 
 // ===========================
-// B. Yahoo Finance 실시간 데이터
+// B. Yahoo Finance 데이터
 // ===========================
 
 export interface YahooFinanceData {
@@ -325,6 +335,9 @@ export interface YahooFinanceData {
   };
 
   fetchedAt: Date;
+
+  /** 최초 거래일 (신규 상장 여부 판단용) */
+  ipoDate?: Date;
 }
 
 export interface FinancialRecord {
@@ -479,22 +492,5 @@ export interface NewsSummary {
 }
 
 // ===========================
-// H. UI 전용 상태 타입
+// H. UI 용도 상태 타입
 // ===========================
-
-export interface AnalysisState {
-  isAnalyzing: boolean;
-  progress: number;
-  progressMessage: string;
-  results: RecommendationResult | null;
-  error: string | null;
-  excludedStockCount: number;
-  excludedDetails?: ExcludedStockDetail[];
-  conditions: InvestmentConditions | null;
-  universeCounts?: {
-    russellCount: number;
-    sp500Count: number;
-    overlapCount: number;
-  };
-  processedCount?: number;
-}

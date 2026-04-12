@@ -141,6 +141,19 @@ model LearnedKnowledge {
   updatedAt   DateTime @updatedAt @db.Timestamptz(3)
 }
 
+model KnowledgeFragment {
+  id          String   @id @default(cuid())
+  fileId      String
+  fileName    String
+  summary     String
+  extractedRules Json    // LearnedInvestmentCriteria.rules 처럼 추출된 규칙 배열
+  cachingHash String   // 프롬프트 버전 관리를 위한 해시
+  learnedAt   DateTime @default(now()) @db.Timestamptz(3)
+  
+  @@index([fileId])
+  @@index([cachingHash])
+}
+
 
 model Payment {
   id            String   @id @default(cuid())

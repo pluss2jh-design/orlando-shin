@@ -6,14 +6,15 @@ import type { InvestmentStyle } from '@/types/stock-analysis';
 interface AnalysisRequestBody {
   conditions?: { 
     companyCount?: number; 
-    newsAiModel?: string; 
+    newsAiModel?: string;
+    fallbackAiModel?: string;
     newsApiKey?: string; 
     sector?: string; 
     strategyType?: 'growth' | 'value' | 'all'; 
+    asOfDate?: string | Date;
     excludeSP500?: boolean; 
     universeType?: 'sp500' | 'russell1000' | 'russell1000_exclude_sp500';
   };
-
   style?: InvestmentStyle;
 }
 
