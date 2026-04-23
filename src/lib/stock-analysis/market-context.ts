@@ -195,7 +195,7 @@ export async function analyzeStockSentiment(
     
     Return ONLY JSON. All explanations, summaries, and impacts must be in Korean.`;
 
-    const text = await callWithModelFallback(
+    const resultObj: any = await callWithModelFallback(
       aiModel || '',
       fallbackAiModel,
       async (model) => {
@@ -230,11 +230,15 @@ export async function analyzeStockSentiment(
             model: modelName,
             contents: [{ role: 'user', parts: [{ text: prompt }] }] as any
           });
-          return (result as any).text || '';
+          return {
+            text: result.text || '',
+            usageMetadata: result.usageMetadata
+          };
         }
       }
     );
     
+    const text = typeof resultObj === 'string' ? resultObj : (resultObj?.text || '');
     const jsonMatch = text.match(/\{[\s\S]*\}/);
     if (jsonMatch) {
       const parsed = JSON.parse(jsonMatch[0]);
@@ -289,7 +293,7 @@ export async function predictStockGrowth(
     
     Return ONLY JSON. All explanations must be in Korean.`;
 
-    const text = await callWithModelFallback(
+    const resultObj: any = await callWithModelFallback(
       aiModel || '',
       fallbackAiModel,
       async (model) => {
@@ -318,10 +322,15 @@ export async function predictStockGrowth(
             model: modelName,
             contents: [{ role: 'user', parts: [{ text: prompt }] }] as any
           });
-          return (result as any).text || '';
+          return {
+            text: result.text || '',
+            usageMetadata: result.usageMetadata
+          };
         }
       }
     );
+
+    const text = typeof resultObj === 'string' ? resultObj : (resultObj?.text || '');
 
     const jsonMatch = text.match(/\{[\s\S]*\}/);
     if (jsonMatch) return JSON.parse(jsonMatch[0]);
@@ -377,7 +386,7 @@ export async function generateExpertVerdict(
     
     All text descriptions must be in Korean.`;
 
-    const text = await callWithModelFallback(
+    const resultObj: any = await callWithModelFallback(
       aiModel || '',
       fallbackAiModel,
       async (model) => {
@@ -406,10 +415,15 @@ export async function generateExpertVerdict(
             model: modelName,
             contents: [{ role: 'user', parts: [{ text: prompt }] }] as any
           });
-          return (result as any).text || '';
+          return {
+            text: result.text || '',
+            usageMetadata: result.usageMetadata
+          };
         }
       }
     );
+
+    const text = typeof resultObj === 'string' ? resultObj : (resultObj?.text || '');
 
     const jsonMatch = text.match(/\{[\s\S]*\}/);
     if (jsonMatch) return JSON.parse(jsonMatch[0]);

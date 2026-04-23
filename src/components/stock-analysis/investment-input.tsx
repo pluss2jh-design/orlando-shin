@@ -57,7 +57,13 @@ export function InvestmentInput({ onAnalyze, disabled, activeKnowledge }: Invest
           const loadedModels = data.models || [];
           setAvailableModels(loadedModels);
           if (loadedModels.length > 0) {
-            setSelectedModel(prev => prev || loadedModels[0].value);
+            // 1순위 기본값: Gemini 3.1 Flash Lite 우선, 없으면 첫 번째
+            const primaryDefault = loadedModels.find((m: any) => m.value.toLowerCase().includes('gemini-3.1-flash-lite'))?.value || loadedModels[0].value;
+            setSelectedModel(prev => prev || primaryDefault);
+
+            // 2순위 기본값: Gemini 3 Flash 우선, 없으면 공백
+            const secondaryDefault = loadedModels.find((m: any) => m.value.toLowerCase().includes('gemini-3-flash'))?.value || '';
+            setSelectedFallbackModel(prev => prev || secondaryDefault);
           }
         }
       } catch (error) {

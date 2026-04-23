@@ -76,7 +76,7 @@ function generateEmailTemplate(
         <div style="text-align: right;">
           <div style="font-size: 12px; color: #64748b;">예상 수익률</div>
           <div style="font-size: 28px; font-weight: bold; color: #22c55e;">
-            +${result.expectedReturnRate.toFixed(1)}%
+            +${(result.expectedReturnRate || 0).toFixed(1)}%
           </div>
         </div>
       </div>
@@ -84,7 +84,7 @@ function generateEmailTemplate(
       <div style="margin-bottom: 12px;">
         <span style="font-weight: bold; color: #1e293b;">평가 점수:</span>
         <span style="font-size: 18px; font-weight: bold; color: #3b82f6;">
-          ${result.totalRuleScore} / ${result.maxPossibleScore}점
+          ${result.totalRuleScore || 0} / ${result.maxPossibleScore || 100}점
         </span>
       </div>
       

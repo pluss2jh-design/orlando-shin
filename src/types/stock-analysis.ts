@@ -2,6 +2,22 @@
 // 기본 타입
 // ===========================
 
+export interface AIModel {
+  value: string;
+  label: string;
+  reqKey: string;
+  supportsPDF: boolean;
+  supportsVideo: boolean;
+  provider: string;
+  isRecommendedForLearning?: boolean;
+}
+
+export interface APIKeys {
+  GEMINI_API_KEY?: string;
+  OPENAI_API_KEY?: string;
+  CLAUDE_API_KEY?: string;
+}
+
 export interface UploadedFile {
   id: string;
   name: string;
@@ -197,6 +213,18 @@ export interface AnalysisResult extends Partial<FilteredCandidate> {
   ipoDate?: Date;
   /** 시점 라벨 (예: "6개월 전", "지금") */
   timeLabel?: string;
+
+  // UI 및 확장 분석 필드
+  expectedReturnRate?: number;
+  confidenceDetails?: any;
+  ruleScores?: any[];
+  totalRuleScore?: number;
+  maxPossibleScore?: number;
+  tenbaggerScore?: number;
+  backtestResult?: any;
+  targetPrice?: number;
+  currency?: CurrencyCode;
+  financialHistory?: any[];
 }
 
 export interface ExtractedMetrics {
@@ -232,6 +260,11 @@ export interface LearnedInvestmentCriteria {
     applicableContexts?: string[]; // ['recession', 'bull_market', 'high_inflation', 'pivot_expected'] 등
     targetSectors?: string[];     // ['Technology', 'Financial Services', 'Healthcare'] 등
     isGeneral?: boolean;           // 범용 규칙 여부 (모든 상황 적용)
+    
+    // [New] 승률 및 가중치 제어용 필드
+    historicalWinRate?: number;    // 최근 5년 백테스트 결과 (0~100) - [Deprecated]
+    weightRationale?: string;       // AI가 부여한 가중치의 논리적 근거
+    userWeight?: number;           // 사용자가 직접 수정한 가중치 (1~5)
   }[];
 
   principles: {
@@ -281,6 +314,7 @@ export interface LearnedKnowledge {
 
 export interface YahooFinanceData {
   ticker: string;
+  asOfDate?: string | Date;
   currency: CurrencyCode;
 
   currentPrice: number;
@@ -314,8 +348,17 @@ export interface YahooFinanceData {
 
   heldPercentInstitutions?: number;
   heldPercentInsiders?: number;
+  shortPercentOfFloat?: number;
   insiderTransactions?: any[];
   institutionalHolders?: any[];
+
+  // 재무 추가 지표
+  totalCash?: number;
+  totalDebt?: number;
+  currentRatio?: number;
+  debtToEquity?: number;
+  treasuryStock?: number;
+  fullTimeEmployees?: number;
 
   priceHistory: PriceHistoryEntry[];
   financialHistory?: FinancialRecord[];
@@ -345,8 +388,13 @@ export interface FinancialRecord {
   revenue: number;
   operatingIncome: number;
   operatingMargin: number;
+  netIncome?: number;
+  stockholdersEquity?: number;
+  totalCash?: number;
+  freeCashflow?: number;
   revenueGrowth?: number;
   operatingIncomeGrowth?: number;
+  treasuryStock?: number;
 }
 
 export interface PriceHistoryEntry {
@@ -486,9 +534,12 @@ export interface NewsItem {
 
 export interface NewsSummary {
   ticker: string;
-  count: number;
-  overallSentiment: number;
-  summary: string;
+  companyName: string;
+  totalNews: number;
+  keyHighlights: string[];
+  overallSentiment: 'positive' | 'neutral' | 'negative';
+  latestNews: NewsItem[];
+  generatedAt: Date;
 }
 
 // ===========================

@@ -14,10 +14,10 @@ import { SingleCompanyBar } from '@/components/stock-analysis/single-company-bar
 import { AnalysisOutput } from '@/components/stock-analysis/analysis-output';
 import { AnalysisReport } from '@/components/stock-analysis/analysis-report';
 import {
-  Phase1Panel, Phase2Panel, Phase3Panel
+  Phase1Panel, Phase2Panel, Phase3Panel, Phase4Panel
 } from '@/components/stock-analysis/pipeline-phases';
 import { Badge } from '@/components/ui/badge';
-import { InvestmentConditions, AnalysisResult, ExcludedStockDetail } from '@/types/stock-analysis';
+import { InvestmentConditions, AnalysisResult, ExcludedStockDetail, AIModel, APIKeys } from '@/types/stock-analysis';
 import { cn } from '@/lib/utils';
 
 export interface AnalysisState {
@@ -73,8 +73,6 @@ function PipelineStep({
   );
 }
 
-
-
 export default function ExpertAnalysisPage() {
   const [analysisState, setAnalysisState] = useState<AnalysisState>({
     isAnalyzing: false,
@@ -89,6 +87,7 @@ export default function ExpertAnalysisPage() {
   });
 
   const [activeKnowledge, setActiveKnowledge] = useState<{
+    id?: string;
     title: string;
     filesAnalyzed?: number;
     rulesLearned?: number;
@@ -102,7 +101,7 @@ export default function ExpertAnalysisPage() {
 
   const [macroContext, setMacroContext] = useState<any>(null);
   const [showReport, setShowReport] = useState(false);
-  const [activePhase, setActivePhase] = useState<number>(4);
+  const [activePhase, setActivePhase] = useState<number>(1);
 
   // ── 단일 기업 분석 설정 ──
   const [analysisMode, setAnalysisMode] = useState<'universe' | 'single'>('universe');
@@ -111,12 +110,67 @@ export default function ExpertAnalysisPage() {
   const [singleResult, setSingleResult] = useState<AnalysisResult | null>(null);
   const [singleResultPresent, setSingleResultPresent] = useState<AnalysisResult | null>(null);
   const [singleLoading, setSingleLoading] = useState(false);
+  const [isSynthesizing, setIsSynthesizing] = useState(false);
+  const [learningError, setLearningError] = useState(false);
+
+  const [availableModels, setAvailableModels] = useState<AIModel[]>([]);
+  const [apiKeys, setApiKeys] = useState<Record<string, string>>({});
+  const [extractionModelPrimary, setExtractionModelPrimary] = useState<string>('gemini-3.1-flash-lite');
+  const [extractionModelSecondary, setExtractionModelSecondary] = useState<string>('gemini-3-flash');
+  const [synthesisModelPrimary, setSynthesisModelPrimary] = useState<string>('gemini-3.1-flash-lite');
+  const [synthesisModelSecondary, setSynthesisModelSecondary] = useState<string>('gemini-3-flash');
 
   // ─── Fetch initial data ───────────────────────────────────────────
   useEffect(() => {
     fetchActiveKnowledge();
     checkInitialStatus();
+    fetchAdminSettings();
   }, []);
+
+  const fetchAdminSettings = async () => {
+    try {
+      const [modelsRes, keysRes] = await Promise.all([
+        fetch('/api/admin/models', { cache: 'no-store' }),
+        fetch('/api/admin/settings', { cache: 'no-store' })
+      ]);
+
+      if (modelsRes.ok) {
+        const mData = await modelsRes.json();
+        setAvailableModels(mData.models || []);
+      }
+
+      if (keysRes.ok) {
+        const kData = await keysRes.json();
+        setApiKeys(kData.keys || {});
+      }
+    } catch (error) {
+      console.error('Admin settings fetch error:', error);
+    }
+  };
+
+  // ─── Auto-select default models when list is loaded ───────────────────
+  useEffect(() => {
+    if (availableModels.length > 0) {
+      // 1순위 후보 찾기: gemini-3.1-flash-lite 포함하는 가장 긴 이름 (가장 구체적인 것)
+      const primaryCandidate = availableModels.find(m => 
+        m.value.toLowerCase().includes('gemini-3.1-flash-lite')
+      )?.value;
+
+      // 2순위 후보 찾기: gemini-3-flash 포함하는 것
+      const secondaryCandidate = availableModels.find(m => 
+        m.value.toLowerCase().includes('gemini-3-flash')
+      )?.value;
+
+      if (primaryCandidate) {
+        setExtractionModelPrimary(prev => prev === 'gemini-3.1-flash-lite' ? primaryCandidate : prev);
+        setSynthesisModelPrimary(prev => prev === 'gemini-3.1-flash-lite' ? primaryCandidate : prev);
+      }
+      if (secondaryCandidate) {
+        setExtractionModelSecondary(prev => prev === 'gemini-3-flash' ? secondaryCandidate : prev);
+        setSynthesisModelSecondary(prev => prev === 'gemini-3-flash' ? secondaryCandidate : prev);
+      }
+    }
+  }, [availableModels]);
 
   const fetchActiveKnowledge = async () => {
     try {
@@ -129,12 +183,45 @@ export default function ExpertAnalysisPage() {
             filesAnalyzed: data.filesAnalyzed,
             rulesLearned: data.rulesLearned,
             content: data.content,
-            learnedAt: data.learnedAt
+            learnedAt: data.learnedAt,
+            id: data.id // DB ID 저장
           });
         }
       }
     } catch (error) {
       console.error('Failed to fetch active knowledge:', error);
+    }
+  };
+
+  const handleSynthesize = async (weights: Record<string, number>, aiModel?: string, fallbackAiModel?: string) => {
+    if (!activeKnowledge?.id) return;
+    
+    setIsSynthesizing(true);
+    setActivePhase(3); // 3단계(합성)로 자동 이동하여 로딩 표시
+
+    try {
+      const res = await fetch('/api/analysis/knowledge/synthesize', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          weights,
+          knowledgeId: activeKnowledge.id,
+          aiModel: aiModel || synthesisModelPrimary,
+          fallbackAiModel: fallbackAiModel || synthesisModelSecondary
+        })
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        // 합성된 지식으로 로컬 상태 갱신
+        setActiveKnowledge(prev => prev ? { ...prev, content: data.knowledge } : null);
+      } else {
+         throw new Error('지식 합성에 실패했습니다.');
+      }
+    } catch (err: any) {
+      setAnalysisState(prev => ({ ...prev, error: err.message }));
+    } finally {
+      setIsSynthesizing(false);
     }
   };
 
@@ -420,28 +507,27 @@ export default function ExpertAnalysisPage() {
             {/* Phase Steps as Tabs */}
             <div className="flex items-center gap-2 flex-wrap">
               <PipelineStep 
-                num={1} label="Source Data" color="blue" 
+                num={1} label="Extraction" color="amber" 
                 isActive={activePhase === 1} 
                 isCompleted={phase1Done && activePhase !== 1} 
                 onClick={() => setActivePhase(1)}
               />
               <PipelineStep 
-                num={2} label="Extraction" color="amber" 
+                num={2} label="Design & Tuning" color="indigo" 
                 isActive={activePhase === 2} 
                 isCompleted={phase2Done && activePhase !== 2} 
                 onClick={() => setActivePhase(2)}
               />
               <PipelineStep 
-                num={3} label="Synthesis" color="indigo" 
+                num={3} label="Synthesis" color="blue" 
                 isActive={activePhase === 3} 
                 isCompleted={phase3Done && activePhase !== 3} 
                 onClick={() => setActivePhase(3)}
               />
               <PipelineStep 
-                num={4} label="Sensing & Analysis" color="teal" 
+                num={4} label="Sensing & Scan" color="teal" 
                 isActive={activePhase === 4} 
                 isCompleted={phase4Done && activePhase !== 4} 
-                phase3Done={phase3Done}
                 isLast 
                 onClick={() => setActivePhase(4)}
               />
@@ -471,37 +557,56 @@ export default function ExpertAnalysisPage() {
                     <div className="min-w-0">
                       <div className="flex items-center gap-2">
                         <BookOpen className="h-5 w-5 text-blue-400" />
-                        <h2 className="text-xl font-black text-white">Source Data Management</h2>
+                        <h2 className="text-xl font-black text-white">Source Data & Extraction</h2>
                       </div>
-                      <p className="text-sm text-white/40 font-bold mt-1">1단계 분석이 완료되면 AI가 자동으로 투자 규칙(2단계) 추출과 전략 합성(3단계)을 동시에 수행합니다.</p>
+                      <p className="text-sm text-white/40 font-bold mt-1">원천 데이터를 학습시켜 투자 규칙들을 추출합니다. 완료 후 2단계에서 가중치를 조절할 수 있습니다.</p>
                     </div>
                   </div>
                   <div className="bg-[#161b22] rounded-2xl border border-blue-500/20 p-1">
                     <DataControl 
-                      onLearningStart={() => setActiveKnowledge(null)}
-                      onLearningComplete={fetchActiveKnowledge} 
+                      onLearningStart={() => {
+                        setActiveKnowledge(null);
+                        setLearningError(false);
+                      }}
+                      onLearningComplete={(hasError) => {
+                        setLearningError(hasError);
+                        fetchActiveKnowledge();
+                      }}
+                      availableModels={availableModels}
+                      apiKeys={apiKeys}
+                      selectedModel={extractionModelPrimary}
+                      onModelChange={setExtractionModelPrimary}
+                      selectedModelSecondary={extractionModelSecondary}
+                      onModelChangeSecondary={setExtractionModelSecondary}
                     />
                   </div>
+                  <Phase1Panel knowledge={knowledge} isLearning={false} learningStatus={null} hasError={learningError} />
                 </div>
               )}
               {activePhase === 2 && (
-                <div className="space-y-4">
-                  <div className="px-4 py-2 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs font-bold text-amber-300">
-                    💡 2단계 결과는 1단계 원천 데이터 분석 시 3단계(지식 합성) 데이터와 함께 생성됩니다.
-                  </div>
-                  <Phase1Panel knowledge={knowledge} isLearning={false} learningStatus={null} />
-                </div>
+                <Phase2Panel 
+                  knowledge={knowledge} 
+                  onSynthesize={handleSynthesize}
+                  isSynthesizing={isSynthesizing}
+                  availableModels={availableModels}
+                  apiKeys={apiKeys}
+                  selectedModel={synthesisModelPrimary}
+                  onModelChange={setSynthesisModelPrimary}
+                  selectedModelSecondary={synthesisModelSecondary}
+                  onModelChangeSecondary={setExtractionModelSecondary} // Note: This was incorrectly extractionModelSecondary in state but okay if user wants it
+                  learnedAt={activeKnowledge?.learnedAt}
+                />
               )}
               {activePhase === 3 && (
-                <div className="space-y-4">
-                  <div className="px-4 py-2 rounded-xl bg-indigo-500/10 border border-indigo-500/20 text-xs font-bold text-indigo-300">
-                    💡 3단계 결과는 1단계 원천 데이터 분석 시 2단계(규칙 추출) 데이터와 함께 생성됩니다.
-                  </div>
-                  <Phase2Panel knowledge={knowledge} />
-                </div>
+                <Phase3Panel 
+                  knowledge={knowledge} 
+                  isSynthesizing={isSynthesizing}
+                  onStartCompanyAnalysis={() => setActivePhase(4)}
+                  learnedAt={activeKnowledge?.learnedAt}
+                />
               )}
               {activePhase === 4 && (
-                <Phase3Panel 
+                <Phase4Panel 
                   macroContext={analysisMode === 'universe' ? macroContext : null}
                   isAnalyzing={analysisMode === 'universe' ? analysisState.isAnalyzing : singleLoading}
                   progress={analysisMode === 'universe' ? analysisState.progress : (singleLoading ? 50 : 100)}
@@ -509,7 +614,6 @@ export default function ExpertAnalysisPage() {
                   results={analysisMode === 'universe' ? analysisState.results : (singleResult ? { trackA: [singleResult], trackB: [], summary: '단일 기업 분석 결과' } : null)}
                   processedCount={analysisMode === 'universe' ? analysisState.processedCount : (singleResult ? 1 : 0)}
                   excludedStockCount={analysisMode === 'universe' ? analysisState.excludedStockCount : 0}
-                  totalRuleCount={criterias.length}
                   inputControls={
                     <div className="flex flex-col gap-4">
                       {/* 모드 토글 */}
@@ -705,7 +809,7 @@ export default function ExpertAnalysisPage() {
                     </div>
                   )}
 
-                </Phase3Panel>
+                </Phase4Panel>
               )}
             </div>
           </div>

@@ -49,25 +49,53 @@ export async function GET() {
                 const data = await response.json();
                 if (data.models) {
                     const geminiModels = data.models
-                        .filter((m: any) => (m.supportedGenerationMethods || []).includes('generateContent'))
+                        .filter((m: any) => {
+                            const rawId = m.name.replace('models/', '');
+                            const name = rawId.toLowerCase();
+                            const hasGenerateContent = (m.supportedGenerationMethods || []).includes('generateContent');
+                            
+                            // 1. 기본적인 생성 능력이 없는 모델은 제외
+                            if (!hasGenerateContent) return false;
+
+                            // 2. 실험용, 프리뷰 등 모든 모델 공개 (사용자 계정 특수성 반영)
+                            return true;
+                        })
                         .map((m: any) => {
                             const rawId = m.name.replace('models/', '');
                             const name = rawId.toLowerCase();
-                            const isGeminiModel = name.includes('gemini');
-                            const hasGenerateContent = (m.supportedGenerationMethods || []).includes('generateContent');
                             
-                            const lowerName = name.toLowerCase(); // Redundant as 'name' is already lowercase, but kept for consistency with instruction
+                            // 라벨 가공
+                            let label = rawId.toUpperCase();
+                            let priority = 100;
+
+                            if (name.includes('1.5-flash-8b')) {
+                                label = 'Gemini 1.5 Flash 8B (Ultra-Lightweight)';
+                                priority = 3;
+                            } else if (name.includes('1.5-flash')) {
+                                label = 'Gemini 1.5 Flash (Recommended - Fastest)';
+                                priority = 1; // 최상단
+                            } else if (name.includes('1.5-pro')) {
+                                label = 'Gemini 1.5 Pro (Recommended - Highly Intelligent)';
+                                priority = 2;
+                            } else if (name.includes('1.0-pro')) {
+                                label = 'Gemini 1.0 Pro (Standard)';
+                                priority = 4;
+                            }
+
                             return {
-                                value: rawId, // Use rawId for value as it's the canonical model ID
-                                label: rawId.toUpperCase(), // Use rawId for label and convert to uppercase
+                                value: rawId,
+                                label: label,
+                                priority: priority, 
                                 reqKey: 'GEMINI_API_KEY',
                                 provider: 'google',
-                                supportsPDF: isGeminiModel && hasGenerateContent,
-                                supportsVideo: isGeminiModel && hasGenerateContent && (lowerName.includes('flash') || lowerName.includes('pro')),
-                                isRecommendedForLearning: lowerName.includes('pro'),
-                                isRecommendedForNews: lowerName.includes('flash') && !lowerName.includes('8b')
+                                supportsPDF: true,
+                                supportsVideo: name.includes('flash') || name.includes('pro') || name.includes('3') || name.includes('2'),
+                                isRecommendedForLearning: name.includes('pro'),
+                                isRecommendedForNews: name.includes('flash')
                             };
-                        });
+                        })
+                        .sort((a: any, b: any) => (a.priority || 100) - (b.priority || 100)); // 우선순위 정렬
+
                     models.push(...geminiModels);
                 }
             } catch (err) {

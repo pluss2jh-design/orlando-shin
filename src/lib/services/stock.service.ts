@@ -270,6 +270,7 @@ export class StockService {
   static async runLearning(options: {
     fileIds?: string[];
     aiModel?: string;
+    fallbackAiModel?: string;
     title?: string;
     forceFullAnalysis?: boolean;
   }) {
@@ -281,7 +282,8 @@ export class StockService {
     (async () => {
       try {
         const knowledge = await runLearningPipeline(options.fileIds, options.aiModel, { 
-          forceFullAnalysis: options.forceFullAnalysis 
+          forceFullAnalysis: options.forceFullAnalysis,
+          fallbackAiModel: options.fallbackAiModel
         });
         const knowledgeId = await saveKnowledgeToDB(knowledge, options.title);
         console.log(`Learning completed: ${knowledgeId}`);

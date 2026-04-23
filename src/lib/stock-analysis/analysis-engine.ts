@@ -23,6 +23,7 @@ import {
   fetchYahooFinanceData,
   fetchBatchQuotes,
 } from './yahoo-finance';
+import { is429Error, isBillingError, isFatalModelError } from '@/lib/utils/retry';
 import { getStockUniverse } from './universe';
 import {
   fetchMarketMacroContext,
@@ -139,6 +140,14 @@ export async function runAnalysisEngine(
 
   const validStocks = allYahooData.filter(d => d.ticker && (d.currentPrice > 0 || d.previousClose > 0));
   const validTickerSet = new Set(validStocks.map(s => s.ticker));
+
+  /** 중단 신호 즉시 체크 필터 */
+  const checkCancellation = () => {
+    if (onProgress) {
+      // onProgress 콜백이 내부적으로 isCancelled를 체크하여 'STOPPED_BY_USER'를 던짐
+      onProgress(0, '중단 여부 확인 중...'); 
+    }
+  };
 
   const excludedDetails: ExcludedStockDetail[] = [];
   let excludedStockCount = universe.length - validStocks.length;
@@ -314,22 +323,63 @@ export async function runAnalysisEngine(
   const trackAResults: AnalysisResult[] = [];
   const trackBResults: AnalysisResult[] = [];
 
-  for (let i = 0; i < trackACandidates.length; i++) {
-    const stock = trackACandidates[i];
-    const itemPct = 85 + Math.floor((i / trackACandidates.length) * 5);
-    if (onProgress) onProgress(itemPct, `[Track A] AI 정밀 분석 중: ${stock.ticker} (${i + 1}/${trackACandidates.length})`);
+  // 5. 심층 분석 (Phase 4: Deep Analysis) - 선정된 상위 후보군만 실행
+  // 프리뷰 모델의 안정성을 위해 완전 순차 처리(Serial) 및 긴 지연 시간 도입
+  const DEEP_CHUNK_SIZE = 1;
+  const DEEP_DELAY = 5000;
 
-    const result = await performDeepAnalysis(stock, knowledge, asOfDate, newsAiModel, newsApiKey, 'A', fallbackAiModel);
-    if (result) trackAResults.push(result);
+  // Track A 심층 분석
+  for (let i = 0; i < trackACandidates.length; i += DEEP_CHUNK_SIZE) {
+    if (knowledge.isCancelled) break;
+    const chunk = trackACandidates.slice(i, i + DEEP_CHUNK_SIZE);
+    
+    // 첫 청크를 제외하고 지연 시간 추가
+    if (i > 0) await new Promise(resolve => setTimeout(resolve, DEEP_DELAY));
+    
+    await Promise.all(chunk.map(async (stock, chunkIdx) => {
+      try {
+        const totalIdx = i + chunkIdx;
+        const itemPct = 85 + Math.floor((totalIdx / trackACandidates.length) * 5);
+        if (onProgress) onProgress(itemPct, `[Track A] AI 정밀 분석 중: ${stock.ticker} (${totalIdx + 1}/${trackACandidates.length})`);
+
+        const result = await performDeepAnalysis(stock, knowledge, asOfDate, newsAiModel, newsApiKey, 'A', fallbackAiModel, checkCancellation);
+        if (result) trackAResults.push(result);
+      } catch (err: any) {
+        const errMsg = err?.message || '';
+        // [핵심] 중단 신호, 쿼터 초과, 결제 한도, 또는 치명적 모델 에러면 즉시 엔진 전체 중단
+        if (errMsg.includes('STOPPED_BY_USER') || is429Error(err) || isBillingError(err) || isFatalModelError(err)) {
+          console.error(`[Engine] Critical Stop Signal in Track A: ${errMsg}`);
+          throw err;
+        }
+        console.error(`[Engine] Deep analysis failed for ${stock.ticker} (Track A):`, err);
+      }
+    }));
   }
 
-  for (let i = 0; i < trackBCandidates.length; i++) {
-    const stock = trackBCandidates[i];
-    const itemPct = 90 + Math.floor((i / trackBCandidates.length) * 5);
-    if (onProgress) onProgress(itemPct, `[Track B] AI 유닛 경제성 분석 중: ${stock.ticker} (${i + 1}/${trackBCandidates.length})`);
+  // Track B 심층 분석
+  for (let i = 0; i < trackBCandidates.length; i += DEEP_CHUNK_SIZE) {
+    if (knowledge.isCancelled) break;
+    const chunk = trackBCandidates.slice(i, i + DEEP_CHUNK_SIZE);
+    
+    if (i > 0) await new Promise(resolve => setTimeout(resolve, DEEP_DELAY));
 
-    const result = await performDeepAnalysis(stock, knowledge, asOfDate, newsAiModel, newsApiKey, 'B', fallbackAiModel);
-    if (result) trackBResults.push(result);
+    await Promise.all(chunk.map(async (stock, chunkIdx) => {
+      try {
+        const totalIdx = i + chunkIdx;
+        const itemPct = 90 + Math.floor((totalIdx / trackBCandidates.length) * 5);
+        if (onProgress) onProgress(itemPct, `[Track B] AI 유닛 경제성 분석 중: ${stock.ticker} (${totalIdx + 1}/${trackBCandidates.length})`);
+
+        const result = await performDeepAnalysis(stock, knowledge, asOfDate, newsAiModel, newsApiKey, 'B', fallbackAiModel, checkCancellation);
+        if (result) trackBResults.push(result);
+      } catch (err: any) {
+        const errMsg = err?.message || '';
+        if (errMsg.includes('STOPPED_BY_USER') || is429Error(err) || isBillingError(err) || isFatalModelError(err)) {
+          console.error(`[Engine] Critical Stop Signal in Track B: ${errMsg}`);
+          throw err;
+        }
+        console.error(`[Engine] Deep analysis failed for ${stock.ticker} (Track B):`, err);
+      }
+    }));
   }
 
   if (onProgress) onProgress(98, '분석 완료! 결과 정리 중...');
@@ -362,18 +412,24 @@ async function performDeepAnalysis(
   aiModel?: string, 
   apiKey?: string,
   track: 'A' | 'B' = 'A',
-  fallbackAiModel?: string
+  fallbackAiModel?: string,
+  checkCancellation?: () => void
 ): Promise<AnalysisResult | null> {
   try {
+    if (checkCancellation) checkCancellation();
+
     const exchangeRate = await fetchExchangeRate();
     const macroContext = await fetchMarketMacroContext(asOfDate);
 
+    if (checkCancellation) checkCancellation();
     const sentiment = await analyzeStockSentiment(stock.ticker, aiModel, apiKey, asOfDate, fallbackAiModel);
     if (!sentiment) return null;
 
+    if (checkCancellation) checkCancellation();
     const prediction = await predictStockGrowth(stock.ticker, stock.yahooData, macroContext, sentiment, aiModel, apiKey, fallbackAiModel);
     if (!prediction) return null;
 
+    if (checkCancellation) checkCancellation();
     const expertVerdict = await generateExpertVerdict(
       stock.ticker,
       stock.yahooData,
@@ -427,13 +483,17 @@ async function performDeepAnalysis(
       earningsRevision: (stock.yahooData as any).earningsRevision,
       fetchedAt: new Date(),
       extractedAt: new Date(),
-      // 신규 상장 여부: IPO일이 asOfDate와 현재시점 사이에 상장되었으면 'new_listing'
       ipoDate: stock.ipoDate,
       listingStatus: (stock.ipoDate && asOfDate && stock.ipoDate > asOfDate && stock.ipoDate <= new Date())
         ? 'new_listing'
         : 'normal',
     } as AnalysisResult;
-  } catch (error) {
+  } catch (error: any) {
+    const errMsg = error?.message || '';
+    // 중단 신호나 치명적 모델 에러는 swallow하지 말고 다시 던짐
+    if (errMsg.includes('STOPPED_BY_USER') || errMsg.includes('FATAL_MODEL_ERROR')) {
+      throw error;
+    }
     console.error(`[DeepAnalysis] Error for ${stock.ticker}:`, error);
     return null;
   }
@@ -519,10 +579,25 @@ export function evaluateQuantifiedRule(
   macroContext?: MacroContext
 ): RuleScore {
   const q = rule.quantification;
+  
+  // 방어 로직: 정량화 데이터(quantification)가 없거나 필드가 누락된 경우 안전하게 리턴
+  if (!q || !q.target_metric) {
+    return { 
+      name: rule.name,
+      category: rule.category,
+      passed: true, // 로직 부재 시 일단 통과 처리 (0점 처리 방지)
+      score: 5,
+      reason: `정량화 지표 미설정 (${rule.name})`,
+      weight: rule.userWeight ?? rule.weight ?? 3,
+      isCritical: rule.isCritical || false,
+      source: rule.source
+    };
+  }
+
   const metric = q.target_metric;
-  const condition = q.condition;
-  const benchmark = q.benchmark;
-  const scoringType = q.scoring_type;
+  const condition = q.condition || '>=';
+  const benchmark = q.benchmark ?? 0;
+  const scoringType = q.scoring_type || 'binary';
 
   let actualValue: number | undefined;
 
@@ -610,7 +685,7 @@ export function evaluateQuantifiedRule(
       passed: false,
       score: 5,
       reason: `데이터 부재 (${metric})`,
-      weight: rule.weight,
+      weight: rule.userWeight ?? rule.weight,
       isCritical: rule.isCritical,
       source: rule.source
     };
@@ -649,7 +724,7 @@ export function evaluateQuantifiedRule(
       passed: passed,
       score: passed ? 10 : 0,
       reason: `${actualValue.toFixed(1)} ${condition} ${benchmarkDisplay} (${passed ? '만족' : '미달'})`,
-      weight: rule.weight,
+      weight: rule.userWeight ?? rule.weight,
       isCritical: rule.isCritical,
       source: rule.source
     };
@@ -667,7 +742,7 @@ export function evaluateQuantifiedRule(
       passed: passed,
       score: Math.min(10, Math.max(0, Number(score.toFixed(1)))),
       reason: `${actualValue.toFixed(1)} (기준: ${benchmarkDisplay})`,
-      weight: rule.weight,
+      weight: rule.userWeight ?? rule.weight,
       isCritical: rule.isCritical,
       source: rule.source
     };

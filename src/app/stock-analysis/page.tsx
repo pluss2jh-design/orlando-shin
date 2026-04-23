@@ -19,6 +19,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   InvestmentConditions,
   AnalysisResult,
+  RecommendationResult,
   NewsSummary,
   ExcludedStockDetail
 } from '@/types/stock-analysis';
@@ -37,7 +38,7 @@ export default function StockAnalysisPage() {
   const { data: session, status } = useSession();
   const [analysisState, setAnalysisState] = useState<{
     conditions: InvestmentConditions | null;
-    results: AnalysisResult[];
+    results: RecommendationResult | null;
     isAnalyzing: boolean;
     error: string | null;
     progress: number;
@@ -46,7 +47,7 @@ export default function StockAnalysisPage() {
     excludedDetails: ExcludedStockDetail[];
   }>({
     conditions: null,
-    results: [],
+    results: null,
     isAnalyzing: false,
     error: null,
     progress: 0,
@@ -219,65 +220,88 @@ export default function StockAnalysisPage() {
 
 
   const processAnalysisData = (data: any) => {
-    const picks = data.trackA || data.topPicks || [];
-    if (picks && Array.isArray(picks) && picks.length > 0) {
-      const results: AnalysisResult[] = picks.map((pick: any) => ({
-        companyName: pick.company.companyName,
-        ticker: pick.yahooData?.ticker,
-        market: pick.company.market,
-        expectedReturnRate: pick.expectedReturnRate,
-        confidenceScore: Math.round(pick.confidenceScore * 100),
-        confidenceDetails: pick.confidenceDetails,
-        reasoning: pick.company.investmentThesis || '시장 지표 및 재무 분석 결과 우수한 성장 잠재력이 확인되었습니다.',
-        sources: pick.company.sources || [],
-        riskLevel: pick.riskLevel,
-        currentPrice: pick.yahooData?.currentPrice,
-        targetPrice: pick.company.targetPrice,
-        currency: pick.yahooData?.currency,
-        ruleScores: pick.ruleScores,
-        totalRuleScore: pick.totalRuleScore,
-        maxPossibleScore: pick.maxPossibleScore,
-        financialHistory: pick.yahooData?.financialHistory,
-        returnRates: pick.yahooData?.returnRates,
-        tenbaggerScore: pick.tenbaggerScore,
-        strategyMatch: pick.strategyMatch,
-        macroContext: pick.macroContext,
-        sentiment: pick.sentiment,
-        prediction: pick.prediction,
-        backtestResult: pick.backtestResult,
-        sector: pick.yahooData?.sector || pick.company?.sector,
+    if (!data) return;
 
-      }));
+    const mapItem = (pick: any): AnalysisResult => ({
+      companyName: pick.company?.companyName || pick.companyName || 'Unknown',
+      ticker: pick.ticker || pick.yahooData?.ticker || 'UNKNOWN',
+      market: pick.company?.market || pick.yahooData?.market || 'unknown',
+      price: pick.price || pick.yahooData?.currentPrice || 0,
+      change: pick.change || 0,
+      marketCap: pick.marketCap || pick.yahooData?.marketCap || 0,
+      description: pick.description || pick.company?.investmentThesis || '분석 결과...',
+      score: pick.score || 0,
+      recommendation: pick.recommendation || 'HOLD',
+      
+      metrics: pick.metrics || {},
+      rules: pick.rules || [],
+      
+      investmentThesis: pick.investmentThesis || pick.company?.investmentThesis || '',
+      riskFactors: pick.riskFactors || [],
+      expertVerdict: pick.expertVerdict || {},
+      sources: pick.sources || [],
+      track: pick.track || 'A',
+      extractedAt: pick.extractedAt ? new Date(pick.extractedAt) : new Date(),
 
+      expectedReturnRate: pick.expectedReturnRate,
+      confidenceScore: Math.round((pick.confidenceScore || 0) * 100),
+      confidenceDetails: pick.confidenceDetails,
+      reasoning: pick.reasoning || pick.company?.investmentThesis || '시장 지표 및 재무 분석 결과 우수한 성장 잠재력이 확인되었습니다.',
+      targetPrice: pick.targetPrice || pick.company?.targetPrice,
+      currency: pick.currency || pick.yahooData?.currency,
+      ruleScores: pick.ruleScores,
+      totalRuleScore: pick.totalRuleScore,
+      maxPossibleScore: pick.maxPossibleScore,
+      financialHistory: pick.yahooData?.financialHistory,
+      returnRates: pick.yahooData?.returnRates,
+      tenbaggerScore: pick.tenbaggerScore,
+      strategyMatch: pick.strategyMatch,
+      macroContext: pick.macroContext,
+      sentiment: pick.sentiment,
+      prediction: pick.prediction,
+      backtestResult: pick.backtestResult,
+      sector: pick.sector || pick.yahooData?.sector || pick.company?.sector,
+    });
+
+    const trackA = Array.isArray(data.trackA) ? data.trackA.map(mapItem) : [];
+    const trackB = Array.isArray(data.trackB) ? data.trackB.map(mapItem) : [];
+    
+    // 하위 호환성 (Legacy topPicks 대응)
+    const legacyPicks = Array.isArray(data.topPicks) ? data.topPicks.map(mapItem) : [];
+    const finalTrackA = trackA.length > 0 ? trackA : legacyPicks;
+
+    const results: RecommendationResult = {
+      ...data,
+      trackA: finalTrackA,
+      trackB: trackB,
+      analysisDate: data.analysisDate ? new Date(data.analysisDate) : new Date(),
+      summary: data.summary || '분석 완료'
+    };
+
+    if (finalTrackA.length === 0 && trackB.length === 0) {
       setAnalysisState(prev => ({
         ...prev,
-        results,
-        isAnalyzing: false,
-        excludedStockCount: data.excludedStockCount || prev.excludedStockCount,
-        excludedDetails: data.excludedDetails || prev.excludedDetails
-      }));
-
-      if (data.universeCounts) {
-        setUniverseStats(data.universeCounts);
-      }
-
-
-
-      // [TOKEN_SAVE] 개별 기업 뉴스 조회 호출 주석 처리
-      // const tickers = results.map(r => r.ticker).filter(Boolean) as string[];
-      // if (tickers.length > 0) fetchNewsForTickers(tickers);
-
-
-      if (data.queriedTickers && Array.isArray(data.queriedTickers)) {
-        // setQueriedTickers(data.queriedTickers); — removed (unused)
-      }
-    } else {
-      setAnalysisState(prev => ({
-        ...prev,
-        results: [],
+        results: null,
         isAnalyzing: false,
         error: data.summary || '추천 대상 기업을 찾지 못했습니다. 잠시 후 다시 시도하거나 학습 데이터를 확인해주세요.',
       }));
+      return;
+    }
+
+    setAnalysisState(prev => ({
+      ...prev,
+      results,
+      isAnalyzing: false,
+      excludedStockCount: data.excludedStockCount || prev.excludedStockCount,
+      excludedDetails: data.excludedDetails || prev.excludedDetails
+    }));
+
+    if (data.universeCounts) {
+      setUniverseStats(data.universeCounts);
+    }
+
+    if (data.queriedTickers && Array.isArray(data.queriedTickers)) {
+      // setQueriedTickers(data.queriedTickers); — removed (unused)
     }
   };
 
@@ -286,7 +310,7 @@ export default function StockAnalysisPage() {
   }) => {
     analysisAlerted.current = false;
     setAnalysisState(prev => ({
-      ...prev, conditions: newConditions, isAnalyzing: true, error: null, results: [], progress: 0, excludedStockCount: 0, excludedDetails: []
+      ...prev, conditions: newConditions, isAnalyzing: true, error: null, results: null, progress: 0, excludedStockCount: 0, excludedDetails: []
     }));
 
     try {
@@ -325,7 +349,7 @@ export default function StockAnalysisPage() {
     } catch (error) {
       console.error('Analysis error:', error);
       const message = error instanceof Error ? error.message : '분석 실패';
-      setAnalysisState(prev => ({ ...prev, results: [], isAnalyzing: false, error: message }));
+      setAnalysisState(prev => ({ ...prev, results: null, isAnalyzing: false, error: message }));
     }
   };
 
@@ -673,7 +697,7 @@ export default function StockAnalysisPage() {
         />
 
         {/* 상세 리포트 토글 버튼 - 분석 결과가 있을 때만 표시 */}
-        {!analysisState.isAnalyzing && analysisState.results.length > 0 && (
+        {!analysisState.isAnalyzing && analysisState.results && (
           <div className="mt-6 flex flex-col gap-4">
             <div className="flex justify-center">
               <Button 
@@ -687,11 +711,11 @@ export default function StockAnalysisPage() {
                 <ChevronRight className={cn("h-3.5 w-3.5 transition-transform", showDetailReport ? "rotate-90" : "animate-bounce-x")} />
               </Button>
             </div>
-
+ 
             {showDetailReport && (
               <div className="animate-in slide-in-from-top-3 duration-500">
                 <AnalysisReport 
-                  candidates={analysisState.results} 
+                  candidates={[...(analysisState.results.trackA || []), ...(analysisState.results.trackB || [])]} 
                   excludedDetails={analysisState.excludedDetails} 
                   totalUniverse={universeStats?.finalCount || 0}
                 />
@@ -699,9 +723,9 @@ export default function StockAnalysisPage() {
             )}
           </div>
         )}
-
+ 
         {/* 뉴스 섹션 */}
-        {analysisState.results.length > 0 && (
+        {analysisState.results && (
           <div className="mt-8">
             <NewsSection
               summaries={newsState.summaries}

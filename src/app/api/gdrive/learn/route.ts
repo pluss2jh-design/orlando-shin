@@ -14,9 +14,9 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   try {
     const body = (await request.json().catch(() => ({}))) as any;
-    const { fileIds, aiModel, title, forceFullAnalysis } = body;
+    const { fileIds, aiModel, fallbackAiModel, title, forceFullAnalysis } = body;
 
-    await StockService.runLearning({ fileIds, aiModel, title, forceFullAnalysis });
+    await StockService.runLearning({ fileIds, aiModel, fallbackAiModel, title, forceFullAnalysis });
 
     return NextResponse.json({ status: 'started' });
   } catch (error) {

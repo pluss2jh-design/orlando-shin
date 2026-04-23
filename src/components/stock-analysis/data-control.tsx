@@ -50,10 +50,27 @@ interface DataControlProps {
   onFilesChange?: (files: UploadedFile[]) => void;
   onSyncStatusChange?: (status: CloudSyncStatus) => void;
   onLearningStart?: () => void;
-  onLearningComplete?: () => void;
+  onLearningComplete?: (hasError: boolean) => void;
+  availableModels: AIModel[];
+  apiKeys: APIKeys;
+  selectedModel: string;
+  onModelChange: (model: string) => void;
+  selectedModelSecondary?: string;
+  onModelChangeSecondary?: (model: string) => void;
 }
 
-export function DataControl({ onFilesChange, onSyncStatusChange, onLearningStart, onLearningComplete }: DataControlProps) {
+export function DataControl({ 
+  onFilesChange, 
+  onSyncStatusChange, 
+  onLearningStart, 
+  onLearningComplete,
+  availableModels,
+  apiKeys,
+  selectedModel,
+  onModelChange,
+  selectedModelSecondary,
+  onModelChangeSecondary
+}: DataControlProps) {
   const [files, setFiles] = useState<UploadedFile[]>([]);
   const [isDragging, setIsDragging] = useState(false);
   const [syncStatus, setSyncStatus] = useState<CloudSyncStatus>({ status: 'idle' });
@@ -67,9 +84,6 @@ export function DataControl({ onFilesChange, onSyncStatusChange, onLearningStart
   const [rootFolderId, setRootFolderId] = useState<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   
-  const [availableModels, setAvailableModels] = useState<AIModel[]>([]);
-  const [keys, setKeys] = useState<APIKeys | null>(null);
-  const [selectedModel, setSelectedModel] = useState<string>('gemini-1.5-flash');
   const [forceFullAnalysis, setForceFullAnalysis] = useState(false);
   const [backendLearningStatus, setBackendLearningStatus] = useState<{
     isLearning: boolean;
@@ -114,21 +128,6 @@ export function DataControl({ onFilesChange, onSyncStatusChange, onLearningStart
             const dataK = await resK.json();
             setLearnedKnowledge(dataK.knowledge);
           }
-        }
-        
-        const [modelsRes, keysRes] = await Promise.all([
-          fetch('/api/admin/models', { cache: 'no-store' }),
-          fetch('/api/admin/settings', { cache: 'no-store' })
-        ]);
-
-        if (modelsRes.ok) {
-          const mData = await modelsRes.json();
-          setAvailableModels(mData.models || []);
-        }
-
-        if (keysRes.ok) {
-          const kData = await keysRes.json();
-          setKeys(kData.keys || {});
         }
 
         // 3. Check for active sync task and initial file list (Persistence)
@@ -223,7 +222,7 @@ export function DataControl({ onFilesChange, onSyncStatusChange, onLearningStart
                 ? `학습 중단됨: ${data.error}`
                 : `학습 완료! (성공: ${data.completedFiles}개, 실패: ${data.failedFiles}개)`;
               setLearningStatus(message);
-              onLearningComplete?.();
+              onLearningComplete?.(!!data.error);
               
               const resK = await fetch('/api/gdrive/knowledge');
               if (resK.ok) {
@@ -352,6 +351,7 @@ export function DataControl({ onFilesChange, onSyncStatusChange, onLearningStart
         body: JSON.stringify({
           fileIds: selectedFileIds,
           aiModel: selectedModel,
+          fallbackAiModel: selectedModelSecondary,
           forceFullAnalysis,
           title: `Expert Session ${new Date().toLocaleDateString()}`
         })
@@ -661,41 +661,84 @@ export function DataControl({ onFilesChange, onSyncStatusChange, onLearningStart
                   <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wider">AI 분석 모델 설정</h4>
                 </div>
                 
-                <Select 
-                  value={selectedModel} 
-                  onValueChange={setSelectedModel}
-                >
-                  <SelectTrigger className="w-full h-11 bg-background border-muted-foreground/20 rounded-xl">
-                    <SelectValue placeholder="분석에 사용할 모델 선택 (예: Gemini 2.5 Flash Lite)" />
-                  </SelectTrigger>
-                  <SelectContent className="max-h-[400px]">
-                    {availableModels
-                      .map((model) => {
-                        const hasKey = keys && keys[model.reqKey as keyof APIKeys];
-                        return (
-                          <SelectItem 
-                            key={model.value} 
-                            value={model.value} 
-                            disabled={!hasKey}
-                            className="py-3 px-4"
-                          >
-                            <div className="flex flex-col gap-0.5">
-                              <div className="flex items-center justify-between w-full gap-8">
-                                <span className={cn("font-bold text-sm", model.isRecommendedForLearning && "text-blue-600")}>
-                                  {model.label}
-                                  {model.isRecommendedForLearning && <span className="ml-2 text-[9px] bg-blue-100 text-blue-600 px-1.5 py-0.5 rounded-full uppercase tracking-tighter">Recommended</span>}
-                                </span>
-                                {!hasKey && <span className="text-[10px] text-red-500 font-medium">Key 미등록</span>}
-                              </div>
-                              <span className="text-[10px] text-muted-foreground">
-                                {model.provider.toUpperCase()} • {model.supportsPDF && model.supportsVideo ? "PDF & Video 지원" : (model.supportsPDF ? "PDF 전용" : "텍스트 전용")}
-                              </span>
-                            </div>
-                          </SelectItem>
-                        );
-                      })}
-                  </SelectContent>
-                </Select>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <p className="text-[10px] font-black text-blue-500 uppercase tracking-widest pl-1">Primary AI Engine (1순위)</p>
+                    <Select 
+                      value={selectedModel} 
+                      onValueChange={onModelChange}
+                    >
+                      <SelectTrigger className="w-full h-11 bg-background border-muted-foreground/20 rounded-xl">
+                        <SelectValue placeholder="1순위 모델 선택" />
+                      </SelectTrigger>
+                      <SelectContent className="max-h-[400px]">
+                        {availableModels
+                          .map((model) => {
+                            const hasKey = apiKeys && apiKeys[model.reqKey as keyof APIKeys];
+                            return (
+                              <SelectItem 
+                                key={model.value} 
+                                value={model.value} 
+                                disabled={!hasKey}
+                                className="py-3 px-4 focus:bg-blue-500/10"
+                              >
+                                <div className="flex flex-col gap-0.5">
+                                  <div className="flex items-center justify-between w-full gap-8">
+                                    <span className={cn("font-bold text-sm", model.isRecommendedForLearning && "text-blue-600")}>
+                                      {model.label}
+                                      {model.isRecommendedForLearning && <span className="ml-2 text-[9px] bg-blue-100 text-blue-600 px-1.5 py-0.5 rounded-full uppercase tracking-tighter">Recommended</span>}
+                                    </span>
+                                    {!hasKey && <span className="text-[10px] text-red-500 font-medium">Key 미등록</span>}
+                                  </div>
+                                  <span className="text-[10px] text-muted-foreground">
+                                    {model.provider.toUpperCase()} • {model.supportsPDF && model.supportsVideo ? "PDF & Video 지원" : (model.supportsPDF ? "PDF 전용" : "텍스트 전용")}
+                                  </span>
+                                </div>
+                              </SelectItem>
+                            );
+                          })}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <p className="text-[10px] font-black text-amber-500 uppercase tracking-widest pl-1">Fallback AI Engine (2순위)</p>
+                    <Select 
+                      value={selectedModelSecondary} 
+                      onValueChange={onModelChangeSecondary}
+                    >
+                      <SelectTrigger className="w-full h-11 bg-background border-muted-foreground/20 rounded-xl">
+                        <SelectValue placeholder="2순위(폴백) 모델 선택" />
+                      </SelectTrigger>
+                      <SelectContent className="max-h-[400px]">
+                        {availableModels
+                          .map((model) => {
+                            const hasKey = apiKeys && apiKeys[model.reqKey as keyof APIKeys];
+                            return (
+                              <SelectItem 
+                                key={model.value} 
+                                value={model.value} 
+                                disabled={!hasKey}
+                                className="py-3 px-4 focus:bg-amber-500/10"
+                              >
+                                <div className="flex flex-col gap-0.5">
+                                  <div className="flex items-center justify-between w-full gap-8">
+                                    <span className="font-bold text-sm">
+                                      {model.label}
+                                    </span>
+                                    {!hasKey && <span className="text-[10px] text-red-500 font-medium">Key 미등록</span>}
+                                  </div>
+                                  <span className="text-[10px] text-muted-foreground font-medium italic">
+                                    1순위 실패 시 자동 전환될 보조 모델
+                                  </span>
+                                </div>
+                              </SelectItem>
+                            );
+                          })}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
 
                 <div className="flex items-center space-x-2 pt-2 border-t border-muted-foreground/5 mt-2">
                   <Checkbox 

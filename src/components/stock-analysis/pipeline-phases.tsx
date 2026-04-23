@@ -9,267 +9,221 @@ import {
   BarChart3, Clock, Sparkles, Filter, ArrowRight, CircleDot
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { Button } from '@/components/ui/button';
+import { 
+  KnowledgeTreemap, 
+  KnowledgeTuningCenter
+} from './knowledge-visualizer';
+import { AIModel, APIKeys } from '@/types/stock-analysis';
 
 /** ─── Phase 1: Knowledge Extraction ─────────────────────────────── */
-export function Phase1Panel({ knowledge, isLearning, learningStatus }: {
+export function Phase1Panel({ knowledge, isLearning, learningStatus, hasError }: {
   knowledge: any;
   isLearning: boolean;
   learningStatus: any;
+  hasError?: boolean;
 }) {
   const [open, setOpen] = useState(true);
-  const [showAllRules, setShowAllRules] = useState(false);
   const criterias = knowledge?.criteria?.criterias || [];
   const fileAnalyses = knowledge?.fileAnalyses || [];
   const isCompleted = criterias.length > 0;
 
   return (
+    <div className="space-y-3">
+      {/* Learning Progress - Shown as a standalone card (No Orange Panel) */}
+      {isLearning && learningStatus && (
+        <div className="p-6 rounded-[32px] bg-[#141720] border border-amber-500/30 shadow-2xl shadow-amber-500/5 animate-in fade-in zoom-in duration-500">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-amber-500/20 rounded-xl">
+                <Loader2 className="h-5 w-5 text-amber-400 animate-spin" />
+              </div>
+              <div>
+                <span className="text-sm font-black text-amber-300 uppercase tracking-[0.2em] block">AI Knowledge Mining</span>
+                <span className="text-[10px] text-amber-500/50 font-bold uppercase">{learningStatus.message || '원천 데이터 분석 중...'}</span>
+              </div>
+            </div>
+            <div className="px-3 py-1 bg-amber-500/10 rounded-full border border-amber-500/20">
+              <span className="text-xs font-black text-amber-400 font-mono">
+                {learningStatus.completedFiles} / {learningStatus.totalFiles} FILES
+              </span>
+            </div>
+          </div>
+          
+          <div className="space-y-2">
+            <Progress
+              value={(learningStatus.completedFiles / Math.max(1, learningStatus.totalFiles)) * 100}
+              className="h-2 bg-amber-950/50"
+            />
+            <div className="flex justify-between text-[10px] font-bold text-amber-500/40 uppercase tracking-tighter">
+              <span>Initializing Engine</span>
+              <span>Extracting Core Alpha</span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Completion Message - Showed ONLY the success message without any orange components */}
+      {isCompleted && !isLearning && !hasError && (
+        <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center gap-3 animate-in slide-in-from-top-2 duration-500 shadow-lg shadow-emerald-500/5">
+          <CheckCircle2 className="h-5 w-5 text-emerald-400" />
+          <span className="text-sm font-black text-emerald-300">원천 데이터 학습 완료. 하단 2단계에서 전략 비중을 설정하십시오.</span>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** ─── Phase 2: Strategy Tuning ────────────────────────────────────── */
+export function Phase2Panel({ 
+  knowledge, 
+  onSynthesize,
+  isSynthesizing,
+  availableModels = [],
+  apiKeys = {},
+  selectedModel,
+  onModelChange,
+  selectedModelSecondary,
+  onModelChangeSecondary,
+  learnedAt
+}: { 
+  knowledge: any;
+  onSynthesize: (weights: Record<string, number>, aiModel?: string, fallbackAiModel?: string) => void;
+  isSynthesizing: boolean;
+  availableModels?: AIModel[];
+  apiKeys?: APIKeys;
+  selectedModel?: string;
+  onModelChange?: (model: string) => void;
+  selectedModelSecondary?: string;
+  onModelChangeSecondary?: (model: string) => void;
+  learnedAt?: string | Date;
+}) {
+  const [open, setOpen] = useState(true);
+  const isCompleted = !!knowledge?.keyConditionsSummary;
+  const criterias = knowledge?.criteria?.criterias || [];
+
+  return (
     <PanelWrapper
       phase={2}
-      title="Knowledge Extraction"
-      subtitle="원천 데이터에서 투자 조건 추출"
-      color="amber"
+      title="Strategy Designing"
+      subtitle="지표별 가중치 조절 및 전략 밸런스 튜닝"
+      color="indigo"
       isCompleted={isCompleted}
-      isActive={isLearning}
+      isActive={isSynthesizing}
       open={open}
       onToggle={() => setOpen(v => !v)}
-      stats={isCompleted ? `${fileAnalyses.length}개 파일 분석 · ${criterias.length}개 조건 추출` : undefined}
+      stats={criterias.length > 0 ? `현재 ${criterias.length}개 지표 구성 중` : undefined}
+      learnedAt={learnedAt}
     >
-      {/* Learning Progress */}
-      {isLearning && learningStatus && (
-        <div className="mb-4 p-4 rounded-xl bg-amber-500/10 border border-amber-500/20">
-          <div className="flex items-center justify-between mb-2">
-            <div className="flex items-center gap-2">
-              <Loader2 className="h-3.5 w-3.5 text-amber-400 animate-spin" />
-              <span className="text-sm font-black text-amber-300 uppercase tracking-widest">AI 분석 중</span>
-            </div>
-            <span className="text-sm font-black text-amber-400 font-mono">
-              {learningStatus.completedFiles}/{learningStatus.totalFiles} FILES
-            </span>
-          </div>
-          <Progress
-            value={(learningStatus.completedFiles / Math.max(1, learningStatus.totalFiles)) * 100}
-            className="h-1.5 bg-amber-950"
-          />
-          <div className="flex items-center justify-between mt-2">
-            <p className="text-[10px] text-amber-500/70 font-medium truncate flex-1">
-              {learningStatus.message || '원천 데이터 분석 중...'}
-            </p>
-            {learningStatus.failedFiles > 0 && (
-              <div className="flex items-center gap-1.5 text-rose-500 group relative cursor-help ml-2 shrink-0">
-                <AlertCircle className="h-3 w-3" />
-                <span className="text-[10px] font-black">{learningStatus.failedFiles} FAILED</span>
-                
-                {/* Hover Tooltip for Failed Files */}
-                <div className="absolute top-full right-0 pt-2 w-80 opacity-0 group-hover:opacity-100 transition-all z-50 transform -translate-y-1 group-hover:translate-y-0">
-                  <div className="p-3 bg-[#1c2128] border border-rose-500/30 rounded-xl shadow-2xl pointer-events-auto">
-                  <p className="text-[10px] font-black text-rose-400 mb-2 border-b border-rose-500/20 pb-1.5 uppercase tracking-widest flex items-center gap-2">
-                    <AlertCircle className="h-3 w-3" />
-                    분석 실패 파일 상세 원인
-                  </p>
-                  <div className="space-y-2 max-h-48 overflow-y-auto pr-1 custom-scrollbar">
-                    {learningStatus.failedDetails?.map((fd: any, idx: number) => (
-                      <div key={idx} className="text-[10px] leading-relaxed border-b border-white/5 pb-1.5 last:border-0 text-left">
-                        <span className="text-rose-300 font-bold block truncate mb-0.5">{fd.fileName}</span>
-                        <span className="text-white/40 block italic">{fd.reason}</span>
-                      </div>
-                    ))}
-                  </div>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* 학습 완료 후 결과 요약 (실패 내역 포함) */}
-      {!isLearning && knowledge?.failedFilesCount !== undefined && knowledge.failedFilesCount > 0 && (
-        <div className="mb-4 p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <AlertCircle className="h-4 w-4 text-rose-500" />
-            <span className="text-xs font-black text-rose-300">
-              분석 완료: 성공 {knowledge.fileAnalyses?.length || 0}개 / 실패 {knowledge.failedFilesCount}개
-            </span>
-          </div>
-          <div className="relative group cursor-help">
-            <Badge variant="outline" className="text-[10px] border-rose-500/30 text-rose-400 font-black">실패 원인 보기</Badge>
-            <div className="absolute bottom-full right-0 mb-2 w-80 opacity-0 group-hover:opacity-100 transition-all z-50 pointer-events-auto">
-              <div className="p-3 bg-[#1c2128] border border-rose-500/40 rounded-xl shadow-2xl">
-                <p className="text-[10px] font-black text-rose-400 mb-2 border-b border-rose-500/20 pb-1.5 uppercase tracking-widest">
-                  실패 파일 상세 원인
-                </p>
-                <div className="space-y-2 max-h-48 overflow-y-auto custom-scrollbar pr-1">
-                  {knowledge.failedDetails?.map((fd: any, idx: number) => (
-                    <div key={idx} className="text-[10px] leading-relaxed border-b border-white/5 pb-1.5 last:border-0">
-                      <span className="text-rose-300 font-bold block truncate">{fd.fileName}</span>
-                      <span className="text-white/40 block italic">{fd.reason}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Extracted Conditions */}
       {criterias.length > 0 ? (
-        <div className="space-y-3 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
-          {criterias.slice(0, 15).map((rule: any, i: number) => (
-            <RuleCard key={i} rule={rule} />
-          ))}
-          {criterias.length > 15 && (
-            <button
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                setShowAllRules(true);
-              }}
-              className="w-full py-4 rounded-2xl border-2 border-dashed border-amber-500/30 bg-amber-500/5 hover:bg-amber-500/10 transition-all text-base font-black text-amber-400 flex items-center justify-center gap-3 group"
-            >
-              <BookOpen className="h-5 w-5 group-hover:scale-110 transition-transform" />
-              + {criterias.length - 15}개 규칙 더 보기 (전체 {criterias.length}개)
-            </button>
-          )}
-        </div>
-      ) : !isLearning ? (
-        <EmptyState message="학습된 데이터가 없습니다. 상단 Data Library에서 원천 데이터를 학습해주세요." />
-      ) : null}
-
-      {/* All Rules Modal */}
-      {showAllRules && (
-        <RulesModal rules={criterias} onClose={() => setShowAllRules(false)} />
+        <KnowledgeTuningCenter 
+          knowledge={knowledge} 
+          onSynthesisTrigger={onSynthesize} 
+          availableModels={availableModels}
+          apiKeys={apiKeys}
+          selectedModel={selectedModel}
+          onModelChange={onModelChange}
+          selectedModelSecondary={selectedModelSecondary}
+          onModelChangeSecondary={onModelChangeSecondary}
+        />
+      ) : (
+        <EmptyState message="Phase 1 학습이 완료되면 전략 설계 도구가 활성화됩니다." />
       )}
     </PanelWrapper>
   );
 }
 
-/** ─── Phase 2: Knowledge Synthesis ────────────────────────────────── */
-export function Phase2Panel({ knowledge }: { knowledge: any }) {
+/** ─── Phase 3: Custom Knowledge Synthesis ─────────────────────────── */
+export function Phase3Panel({ 
+  knowledge, 
+  isSynthesizing,
+  onStartCompanyAnalysis,
+  learnedAt
+}: { 
+  knowledge: any;
+  isSynthesizing: boolean;
+  onStartCompanyAnalysis?: () => void;
+  learnedAt?: string | Date;
+}) {
   const [open, setOpen] = useState(true);
   const isCompleted = !!knowledge?.keyConditionsSummary;
-  const strategy = knowledge?.strategy || {};
   const principles = knowledge?.criteria?.principles || [];
-
-  const contextGroups: Record<string, string[]> = {
-    bull_market: ['green', '강세장'],
-    recession: ['rose', '약세장/침체'],
-    high_inflation: ['orange', '고물가'],
-    high_interest: ['red', '고금리'],
-    pivot_expected: ['purple', '금리 전환 예상'],
-    low_vix: ['teal', '저변동성'],
-  };
-
-  const sectorMappings: Record<string, string[]> = {};
-  (knowledge?.criteria?.criterias || []).forEach((r: any) => {
-    (r.targetSectors || []).forEach((sec: string) => {
-      if (!sectorMappings[sec]) sectorMappings[sec] = [];
-      if (r.quantification?.target_metric && !sectorMappings[sec].includes(r.quantification.target_metric)) {
-        sectorMappings[sec].push(r.quantification.target_metric);
-      }
-    });
-  });
 
   return (
     <PanelWrapper
       phase={3}
       title="Knowledge Synthesis"
-      subtitle="지식 합성 및 상황별 트리거 매핑"
-      color="indigo"
+      subtitle="맞춤형 투자 전략 및 핵심 원칙 최종 수립"
+      color="blue"
       isCompleted={isCompleted}
-      isActive={false}
+      isActive={isSynthesizing}
       open={open}
       onToggle={() => setOpen(v => !v)}
-      stats={isCompleted ? `전략 유형: ${knowledge.strategyType === 'moderate' ? '중립형' : knowledge.strategyType === 'aggressive' ? '공격형' : '보수형'} · 합의 점수: ${knowledge.consensusScore ?? '—'}%` : undefined}
+      stats={isCompleted ? `합의 점수: ${knowledge.consensusScore ?? '—'}% · 전략 유형: ${knowledge.strategyType === 'moderate' ? '중립형' : knowledge.strategyType === 'aggressive' ? '공격형' : '보수형'}` : undefined}
+      learnedAt={learnedAt}
     >
-      {isCompleted ? (
-        <div className="space-y-4">
-          {/* Philosophy Quote */}
-          <div className="p-4 rounded-xl bg-gradient-to-br from-indigo-600/20 to-purple-600/10 border border-indigo-500/20">
-            <p className="text-[10px] font-black text-indigo-400 uppercase tracking-[0.2em] mb-2">통합 투자 가이드라인</p>
-            <p className="text-sm text-white/80 font-medium leading-relaxed italic">
-              &ldquo;{knowledge.keyConditionsSummary?.slice(0, 400)}&rdquo;
+      {isSynthesizing ? (
+        <div className="py-12 space-y-6 flex flex-col items-center">
+           <div className="relative">
+              <Loader2 className="h-16 w-16 text-blue-500 animate-spin" />
+              <Sparkles className="absolute inset-0 m-auto h-6 w-6 text-amber-400 animate-pulse" />
+           </div>
+           <div className="text-center">
+              <h3 className="text-lg font-black text-white mb-2 uppercase tracking-widest">AI 투자 전략 합성 중</h3>
+              <p className="text-sm text-white/40 font-medium">사용자가 설정한 가중치를 바탕으로 최적의 투자 로직을 구성하고 있습니다...</p>
+           </div>
+        </div>
+      ) : isCompleted ? (
+        <div className="space-y-6 animate-in fade-in duration-1000">
+          <div className="p-6 rounded-3xl bg-gradient-to-br from-blue-600/20 to-indigo-600/10 border border-blue-500/20 shadow-2xl">
+            <p className="text-[10px] font-black text-blue-400 uppercase tracking-[0.4em] mb-4">맞춤형 통합 투자 가이드라인</p>
+            <p className="text-base text-white/90 font-bold leading-relaxed italic">
+              &ldquo;{knowledge.keyConditionsSummary}&rdquo;
             </p>
           </div>
 
-          {/* Trigger Classification */}
-          <div>
-            <p className="text-xs font-black text-white/40 uppercase tracking-widest mb-3 flex items-center gap-1.5">
-              <Zap className="h-3.5 w-3.5" /> 상황별 트리거
-            </p>
-            <div className="flex flex-wrap gap-2">
-              {Object.entries(contextGroups).map(([ctx, [color, label]]) => {
-                const count = (knowledge?.criteria?.criterias || []).filter(
-                  (r: any) => r.applicableContexts?.includes(ctx)
-                ).length;
-                if (count === 0) return null;
-                return (
-                  <div key={ctx} className={cn(
-                    "px-3 py-2 rounded-xl border text-xs font-black flex items-center gap-2",
-                    color === 'green' ? 'bg-green-500/10 border-green-500/20 text-green-300' :
-                    color === 'rose' ? 'bg-rose-500/10 border-rose-500/20 text-rose-300' :
-                    color === 'orange' ? 'bg-orange-500/10 border-orange-500/20 text-orange-300' :
-                    color === 'red' ? 'bg-red-500/10 border-red-500/20 text-red-300' :
-                    color === 'purple' ? 'bg-purple-500/10 border-purple-500/20 text-purple-300' :
-                    'bg-teal-500/10 border-teal-500/20 text-teal-300'
-                  )}>
-                    <CircleDot className="h-2.5 w-2.5" />
-                    {label}
-                    <span className="font-mono ml-1 opacity-60">{count}</span>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Sector Mappings */}
-          {Object.keys(sectorMappings).length > 0 && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <p className="text-[10px] font-black text-white/40 uppercase tracking-widest mb-2 flex items-center gap-1.5">
-                <Filter className="h-3 w-3" /> 섹터별 핵심 지표 매핑
+              <p className="text-xs font-black text-white/40 uppercase tracking-widest mb-4 flex items-center gap-2">
+                <Target className="h-4 w-4 text-blue-400" /> 수립된 핵심 투자 원칙
               </p>
-              <div className="space-y-1.5">
-                {Object.entries(sectorMappings).slice(0, 5).map(([sector, metrics]) => (
-                  <div key={sector} className="flex items-center gap-2 text-xs">
-                    <span className="font-bold text-white/60 shrink-0 w-36 truncate">{sector}</span>
-                    <ArrowRight className="h-3 w-3 text-white/20 shrink-0" />
-                    <div className="flex flex-wrap gap-1">
-                      {metrics.slice(0, 4).map((m, i) => (
-                        <span key={i} className="text-[9px] font-bold text-indigo-300 bg-indigo-500/10 px-1.5 py-0.5 rounded font-mono">
-                          {m}
-                        </span>
-                      ))}
+              <div className="space-y-3">
+                {principles.map((p: any, i: number) => {
+                  const content = typeof p === 'string' ? p : (p?.principle || p?.text || p?.description || p?.title);
+                  if (!content) return null;
+                  return (
+                    <div key={i} className="flex items-start gap-3 p-3 rounded-xl bg-white/5 border border-white/5 text-sm text-white/70">
+                      <CheckCircle2 className="h-4 w-4 text-blue-400 shrink-0 mt-0.5" />
+                      <span>{content}</span>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
-          )}
-
-          {/* Strategy Principles */}
-          {principles.length > 0 && (
-            <div>
-              <p className="text-xs font-black text-white/40 uppercase tracking-widest mb-3">핵심 투자 원칙</p>
-              <div className="space-y-2">
-                {principles.slice(0, 4).map((p: any, i: number) => (
-                  <div key={i} className="flex items-start gap-2 text-sm text-white/60">
-                    <CheckCircle2 className="h-4 w-4 text-indigo-400 shrink-0 mt-0.5" />
-                    <span>{p.principle}</span>
-                  </div>
-                ))}
-              </div>
+            
+            <div className="flex flex-col justify-center items-center p-8 rounded-3xl border border-white/5 bg-black/20">
+               <div className="text-center mb-6">
+                 <p className="text-[10px] font-black text-white/40 uppercase mb-1">AI 정합성 합의 점수</p>
+                 <p className="text-5xl font-black text-blue-400 font-mono">{knowledge.consensusScore}%</p>
+               </div>
+               <Button 
+                 onClick={onStartCompanyAnalysis}
+                 className="w-full h-14 rounded-2xl bg-blue-600 hover:bg-blue-500 text-white font-black flex items-center gap-3 transition-all active:scale-95"
+               >
+                 기업 정밀 분석 시작 (4단계 이동) <ArrowRight className="h-4 w-4" />
+               </Button>
             </div>
-          )}
+          </div>
         </div>
       ) : (
-        <EmptyState message="Phase 1 학습이 완료되면 지식 합성 결과가 표시됩니다." />
+        <EmptyState message="2단계에서 [지식 합성 시작] 버튼을 누르면 AI 전략 보고서가 생성됩니다." />
       )}
     </PanelWrapper>
   );
 }
 
-/** ─── Phase 3: Real-time Sensing ────────────────────────────────── */
-export function Phase3Panel({
+/** ─── Phase 4: Real-time Sensing ────────────────────────────────── */
+export function Phase4Panel({
   macroContext,
   isAnalyzing,
   progress,
@@ -278,7 +232,6 @@ export function Phase3Panel({
   processedCount,
   excludedStockCount,
   activeRuleCount,
-  totalRuleCount,
   children,
   inputControls,
 }: {
@@ -290,7 +243,6 @@ export function Phase3Panel({
   processedCount?: number;
   excludedStockCount?: number;
   activeRuleCount?: number;
-  totalRuleCount?: number;
   children?: React.ReactNode;
   inputControls?: React.ReactNode;
 }) {
@@ -300,210 +252,120 @@ export function Phase3Panel({
   const allCandidates = [...trackA, ...trackB];
   const isCompleted = !!macroContext && allCandidates.length > 0 && !isAnalyzing;
 
-  const vixColor = !macroContext ? 'white' :
-    macroContext.vixStatus === 'Low' ? 'teal' :
-    macroContext.vixStatus === 'Moderate' ? 'amber' : 'rose';
-
-  const yieldColor = !macroContext ? 'white' :
-    macroContext.yieldStatus === 'Bullish' ? 'teal' :
-    macroContext.yieldStatus === 'Neutral' ? 'amber' : 'rose';
-
-  const sp500Color = !macroContext ? 'white' :
-    macroContext.sp500Trend === 'Uptrend' ? 'teal' :
-    macroContext.sp500Trend === 'Sideways' ? 'amber' : 'rose';
-
-  const modeColor = !macroContext ? 'white' :
-    macroContext.marketMode === 'Greed' ? 'teal' :
-    macroContext.marketMode === 'Neutral' ? 'amber' : 'rose';
-
-  // Derived active contexts from macro
-  const activeContexts: string[] = [];
-  if (macroContext) {
-    if (macroContext.marketMode === 'Fear') activeContexts.push('recession');
-    if (macroContext.marketMode === 'Greed') activeContexts.push('bull_market');
-    if (macroContext.vixStatus === 'High' || macroContext.vixStatus === 'Extreme') activeContexts.push('volatility_high');
-    if (macroContext.yieldStatus === 'Bearish') activeContexts.push('high_interest');
-    if (macroContext.vixStatus === 'Low') activeContexts.push('low_vix');
-  }
-
   return (
     <PanelWrapper
       phase={4}
-      title="Sensing & Dynamic Analysis"
-      subtitle="현시점 시장 상황 진단 및 맞춤형 기업 스캔"
+      title="Dynamic Company Scan"
+      subtitle="수립된 전략 기반 실시간 시장 상황 진단 및 기업 필터링"
       color="teal"
       isCompleted={isCompleted}
       isActive={isAnalyzing || false}
       open={open}
       onToggle={() => setOpen(v => !v)}
-      stats={isCompleted ? `${allCandidates.length}개 최종 선정` :
-        isAnalyzing ? `처리 중 ${processedCount || 0}개` : undefined}
+      stats={isCompleted ? `${allCandidates.length}개 최종 분석 결과 도출` : undefined}
     >
       <div className="space-y-6">
-        {/* Input Controls */}
         {inputControls && (
-          <div className="bg-[#0f111a] p-4 rounded-xl border border-white/5">
+          <div className="bg-[#0f111a] p-4 rounded-2xl border border-white/5">
             {inputControls}
           </div>
         )}
 
         {macroContext && (
-          <div className="space-y-4">
-            {/* Macro Metrics Grid */}
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-            <MacroCard label="VIX" value={macroContext.vix?.toFixed(1)} status={macroContext.vixStatus} color={vixColor} />
-            <MacroCard label="10Y Yield" value={`${macroContext.treasuryYield10Y?.toFixed(2)}%`} status={macroContext.yieldStatus} color={yieldColor} />
-            <MacroCard label="S&P 500 Trend" value={macroContext.sp500Trend} status={macroContext.sp500Trend} color={sp500Color} />
-            <MacroCard
-              label="Market Mode"
-              value={macroContext.marketMode}
-              status={macroContext.marketMode}
-              color={modeColor}
-              isHighlight
-            />
-          </div>
-
-          {/* Active Context Tags */}
-          <div>
-            <p className="text-[10px] font-black text-white/40 uppercase tracking-widest mb-2 flex items-center gap-1.5">
-              <Zap className="h-3 w-3 text-teal-400" /> 활성화된 시장 상황 태그
-            </p>
-            <div className="flex flex-wrap gap-2">
-              {activeContexts.length > 0 ? activeContexts.map((ctx, i) => (
-                <div key={i} className="px-3 py-1.5 rounded-full text-[10px] font-black bg-teal-500/15 text-teal-300 border border-teal-500/30 flex items-center gap-1.5 animate-pulse">
-                  <div className="h-1.5 w-1.5 rounded-full bg-teal-400" />
-                  {ctx.replace(/_/g, ' ').toUpperCase()}
-                </div>
-              )) : (
-                <span className="text-xs text-white/30">확인된 특수 상황 없음 (중립 상태)</span>
-              )}
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+            <MacroCard label="VIX" value={macroContext.vix?.toFixed(1)} status={macroContext.vixStatus} color={macroContext.vixStatus === 'Low' ? 'teal' : 'amber'} />
+            <MacroCard label="10Y Yield" value={`${macroContext.treasuryYield10Y?.toFixed(2)}%`} status={macroContext.yieldStatus} color="teal" />
+            <MacroCard label="Market Mode" value={macroContext.marketMode} status={macroContext.marketMode} color="teal" isHighlight />
+            <div className="p-3 rounded-xl bg-teal-500/10 border border-teal-500/20 text-center flex flex-col justify-center">
+               <p className="text-[9px] font-black text-teal-400 uppercase mb-1">ACTIVE RULES</p>
+               <p className="text-xl font-black text-white font-mono">{activeRuleCount || 0}</p>
             </div>
           </div>
-
-          {/* Supplementary */}
-          {(macroContext.dxy || macroContext.hySpread) && (
-            <div className="grid grid-cols-2 gap-2">
-              {macroContext.dxy && (
-                <div className="p-2.5 rounded-lg bg-white/5 border border-white/10">
-                  <p className="text-[9px] text-white/40 font-black uppercase">Dollar Index (DXY)</p>
-                  <p className="text-sm font-black text-white font-mono">{macroContext.dxy?.toFixed(1)}</p>
-                </div>
-              )}
-              {macroContext.hySpread && (
-                <div className="p-2.5 rounded-lg bg-white/5 border border-white/10">
-                  <p className="text-[9px] text-white/40 font-black uppercase">HY Spread Proxy</p>
-                  <p className="text-sm font-black text-white font-mono">{macroContext.hySpread?.toFixed(2)}</p>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
         )}
-        {/* Analysis Progress */}
+
         {isAnalyzing && (
-          <div className="space-y-3 pt-6 border-t border-white/10 mt-6">
+          <div className="space-y-4 pt-6 mt-6 border-t border-white/5">
             <div className="flex justify-between items-center">
               <div className="flex items-center gap-2">
-                <Loader2 className="h-3.5 w-3.5 text-teal-400 animate-spin" />
-                <span className="text-xs font-black text-teal-300 uppercase tracking-widest">기업 스캔 진행 중</span>
+                <Loader2 className="h-4 w-4 text-teal-400 animate-spin" />
+                <span className="text-xs font-black text-teal-300 uppercase tracking-widest">기업 정밀 스캐닝 중</span>
               </div>
               <span className="text-xs font-black text-teal-400 font-mono">{progress}%</span>
             </div>
-            <Progress value={progress} className="h-1.5 bg-teal-950" />
-            <p className="text-[10px] text-teal-400/70 font-medium">{progressMessage}</p>
-
-            {/* Active rule count indicator */}
-            {totalRuleCount && (
-              <div className="flex items-center gap-2 text-[10px] font-black text-white/40">
-                <Filter className="h-3 w-3" />
-                <span>학습 규칙 {totalRuleCount}개 중</span>
-                <span className="text-teal-400">{activeRuleCount || totalRuleCount}개 활성화</span>
-                <span>(상황+섹터 필터링 적용)</span>
+            <Progress value={progress} className="h-1.5 bg-teal-900" />
+            
+            <div className="grid grid-cols-2 gap-3">
+              <div className="p-4 rounded-2xl bg-teal-500/5 border border-teal-500/10">
+                <p className="text-[10px] text-teal-400 font-black uppercase">PROCESSED</p>
+                <p className="text-2xl font-black text-white font-mono">{processedCount || 0}</p>
               </div>
-            )}
-
-            {/* Real-time counters */}
-            <div className="grid grid-cols-2 gap-2">
-              <div className="p-2.5 rounded-lg bg-teal-500/10 border border-teal-500/20">
-                <p className="text-[9px] text-teal-400 font-black uppercase">PROCESSED</p>
-                <p className="text-lg font-black text-teal-200 font-mono">{processedCount || 0}</p>
-              </div>
-              <div className="p-2.5 rounded-lg bg-rose-500/10 border border-rose-500/20">
-                <p className="text-[9px] text-rose-400 font-black uppercase">EXCLUDED</p>
-                <p className="text-lg font-black text-rose-200 font-mono">-{excludedStockCount || 0}</p>
+              <div className="p-4 rounded-2xl bg-rose-500/5 border border-rose-500/10">
+                <p className="text-[10px] text-rose-400 font-black uppercase">EXCLUDED</p>
+                <p className="text-2xl font-black text-white font-mono">-{excludedStockCount || 0}</p>
               </div>
             </div>
           </div>
         )}
 
-        {/* Results from Children */}
-        {!isAnalyzing && children}
-
-        {!isAnalyzing && allCandidates.length === 0 && (
-          <EmptyState message="상단 컨트롤에서 스캔을 시작하면 실시간 데이터 조회 및 기업 심층 분석이 함께 진행됩니다." />
-        )}
+        {children}
       </div>
     </PanelWrapper>
   );
 }
 
-/** ─── Sub-components ────────────────────────────────────────────── */
+/** ─── Shared UI Helpers ────────────────────────────────────────── */
 
 function PanelWrapper({
   phase, title, subtitle, color, isCompleted, isActive,
-  open, onToggle, stats, children
+  open, onToggle, stats, learnedAt, children
 }: {
   phase: number; title: string; subtitle: string;
   color: 'amber' | 'indigo' | 'teal' | 'blue';
   isCompleted: boolean; isActive: boolean;
   open: boolean; onToggle: () => void;
-  stats?: string; children: React.ReactNode;
+  stats?: string; learnedAt?: string | Date; children: React.ReactNode;
 }) {
   const colorMap = {
-    amber: { border: 'border-amber-500/40', glow: 'bg-amber-500/10', badge: 'bg-amber-500/20 text-amber-300', num: 'text-amber-400', dot: 'bg-amber-400' },
-    indigo: { border: 'border-indigo-500/40', glow: 'bg-indigo-500/10', badge: 'bg-indigo-500/20 text-indigo-300', num: 'text-indigo-400', dot: 'bg-indigo-400' },
-    teal: { border: 'border-teal-500/40', glow: 'bg-teal-500/10', badge: 'bg-teal-500/20 text-teal-300', num: 'text-teal-400', dot: 'bg-teal-400' },
-    blue: { border: 'border-blue-500/40', glow: 'bg-blue-500/10', badge: 'bg-blue-500/20 text-blue-300', num: 'text-blue-400', dot: 'bg-blue-400' },
+    amber: { border: 'border-amber-500/30', glow: 'bg-amber-500/10', badge: 'bg-amber-500/20 text-amber-300', num: 'text-amber-400', dot: 'bg-amber-400' },
+    indigo: { border: 'border-indigo-500/30', glow: 'bg-indigo-500/10', badge: 'bg-indigo-500/20 text-indigo-300', num: 'text-indigo-400', dot: 'bg-indigo-400' },
+    teal: { border: 'border-teal-500/30', glow: 'bg-teal-500/10', badge: 'bg-teal-500/20 text-teal-300', num: 'text-teal-400', dot: 'bg-teal-400' },
+    blue: { border: 'border-blue-500/30', glow: 'bg-blue-500/10', badge: 'bg-blue-500/20 text-blue-300', num: 'text-blue-400', dot: 'bg-blue-400' },
   };
   const c = colorMap[color];
 
   return (
     <div className={cn(
-      'rounded-2xl border bg-[#161b22] overflow-hidden transition-all',
+      'rounded-[32px] border bg-[#11141b] overflow-hidden transition-all duration-500',
       c.border,
-      isActive && 'ring-1 ring-offset-1 ring-offset-[#0f111a]',
-      isActive && color === 'amber' ? 'ring-amber-500/30' :
-      isActive && color === 'indigo' ? 'ring-indigo-500/30' :
-      isActive && color === 'teal' ? 'ring-teal-500/30' :
-      isActive ? 'ring-blue-500/30' : ''
+      isActive && 'ring-2 ring-offset-2 ring-offset-[#0d0f14]'
     )}>
-      {/* Panel Header */}
-      <button
-        onClick={onToggle}
-        className="w-full flex items-center gap-4 p-5 hover:bg-white/3 transition-colors text-left"
-      >
-        {/* Phase Number */}
-        <div className={cn('w-9 h-9 rounded-xl flex items-center justify-center font-black text-base shrink-0', c.glow, c.num)}>
+      <button onClick={onToggle} className="w-full flex items-center gap-5 p-7 hover:bg-white/[0.02] transition-colors text-left">
+        <div className={cn('w-12 h-12 rounded-2xl flex items-center justify-center font-black text-lg shrink-0', c.glow, c.num)}>
           {phase}
         </div>
-
-        {/* Title */}
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="font-black text-white text-base">{title}</span>
-            {isActive && (
-              <div className="flex items-center gap-1">
-                <div className={cn('h-1.5 w-1.5 rounded-full animate-pulse', c.dot)} />
-                <span className={cn('text-[10px] font-black uppercase tracking-widest', c.num)}>Live</span>
-              </div>
-            )}
-            {isCompleted && !isActive && (
-              <CheckCircle2 className="h-4 w-4 text-emerald-400" />
-            )}
+          <div className="flex-1 min-w-0">
+            <h3 className="text-lg font-black text-white flex items-center gap-2">
+              {title}
+              {isCompleted && !isActive && (
+                <CheckCircle2 className="h-4 w-4 text-emerald-400" />
+              )}
+            </h3>
+            <p className="text-sm text-white/40 font-medium">{subtitle}</p>
+            <div className="flex items-center gap-4 mt-1">
+              {stats && <p className={cn('text-sm font-black', c.num)}>{stats}</p>}
+              {learnedAt && (
+                <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg bg-white/5 border border-white/10 shrink-0">
+                  <Clock className="h-3 w-3 text-white/40" />
+                  <span className="text-[10px] font-bold text-white/40 uppercase tracking-tighter">
+                    Last Learned: {new Date(learnedAt).toLocaleString('ko-KR', {
+                      year: 'numeric', month: '2-digit', day: '2-digit',
+                      hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false
+                    })}
+                  </span>
+                </div>
+              )}
+            </div>
           </div>
-          <p className="text-sm text-white/40 font-medium">{subtitle}</p>
-          {stats && <p className={cn('text-sm font-black mt-0.5', c.num)}>{stats}</p>}
-        </div>
 
         {/* Toggle */}
         {open ? <ChevronUp className="h-5 w-5 text-white/30 shrink-0" /> : <ChevronDown className="h-5 w-5 text-white/30 shrink-0" />}
